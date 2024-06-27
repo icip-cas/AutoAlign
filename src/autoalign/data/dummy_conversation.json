@@ -1,0 +1,52 @@
+[
+    {
+        "id": "0",
+        "conversations": [
+            {
+                "from": "system",
+                "value": "You are a helpful artificial assistant who gives friendly responses."
+            },
+            {
+                "from": "human",
+                "value": "Tell me about Beethoven."
+            },
+            {
+                "from": "gpt",
+                "value": "Beethoven is a great composer."
+            },
+            {
+                "from": "human",
+                "value": "When was he born?"
+            },
+            {
+                "from": "gpt",
+                "value": "He was born in 1770."
+            }
+        ]
+    },
+    {
+        "id": "1",
+        "conversations": [
+            {
+                "from": "system",
+                "value": "你是一个生成友好回复的人工智能助手。"
+            },
+            {
+                "from": "human",
+                "value": "介绍一下贝多芬"
+            },
+            {
+                "from": "gpt",
+                "value": "贝多芬是一位伟大的作曲家。"
+            },
+            {
+                "from": "human",
+                "value": "他生于什么时候？"
+            },
+            {
+                "from": "gpt",
+                "value": "他生于1770年。"
+            }
+        ]
+    }
+]
