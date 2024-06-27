@@ -15,8 +15,8 @@ from transformers import (
     GenerationConfig,
 )
 
-from fastalign.conversation import Conversation
-from fastalign.utils import read_json, save_json
+from autoalign.conversation import Conversation
+from autoalign.utils import read_json, save_json
 
 def get_tokenized_inst(
     conv,

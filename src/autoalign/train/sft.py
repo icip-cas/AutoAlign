@@ -13,7 +13,7 @@ from transformers import (
     HfArgumentParser,
     DataCollatorForSeq2Seq,
 )
-from fastalign.conversation import Conversation
+from autoalign.conversation import Conversation
 
 # model related args
 @dataclass
