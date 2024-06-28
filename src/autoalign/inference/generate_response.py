@@ -18,11 +18,8 @@ from transformers import (
 from autoalign.conversation import Conversation
 from autoalign.utils import read_json, save_json
 
-def get_tokenized_inst(
-    conv,
-    conv_template_name: str,
-    tokenizer: AutoTokenizer
-):
+
+def get_tokenized_inst(conv, conv_template_name: str, tokenizer: AutoTokenizer):
     """get tokenized inst for response generation"""
     # get conversation template
     conversation = Conversation.from_template(conv_template_name)
@@ -39,10 +36,11 @@ def get_tokenized_inst(
 
     # handle offset for some non-additive tokenizers
     if conversation.offset:
-        tokenized_inst.input_ids = tokenized_inst.input_ids[:-conversation.offset]
-        tokenized_inst.attention_mask = tokenized_inst.attention_mask[:-conversation.offset]
+        tokenized_inst.input_ids = tokenized_inst.input_ids[: -conversation.offset]
+        tokenized_inst.attention_mask = tokenized_inst.attention_mask[: -conversation.offset]
 
     return tokenized_inst
+
 
 @torch.no_grad()
 def main(
@@ -68,7 +66,7 @@ def main(
     # NB: use eos_token for padding
     tokenizer.pad_token = tokenizer.eos_token
     # set padding_side
-    tokenizer.padding_side  = 'left'
+    tokenizer.padding_side = "left"
 
     # get model
     model = AutoModelForCausalLM.from_pretrained(
@@ -135,7 +133,7 @@ def main(
                 generation_config=generation_config,
             )
             responses += tokenizer.batch_decode(
-                model_out[:, len(batch.input_ids[0]):],
+                model_out[:, len(batch.input_ids[0]) :],
                 skip_special_tokens=True,
             )
 
@@ -155,5 +153,6 @@ def main(
     if accelerator.is_main_process:
         save_json(data, output_path)
 
-if __name__=='__main__':
+
+if __name__ == "__main__":
     fire.Fire(main)

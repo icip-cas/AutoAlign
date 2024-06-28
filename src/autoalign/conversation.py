@@ -7,9 +7,11 @@ from transformers import AutoTokenizer
 # Ignored token id when calculating loss
 IGNORED_TOKEN_ID = -100
 
+
 @dataclass
 class Conversation:
     """class to manage conversation template and data"""
+
     template_name: str
     role_starts: Dict[str, str]
     role_ends: Dict[str, str]
@@ -65,16 +67,16 @@ class Conversation:
 
         # prepare labels
         full_id_len = len(tokenized_conversation.input_ids)
-        labels = [IGNORED_TOKEN_ID]*full_id_len
+        labels = [IGNORED_TOKEN_ID] * full_id_len
         cur_inst = ""
         for role, message in self.messages:
             if role in ["system", "human"]:
                 cur_inst += self.role_starts[role] + message + self.role_ends[role]
             else:
                 cur_inst += self.role_starts[role]
-                start_idx = len(tokenizer(cur_inst).input_ids)-self.offset
-                end_idx = len(tokenizer(cur_inst+message+self.role_ends[role]).input_ids)
-                labels[start_idx: end_idx] = tokenized_conversation.input_ids[start_idx: end_idx]
+                start_idx = len(tokenizer(cur_inst).input_ids) - self.offset
+                end_idx = len(tokenizer(cur_inst + message + self.role_ends[role]).input_ids)
+                labels[start_idx:end_idx] = tokenized_conversation.input_ids[start_idx:end_idx]
                 cur_inst += message + self.role_ends[role]
 
         tokenized_conversation["labels"] = labels
@@ -101,7 +103,7 @@ class Conversation:
 
         # prepare labels
         full_id_len = len(tokenized_conversation.input_ids)
-        labels = [IGNORED_TOKEN_ID]*full_id_len
+        labels = [IGNORED_TOKEN_ID] * full_id_len
         cur_inst = ""
         message_idx = 0
         for message_idx, (role, message) in enumerate(self.messages):
@@ -109,11 +111,10 @@ class Conversation:
                 cur_inst += self.role_starts[role] + message + self.role_ends[role]
             else:
                 cur_inst += self.role_starts[role]
-                start_idx = len(tokenizer(cur_inst).input_ids)-self.offset
-                end_idx = len(tokenizer(cur_inst+message+self.role_ends[role]).input_ids)
-                labels[start_idx: end_idx] = tokenized_conversation.input_ids[start_idx: end_idx]
+                start_idx = len(tokenizer(cur_inst).input_ids) - self.offset
+                end_idx = len(tokenizer(cur_inst + message + self.role_ends[role]).input_ids)
+                labels[start_idx:end_idx] = tokenized_conversation.input_ids[start_idx:end_idx]
                 cur_inst += message + self.role_ends[role]
-            
 
         tokenized_conversation["labels"] = labels
 
@@ -140,7 +141,8 @@ class Conversation:
                     "human": " ",
                     "gpt": "</s>",
                 },
-                overwrite_system_message = "A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions.",
+                overwrite_system_message="A chat between a curious user and an artificial intelligence assistant. "
+                "The assistant gives helpful, detailed, and polite answers to the user's questions.",
                 offset=1,
                 bos_offset=1,
             )
@@ -157,7 +159,7 @@ class Conversation:
                     "human": "<|im_end|>\n",
                     "gpt": "<|im_end|>\n",
                 },
-                overwrite_system_message = "You are a helpful assistant.",
+                overwrite_system_message="You are a helpful assistant.",
                 offset=0,
                 bos_offset=0,
             )
@@ -207,11 +209,12 @@ class Conversation:
                     "human": "<|im_end|>\n",
                     "gpt": "<|im_end|>\n",
                 },
-                overwrite_system_message = "You are Zhuque, a conversational AI assistant trained by Chinese Information Processing Laboratory (CIP). "
-        "你是朱雀，一个由中文信息处理实验室训练的对话式人工智能助手。"
-        "You are to give helpful, detailed, and polite answers to the user's questions."
-        "你应当为用户的问题提供有帮助的、详细的、礼貌的回答。",
+                overwrite_system_message="You are Zhuque, a conversational AI assistant "
+                "trained by Chinese Information Processing Laboratory (CIP). "
+                "你是朱雀，一个由中文信息处理实验室训练的对话式人工智能助手。"
+                "You are to give helpful, detailed, and polite answers to the user's questions."
+                "你应当为用户的问题提供有帮助的、详细的、礼貌的回答。",
                 offset=0,
                 bos_offset=0,
             )
-        raise ValueError('Unknown conversation template.')
+        raise ValueError("Unknown conversation template.")
