@@ -3,7 +3,7 @@ N_GPUS=${KUBERNETES_CONTAINER_RESOURCE_GPU:-$(nvidia-smi --query-gpu=gpu_name --
 torchrun --nproc_per_node="${N_GPUS:-"8"}" \
     --nnodes="${WORLD_SIZE:-"1"}" \
     --node_rank="${RANK:-"0"}" \
-    --master_port="${MASTER_PORT:-"2333"}" autoalign/train/sft.py \
+    --master_port="${MASTER_PORT:-"2333"}" src/autoalign/train/sft.py \
     --model_name_or_path ${MODEL_PATH:-"Qwen2/Qwen2-7B"}  \
     --data_path ${DATA_PATH:-"data/dummy_conversation.json"} \
     --conv_template_name ${CONV_TEMPLATE:-"qwen-7b-chat"} \
@@ -27,4 +27,4 @@ torchrun --nproc_per_node="${N_GPUS:-"8"}" \
     --logging_steps 1 \
     --model_max_length ${MAX_LENGTH:-"4096"} \
     --gradient_checkpointing True \
-    --deepspeed ${DS_CONFIG:-"config/zero3.json"}
+    --deepspeed ${DS_CONFIG:-"configs/zero3.json"}
