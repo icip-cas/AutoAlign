@@ -24,6 +24,62 @@ aligned_model = aligner.align(model)
 aligned_model.serve()
 ```
 
+## Fine-tuning
+### Data
+
+* We use sharegpt format data for supervised fine-tuning. The format are as follows:
+```json
+[
+    {
+        "id": "0",
+        "conversations": [
+            {
+                "from": "system",
+                "value": "You are a helpful artificial assistant who gives friendly responses."
+            },
+            {
+                "from": "human",
+                "value": "Tell me about Beethoven."
+            },
+            {
+                "from": "gpt",
+                "value": "Beethoven is a great composer."
+            }
+        ]
+    },
+    {
+        ...
+    }
+]
+```
+
+### Fine-tuning Llama-3-8B with Local GPUs
+
+```bash
+export MODEL_PATH=meta-llama/Meta-Llama-3-8B
+export DATA_PATH=data/dummy_conversation.json
+export OUTPUT_DIR=models/llama3-sft
+
+bash scripts/train.sh
+```
+
+
+
+## Test
+
+### Test Conversation Template
+
+You can use the following script to test the newly added conversation template:
+
+```bash
+python tests/test_conversation.py test_get_tokenized_conversation \
+    --template_name vicuna_v1.1 \
+    --tokenizer_name_or_path meta-llama/Llama-3-8B \
+    --model_max_length 4096 \
+    --data_path data/dummy_conversation.json
+```
+
+
 ## Contributing
 
 If you would like to contribute to this project, please follow these guidelines:
