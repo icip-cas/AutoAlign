@@ -55,4 +55,4 @@ def test_get_tokenized_conversation(
     print(f'check passed!')
 
 if __name__=='__main__':
-    fire.Fire(test_get_tokenized_conversation)
+    fire.Fire()
