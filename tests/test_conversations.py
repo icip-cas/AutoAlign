@@ -6,7 +6,7 @@ import fire
 from tqdm import tqdm
 from transformers import AutoTokenizer
 
-from fastalign.conversation import Conversation, IGNORED_TOKEN_ID
+from autoalign.conversation import Conversation, IGNORED_TOKEN_ID
 
 def test_get_tokenized_conversation(
     template_name: str = 'qwen-7b-chat',
