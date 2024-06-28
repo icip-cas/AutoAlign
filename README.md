@@ -27,7 +27,7 @@ aligned_model.serve()
 ## Fine-tuning
 ### Data
 
-* We use sharegpt format data for supervised fine-tuning. The format are as follows:
+We use sharegpt format data for supervised fine-tuning. The format are as follows:
 ```json
 [
     {
