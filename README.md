@@ -8,6 +8,27 @@ Auto-Alignment 是一个基于自动对齐技术的训练、部署和评测的�
 - 高效多样的模型采样
 - 全面模型评测
 
+# Install
+
+Default
+
+```
+pip install -e .
+```
+
+Evaluation (Optional)
+
+```
+pip install -e .[eval]
+```
+
+Install for Develop
+
+```
+pip install -e .[dev]
+```
+
+
 ## Usage
 
 ``` python

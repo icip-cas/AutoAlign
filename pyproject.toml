@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "autoalign"
+description = ""
+version = "0.0.1"
+requires-python = ">=3.10"
+authors = [
+    { name = "luxinyu1", email = "luxinyu2021@iscas.ac.cn" }
+]
+dependencies = [
+  "transformers>=4.41.2",
+  "accelerate",
+]
+
+[project.optional-dependencies]
+eval = [
+   ""
+]
+
+dev = [
+  "pytest",
+  "pre-commit"
+]
+
+[tool.black]
+line-length = 120
+target-version = ['py310']
