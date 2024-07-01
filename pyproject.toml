@@ -10,12 +10,31 @@ requires-python = ">=3.10"
 authors = [
     { name = "luxinyu1", email = "luxinyu2021@iscas.ac.cn" }
 ]
+
 dependencies = [
-  "transformers>=4.41.2",
-  "accelerate",
+    "torch==2.3.0",
+    "tensorboard",
+    "wandb",
+    "datasets",
+    "tokenizers",
+    "sentencepiece",
+    "numpy",
+    "pandas",
+    "transformers>=4.41.2",
+    "deepspeed",
+    "pydantic",
+    "packaging",
+    "accelerate",
+    "ninja",
+    "einops",
+    "wandb",
+    "fire",
 ]
 
 [project.optional-dependencies]
+train = [
+  "flash-attn>=2.0"
+]
 eval = [
    ""
 ]
@@ -24,6 +43,9 @@ dev = [
   "pytest",
   "pre-commit"
 ]
+
+[tool.pip]
+extra-index-url = ["https://pypi.tuna.tsinghua.edu.cn/simple"]
 
 [tool.black]
 line-length = 120
