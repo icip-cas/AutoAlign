@@ -32,7 +32,7 @@ def test_get_tokenized_conversation(
         conversation.fill_in_messages(conv)
 
         # tokenize conversation
-        tokenized_conversation = conversation.get_user_query_tokenized_conversation(
+        tokenized_conversation = conversation.get_tokenized_conversation(
             tokenizer=tokenizer,
             model_max_length=model_max_length,
         )
