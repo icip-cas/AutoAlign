@@ -92,43 +92,6 @@ class Conversation:
 
         return tokenized_conversation
 
-    def get_user_query_tokenized_conversation(
-        self,
-        tokenizer: AutoTokenizer,
-        model_max_length: int,
-    ):
-        """
-        tokenize conversation
-        only train user query except first turn
-        """
-        # get and tokenize full conversation str
-        conversation_str = self.get_conversation_str()
-        tokenized_conversation = tokenizer(conversation_str)
-
-        # prepare labels
-        full_id_len = len(tokenized_conversation.input_ids)
-        labels = [IGNORED_TOKEN_ID] * full_id_len
-        cur_inst = ""
-        message_idx = 0
-        for message_idx, (role, message) in enumerate(self.messages):
-            if role in ["system", "gpt"] or message_idx <= 1:
-                cur_inst += self.role_starts[role] + message + self.role_ends[role]
-            else:
-                cur_inst += self.role_starts[role]
-                start_idx = len(tokenizer(cur_inst).input_ids) - self.offset
-                end_idx = len(tokenizer(cur_inst + message + self.role_ends[role]).input_ids)
-                labels[start_idx:end_idx] = tokenized_conversation.input_ids[start_idx:end_idx]
-                cur_inst += message + self.role_ends[role]
-
-        tokenized_conversation["labels"] = labels
-
-        # NB: manually truncate to model_max_length
-        tokenized_conversation["input_ids"] = tokenized_conversation["input_ids"][:model_max_length]
-        tokenized_conversation["attention_mask"] = tokenized_conversation["attention_mask"][:model_max_length]
-        tokenized_conversation["labels"] = tokenized_conversation["labels"][:model_max_length]
-
-        return tokenized_conversation
-
     @classmethod
     def from_template(cls, template_name):
         """get Conversation object from template_name"""
