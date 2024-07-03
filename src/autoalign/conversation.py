@@ -26,11 +26,15 @@ class Conversation:
     bos_offset: int = 0
     messages: List[Tuple[str]] = field(default_factory=list)
 
-    def get_conversation_str(self):
+    def get_conversation_str(self, add_generation_prompt=False):
         """get full conversation str"""
         ret = ""
         for role, message in self.messages:
             ret += self.role_starts[role] + message + self.role_ends[role]
+
+        if add_generation_prompt:
+            ret += self.role_starts["gpt"]
+
         return ret
 
     def fill_in_messages(self, conv):
