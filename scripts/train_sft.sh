@@ -5,7 +5,7 @@ torchrun --nproc_per_node="${N_GPUS:-"8"}" \
     --node_rank="${RANK:-"0"}" \
     --master_port="${MASTER_PORT:-"2333"}" src/autoalign/train/sft.py \
     --model_name_or_path ${MODEL_PATH:-"Qwen2/Qwen2-7B"}  \
-    --data_path ${DATA_PATH:-"data/dummy_conversation.json"} \
+    --data_path ${DATA_PATH:-"data/dummy_sft.json"} \
     --conv_template_name ${CONV_TEMPLATE:-"qwen-7b-chat"} \
     --bf16 True \
     --output_dir ${OUTPUT_DIR:-"models/qwen2-7b"} \
