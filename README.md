@@ -81,9 +81,49 @@ export MODEL_PATH=meta-llama/Meta-Llama-3-8B
 export DATA_PATH=data/dummy_conversation.json
 export OUTPUT_DIR=models/llama3-sft
 
-bash scripts/train.sh
+bash scripts/train_sft.sh
 ```
 
+## Direct Preference Optimization
+### Data
+
+We use data format similar to SFT for direct preference optimization. The format are as follows:
+```json
+{
+    "prompt": "Tell me about Beethoven." ,
+    "chosen":[
+        {
+            "value":"Tell me about Beethoven.",
+            "from": "human"
+        },
+        {
+            "value":"Beethoven is a great composer.",
+            "from": "gpt"
+        }
+    ],
+    "rejected":[
+        {
+            "value":"Tell me about Beethoven.",
+            "from": "human"
+        },
+        {
+            "value":"Sorry, there is no information about Beethoven.",
+            "from": "gpt"
+        }
+    ]
+}
+```
+
+
+### DPO Llama-3-8B with Local GPUs
+
+```bash
+export MODEL_PATH=meta-llama/Meta-Llama-3-8B
+export DATA_PATH=data/dummy_conversation.json
+export OUTPUT_DIR=models/llama3-sft
+
+bash scripts/train_dpo.sh
+```
 
 
 ## Test
