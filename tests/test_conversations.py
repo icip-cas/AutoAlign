@@ -39,8 +39,6 @@ def test_get_tokenized_conversation(
         input_ids = tokenized_conversation.input_ids
         labels = tokenized_conversation.labels
 
-        [0 if idx == -100 else idx for idx in labels]
-
         # check whether ids match
         assert len(input_ids) == len(labels), "length of input_ids and labels do not match!"
         for input_id, label in zip(input_ids, labels):
