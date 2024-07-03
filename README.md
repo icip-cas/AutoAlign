@@ -78,12 +78,52 @@ We use sharegpt format data for supervised fine-tuning. The format are as follow
 
 ```bash
 export MODEL_PATH=meta-llama/Meta-Llama-3-8B
-export DATA_PATH=data/dummy_conversation.json
+export DATA_PATH=data/dummy_sft.json
 export OUTPUT_DIR=models/llama3-sft
 
-bash scripts/train.sh
+bash scripts/train_sft.sh
 ```
 
+## Direct Preference Optimization
+### Data
+
+We use data format similar to SFT for direct preference optimization. The format are as follows:
+```json
+{
+    "prompt": "Tell me about Beethoven." ,
+    "chosen":[
+        {
+            "value":"Tell me about Beethoven.",
+            "from": "human"
+        },
+        {
+            "value":"Beethoven is a great composer.",
+            "from": "gpt"
+        }
+    ],
+    "rejected":[
+        {
+            "value":"Tell me about Beethoven.",
+            "from": "human"
+        },
+        {
+            "value":"Sorry, there is no information about Beethoven.",
+            "from": "gpt"
+        }
+    ]
+}
+```
+
+
+### DPO Llama-3-8B with Local GPUs
+
+```bash
+export MODEL_PATH=meta-llama/Meta-Llama-3-8B
+export DATA_PATH=data/dummy_dpo.json
+export OUTPUT_DIR=models/llama3-sft
+
+bash scripts/train_dpo.sh
+```
 
 
 ## Test
@@ -97,7 +137,7 @@ python tests/test_conversation.py test_get_tokenized_conversation \
     --template_name vicuna_v1.1 \
     --tokenizer_name_or_path meta-llama/Llama-3-8B \
     --model_max_length 4096 \
-    --data_path data/dummy_conversation.json
+    --data_path data/dummy_sft.json
 ```
 
 
