@@ -78,7 +78,7 @@ We use sharegpt format data for supervised fine-tuning. The format are as follow
 
 ```bash
 export MODEL_PATH=meta-llama/Meta-Llama-3-8B
-export DATA_PATH=data/dummy_conversation.json
+export DATA_PATH=data/dummy_sft.json
 export OUTPUT_DIR=models/llama3-sft
 
 bash scripts/train_sft.sh
@@ -119,7 +119,7 @@ We use data format similar to SFT for direct preference optimization. The format
 
 ```bash
 export MODEL_PATH=meta-llama/Meta-Llama-3-8B
-export DATA_PATH=data/dummy_conversation.json
+export DATA_PATH=data/dummy_dpo.json
 export OUTPUT_DIR=models/llama3-sft
 
 bash scripts/train_dpo.sh
@@ -137,7 +137,7 @@ python tests/test_conversation.py test_get_tokenized_conversation \
     --template_name vicuna_v1.1 \
     --tokenizer_name_or_path meta-llama/Llama-3-8B \
     --model_max_length 4096 \
-    --data_path data/dummy_conversation.json
+    --data_path data/dummy_sft.json
 ```
 
 
