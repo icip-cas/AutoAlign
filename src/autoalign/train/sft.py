@@ -14,6 +14,8 @@ from transformers import (
     DataCollatorForSeq2Seq,
 )
 from autoalign.conversation import Conversation
+from transformers import Qwen2Tokenizer, Qwen2TokenizerFast
+
 
 # model related args
 @dataclass
@@ -76,6 +78,10 @@ def main():
     tokenizer.pad_token = tokenizer.eos_token
     # set padding_side
     tokenizer.padding_side = "left"
+    # specifically set bos_token_id for Qwen2Tokenizer
+    if isinstance(tokenizer, (Qwen2Tokenizer, Qwen2TokenizerFast)):
+        tokenizer.bos_token = "<|im_start|>"
+        tokenizer.bos_token_id = tokenizer.convert_tokens_to_ids(tokenizer.bos_token)
 
     # get dataset
     dataset = Dataset.from_list(data)

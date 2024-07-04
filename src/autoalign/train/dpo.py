@@ -11,6 +11,7 @@ from functools import partial
 
 from trl import DPOTrainer, DPOConfig
 from autoalign.conversation import Conversation
+from transformers import Qwen2Tokenizer, Qwen2TokenizerFast
 
 
 IGNORE_TOKEN_ID = LabelSmoother.ignore_index
@@ -70,6 +71,10 @@ def train():
     tokenizer.pad_token = tokenizer.eos_token
     # set padding_side
     tokenizer.padding_side = "left"
+    # specifically set bos_token_id for Qwen2Tokenizer
+    if isinstance(tokenizer, (Qwen2Tokenizer, Qwen2TokenizerFast)):
+        tokenizer.bos_token = "<|im_start|>"
+        tokenizer.bos_token_id = tokenizer.convert_tokens_to_ids(tokenizer.bos_token)
 
     # get dataset
     dataset = load_dataset("json", data_files=data_args.data_path, split="train")

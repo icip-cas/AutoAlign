@@ -32,14 +32,12 @@ def test_get_tokenized_conversation(
         conversation.fill_in_messages(conv)
 
         # tokenize conversation
-        tokenized_conversation = conversation.get_user_query_tokenized_conversation(
+        tokenized_conversation = conversation.get_tokenized_conversation(
             tokenizer=tokenizer,
             model_max_length=model_max_length,
         )
         input_ids = tokenized_conversation.input_ids
         labels = tokenized_conversation.labels
-
-        [0 if idx == -100 else idx for idx in labels]
 
         # check whether ids match
         assert len(input_ids) == len(labels), "length of input_ids and labels do not match!"
