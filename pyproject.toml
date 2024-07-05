@@ -29,6 +29,7 @@ dependencies = [
     "einops",
     "wandb",
     "fire",
+    "trl>=0.9.3"
 ]
 
 [project.optional-dependencies]
