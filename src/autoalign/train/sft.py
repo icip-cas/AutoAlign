@@ -49,6 +49,8 @@ def tokenize_conversation(
         tokenizer=tokenizer,
         model_max_length=model_max_length,
     )
+    # print(conversation.get_conversation_str())
+    # print(tokenized_conversation)
 
     return tokenized_conversation
 
