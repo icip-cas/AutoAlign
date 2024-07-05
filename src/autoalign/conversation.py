@@ -150,7 +150,7 @@ class Conversation:
             return cls(
                 template_name=template_name,
                 role_starts={
-                    "system": "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n",
+                    "system": "<s><|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n",
                     "human": "<|start_header_id|>user<|end_header_id|>\n\n",
                     "gpt": "<|start_header_id|>assistant<|end_header_id|>\n\n",
                 },
@@ -158,6 +158,23 @@ class Conversation:
                     "system": "<|eot_id|>",
                     "human": "<|eot_id|>",
                     "gpt": "<|eot_id|>",
+                },
+                # FIXME: what is the system_message for llama-3-instruct?
+                offset=0,
+                bos_offset=0,
+            )
+        elif template_name == "mistral-instruct":
+            return cls(
+                template_name=template_name,
+                role_starts={
+                    "system": "<s>",
+                    "human": "[INST]",
+                    "gpt": "",
+                },
+                role_ends={
+                    "system": "",
+                    "human": "[/INST]",
+                    "gpt": "</s>",
                 },
                 # FIXME: what is the system_message for llama-3-instruct?
                 offset=0,
