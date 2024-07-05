@@ -167,7 +167,7 @@ class Conversation:
             return cls(
                 template_name=template_name,
                 role_starts={
-                    "system": "<s>",
+                    "system": "",
                     "human": "[INST]",
                     "gpt": "",
                 },
