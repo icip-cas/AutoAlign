@@ -4,6 +4,10 @@
 /*log
 /thirdparty
 
+# data
+data/*
+!data/dummy_*
+
 .lock
 # mac
 .DS_Store
