@@ -15,13 +15,7 @@ if [ -z "$model_name" ] || [ -z "$model_path" ] || [ -z "$eval_type" ] || [ -z "
     exit 1
 fi
 
-# 检查是否存在opencompass文件夹
-if [ ! -d "opencompass" ]; then
-    echo "opencompass文件夹不存在，请检查opencompass是否已经安装"
-    exit 1
-fi
-
-python eval_utils/generate_oc_config.py \
+python -m eval_utils.generate_oc_config \
     --model_name $model_name \
     --model_path $model_path \
     --batch_size $batch_size \

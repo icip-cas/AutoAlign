@@ -1,5 +1,6 @@
 ### 介绍
 由于依赖包可能的不稳定性, 默认使用单模型评测，若需要多模型评测，请自定义opencompass config文件。
+
 #### 简单版能力评测
 - 数学: GSM8K
 - 代码: MBPP
@@ -44,14 +45,6 @@ python opencompass/run.py --datasets gsm8k_gen math_gen bbh_gen mmlu_gen agieval
 --max-out-len 200 \
 --batch-size 8 \
 --num-gpus 1
-```
-
-#### 手动安装依赖与评测数据
-由于评测数据较大，请先自行克隆alpaca_eval
-```shell
-git clone https://github.com/tatsu-lab/alpaca_eval.git
-# 或
-pip install alpaca-eval
 ```
 
 并下载opencompass数据集，解压到{opencompass root path}/data目录下 

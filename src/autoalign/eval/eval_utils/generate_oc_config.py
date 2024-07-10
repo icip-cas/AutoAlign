@@ -1,4 +1,5 @@
 import argparse
+
 def generate_model_config(model_name, model_path, batch_size, num_gpus):
     return f"""models = [
     dict(type=VLLM,
