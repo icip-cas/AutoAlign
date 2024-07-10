@@ -24,3 +24,5 @@ docs/source/_build
 /models
 /pretrained_models
 /runs
+
+**/alpaca_eval
