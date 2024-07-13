@@ -59,6 +59,10 @@ class Conversation:
             if role in ["human", "gpt"]:
                 self.messages.append((role, message_str))
 
+    def update_last_message(self, message: str):
+        self.messages[-1][1] = message
+
+
     def get_tokenized_conversation(
         self,
         tokenizer: AutoTokenizer,
