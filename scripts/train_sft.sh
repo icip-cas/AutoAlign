@@ -1,5 +1,5 @@
 set -x
-N_GPUS=${KUBERNETES_CONTAINER_RESOURCE_GPU:-$(nvidia-smi --query-gpu=gpu_name --format=csv,noheader | wc -l)}
+N_GPUS=${N_GPUS:-$(nvidia-smi --query-gpu=gpu_name --format=csv,noheader | wc -l)}
 torchrun --nproc_per_node="${N_GPUS:-"8"}" \
     --nnodes="${WORLD_SIZE:-"1"}" \
     --node_rank="${RANK:-"0"}" \

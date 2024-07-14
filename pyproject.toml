@@ -29,7 +29,9 @@ dependencies = [
     "einops",
     "wandb",
     "fire",
-    "trl>=0.9.3"
+    "trl>=0.9.3",
+    "openai",
+    "tenacity"
 ]
 
 [project.optional-dependencies]
@@ -52,6 +54,9 @@ dev = [
 
 [tool.pip]
 extra-index-url = ["https://pypi.tuna.tsinghua.edu.cn/simple"]
+
+[project.scripts]
+autoalign-cli = "autoalign.cli:main"
 
 [tool.black]
 line-length = 120
