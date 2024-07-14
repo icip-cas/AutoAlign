@@ -25,40 +25,44 @@ if args.set_source_tag is not None:
     set_idx = int(set_idx)
 
 """
-{
-    "prompt": "Name two African countries",
-    "prompt_id": "5242e4c4142f0f68553e5e6bb16c5105d7a5af2a66a8599f254919cf81b3903b",
-    "chosen": [
+[
+    {
+      "prompt":"part 1. definition\ngiven a story, answer the question about the story. the question is the last sentence in the input. these stories can be difficult due to their length and how each story has at least one of the three following scenarios: the first is when the individual's belief matches reality, the second is when the individual's belief does not match reality, and the third is when an individual has a false belief about another individual's beliefs. the question will ask about the location of an object in the story with respect to either none or one of the three scenarios.\npart 2. example\njacob entered the dining_room. william entered the dining_room. the tomato is in the green_drawer. william exited the dining_room. jacob moved the tomato to the blue_cupboard. jacob is in the dining_room. olivia entered the dining_room. the cucumber is in the blue_cupboard. olivia exited the dining_room. jacob moved the cucumber to the green_drawer. william entered the pantry. jacob entered the pantry. the asparagus is in the red_cupboard. jacob exited the pantry. william moved the asparagus to the green_pantry. abigail entered the hall. william entered the hall. the persimmon is in the blue_pantry. william exited the hall. abigail moved the persimmon to the blue_envelope. where does abigail think that william searches for the persimmon?\nanswer: blue_pantry\nexplanation: the persimmon was last in the blue_pantry before william exited the hall. after william exited the hall, abigail moved the persimmon to the blue_envelope, so she knows where william will look for it.\npart 3. exercise\nethan entered the office. charlotte entered the office. the lettuce is in the blue_box. charlotte exited the office. ethan moved the lettuce to the red_treasure_chest. ethan exited the office. charlotte entered the office. where is the lettuce really? isabella entered the sunroom. charlotte entered the sunroom. the green_pepper is in the green_drawer. charlotte exited the sunroom. isabella moved the green_pepper to the red_pantry. isabella exited the sunroom. charlotte entered the sunroom. where does isabella think that charlotte searches for the green_pepper? charlotte entered the lounge. ethan entered the lounge. the beans is in the green_cupboard. ethan exited the lounge. charlotte moved the beans to the blue_crate. where is the beans really? ella entered the lounge. charlotte is in the lounge. the broccoli is in the blue_crate. charlotte exited the lounge. ella moved the broccoli to the green_cupboard. ella exited the lounge. charlotte entered the lounge. where is the broccoli really?\nanswer:",
+      "prompt_id":"58bde641397654a889a019dd74956009ab8a5fd1a62e7d3d100e42a4075c8f6c",
+      "chosen":[
         {
-            "content": "Name two African countries",
-            "role": "user"
+          "value":"part 1. definition\ngiven a story, answer the question about the story. the question is the last sentence in the input. these stories can be difficult due to their length and how each story has at least one of the three following scenarios: the first is when the individual's belief matches reality, the second is when the individual's belief does not match reality, and the third is when an individual has a false belief about another individual's beliefs. the question will ask about the location of an object in the story with respect to either none or one of the three scenarios.\npart 2. example\njacob entered the dining_room. william entered the dining_room. the tomato is in the green_drawer. william exited the dining_room. jacob moved the tomato to the blue_cupboard. jacob is in the dining_room. olivia entered the dining_room. the cucumber is in the blue_cupboard. olivia exited the dining_room. jacob moved the cucumber to the green_drawer. william entered the pantry. jacob entered the pantry. the asparagus is in the red_cupboard. jacob exited the pantry. william moved the asparagus to the green_pantry. abigail entered the hall. william entered the hall. the persimmon is in the blue_pantry. william exited the hall. abigail moved the persimmon to the blue_envelope. where does abigail think that william searches for the persimmon?\nanswer: blue_pantry\nexplanation: the persimmon was last in the blue_pantry before william exited the hall. after william exited the hall, abigail moved the persimmon to the blue_envelope, so she knows where william will look for it.\npart 3. exercise\nethan entered the office. charlotte entered the office. the lettuce is in the blue_box. charlotte exited the office. ethan moved the lettuce to the red_treasure_chest. ethan exited the office. charlotte entered the office. where is the lettuce really? isabella entered the sunroom. charlotte entered the sunroom. the green_pepper is in the green_drawer. charlotte exited the sunroom. isabella moved the green_pepper to the red_pantry. isabella exited the sunroom. charlotte entered the sunroom. where does isabella think that charlotte searches for the green_pepper? charlotte entered the lounge. ethan entered the lounge. the beans is in the green_cupboard. ethan exited the lounge. charlotte moved the beans to the blue_crate. where is the beans really? ella entered the lounge. charlotte is in the lounge. the broccoli is in the blue_crate. charlotte exited the lounge. ella moved the broccoli to the green_cupboard. ella exited the lounge. charlotte entered the lounge. where is the broccoli really?\nanswer:",
+          "from":"human"
         },
         {
-            "content": "Kenya and Nigeria are two African countries. Kenya is located in East Africa, known for its diverse wildlife and beautiful landscapes, while Nigeria is situated in West Africa and is the continent's most populous country.",
-            "role": "assistant"
+          "value":"1. red_treasure_chest\nexplanation: the lettuce was last moved to the red_treasure_chest by ethan.\n\n2. green_drawer\nexplanation: isabella moved the green_pepper to the red_pantry after charlotte exited the sunroom. charlotte didn't see this change, so she would still think the green_pepper is in the green_drawer.\n\n3. blue_crate\nexplanation: charlotte moved the beans to the blue_crate, which is their current location.\n\n4. green_cupboard\nexplanation: ella moved the broccoli to the green_cupboard after charlotte exited the lounge, making it the real location of the broccoli.",
+          "from":"gpt"
         }
-    ],
-    "rejected": [
+      ],
+      "rejected":[
         {
-            "content": "Name two African countries",
-            "role": "user"
+          "value":"part 1. definition\ngiven a story, answer the question about the story. the question is the last sentence in the input. these stories can be difficult due to their length and how each story has at least one of the three following scenarios: the first is when the individual's belief matches reality, the second is when the individual's belief does not match reality, and the third is when an individual has a false belief about another individual's beliefs. the question will ask about the location of an object in the story with respect to either none or one of the three scenarios.\npart 2. example\njacob entered the dining_room. william entered the dining_room. the tomato is in the green_drawer. william exited the dining_room. jacob moved the tomato to the blue_cupboard. jacob is in the dining_room. olivia entered the dining_room. the cucumber is in the blue_cupboard. olivia exited the dining_room. jacob moved the cucumber to the green_drawer. william entered the pantry. jacob entered the pantry. the asparagus is in the red_cupboard. jacob exited the pantry. william moved the asparagus to the green_pantry. abigail entered the hall. william entered the hall. the persimmon is in the blue_pantry. william exited the hall. abigail moved the persimmon to the blue_envelope. where does abigail think that william searches for the persimmon?\nanswer: blue_pantry\nexplanation: the persimmon was last in the blue_pantry before william exited the hall. after william exited the hall, abigail moved the persimmon to the blue_envelope, so she knows where william will look for it.\npart 3. exercise\nethan entered the office. charlotte entered the office. the lettuce is in the blue_box. charlotte exited the office. ethan moved the lettuce to the red_treasure_chest. ethan exited the office. charlotte entered the office. where is the lettuce really? isabella entered the sunroom. charlotte entered the sunroom. the green_pepper is in the green_drawer. charlotte exited the sunroom. isabella moved the green_pepper to the red_pantry. isabella exited the sunroom. charlotte entered the sunroom. where does isabella think that charlotte searches for the green_pepper? charlotte entered the lounge. ethan entered the lounge. the beans is in the green_cupboard. ethan exited the lounge. charlotte moved the beans to the blue_crate. where is the beans really? ella entered the lounge. charlotte is in the lounge. the broccoli is in the blue_crate. charlotte exited the lounge. ella moved the broccoli to the green_cupboard. ella exited the lounge. charlotte entered the lounge. where is the broccoli really?\nanswer:",
+          "from":"human"
         },
         {
-            "content": "Ethiopia and Morocco.",
-            "role": "assistant"
+          "value":"of course! i'll do my best to assist you with your questions. please go ahead and ask your first question. 😊",
+          "from":"gpt"
         }
-    ],
-    "messages": [
+      ],
+      "conversations":[
         {
-            "content": "Name two African countries",
-            "role": "user"
+          "value":"part 1. definition\ngiven a story, answer the question about the story. the question is the last sentence in the input. these stories can be difficult due to their length and how each story has at least one of the three following scenarios: the first is when the individual's belief matches reality, the second is when the individual's belief does not match reality, and the third is when an individual has a false belief about another individual's beliefs. the question will ask about the location of an object in the story with respect to either none or one of the three scenarios.\npart 2. example\njacob entered the dining_room. william entered the dining_room. the tomato is in the green_drawer. william exited the dining_room. jacob moved the tomato to the blue_cupboard. jacob is in the dining_room. olivia entered the dining_room. the cucumber is in the blue_cupboard. olivia exited the dining_room. jacob moved the cucumber to the green_drawer. william entered the pantry. jacob entered the pantry. the asparagus is in the red_cupboard. jacob exited the pantry. william moved the asparagus to the green_pantry. abigail entered the hall. william entered the hall. the persimmon is in the blue_pantry. william exited the hall. abigail moved the persimmon to the blue_envelope. where does abigail think that william searches for the persimmon?\nanswer: blue_pantry\nexplanation: the persimmon was last in the blue_pantry before william exited the hall. after william exited the hall, abigail moved the persimmon to the blue_envelope, so she knows where william will look for it.\npart 3. exercise\nethan entered the office. charlotte entered the office. the lettuce is in the blue_box. charlotte exited the office. ethan moved the lettuce to the red_treasure_chest. ethan exited the office. charlotte entered the office. where is the lettuce really? isabella entered the sunroom. charlotte entered the sunroom. the green_pepper is in the green_drawer. charlotte exited the sunroom. isabella moved the green_pepper to the red_pantry. isabella exited the sunroom. charlotte entered the sunroom. where does isabella think that charlotte searches for the green_pepper? charlotte entered the lounge. ethan entered the lounge. the beans is in the green_cupboard. ethan exited the lounge. charlotte moved the beans to the blue_crate. where is the beans really? ella entered the lounge. charlotte is in the lounge. the broccoli is in the blue_crate. charlotte exited the lounge. ella moved the broccoli to the green_cupboard. ella exited the lounge. charlotte entered the lounge. where is the broccoli really?\nanswer:",
+          "from":"human"
         },
         {
-            "content": "Kenya and Nigeria are two African countries. Kenya is located in East Africa, known for its diverse wildlife and beautiful landscapes, while Nigeria is situated in West Africa and is the continent's most populous country.",
-            "role": "assistant"
+          "value":"1. red_treasure_chest\nexplanation: the lettuce was last moved to the red_treasure_chest by ethan.\n\n2. green_drawer\nexplanation: isabella moved the green_pepper to the red_pantry after charlotte exited the sunroom. charlotte didn't see this change, so she would still think the green_pepper is in the green_drawer.\n\n3. blue_crate\nexplanation: charlotte moved the beans to the blue_crate, which is their current location.\n\n4. green_cupboard\nexplanation: ella moved the broccoli to the green_cupboard after charlotte exited the lounge, making it the real location of the broccoli.",
+          "from":"gpt"
         }
-    ],
-}
+      ],
+      "score_chosen":8.5,
+      "score_rejected":1.0
+    }
+]
 """
 
 """"
@@ -89,14 +93,14 @@ def strategy(preferences_store):
         for d in preferences_store:
             d["chosen"] = deepcopy(d["conversation_" + args.chosen_source])
             d["rejected"] = deepcopy(d["conversation_" + args.rejected_source])
-            d["messages"] = d["chosen"]
+            d["conversations"] = d["chosen"]
             del d["conversation_" + args.chosen_source]
             del d["conversation_" + args.rejected_source]
 
     elif strategy == "length":
         for d in preferences_store:
             d = length_strategy(d)
-            d["messages"] = d["chosen"]
+            d["conversations"] = d["chosen"]
 
     else:
         raise ValueError()
@@ -125,11 +129,6 @@ for idx, input_file in enumerate(args.input_files):
                 # for id contains "chosen" and "rejected"
                 d["id"] = d["id"].replace("_chosen", "").replace("_rejected", "")
 
-                for c in d["conversations"]:
-                    if c["from"] == "gpt": c["role"] = "assistant"
-                    c["content"] = c["value"]
-                    del c["value"]
-                    del c["from"]
                 if idx == set_idx:
                     print(idx)
                     d["source"] = set_tag
@@ -142,13 +141,9 @@ for idx, input_file in enumerate(args.input_files):
         else:
             for d, p in tqdm(zip(data, preferences_store)):
                 # for id contains "chosen" and "rejected"
-                d["id"] = d["id"].replace("_chosen", "").replace("_rejected", "")
+                if "id" in d:
+                    d["id"] = d["id"].replace("_chosen", "").replace("_rejected", "")
 
-                for c in d["conversations"]:
-                    if c["from"] == "gpt": c["role"] = "assistant"
-                    c["content"] = c["value"]
-                    del c["value"]
-                    del c["from"]
                 if idx == set_idx:
                     d["source"] = set_tag
                 source = d["source"]
