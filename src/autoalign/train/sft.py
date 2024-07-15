@@ -15,6 +15,7 @@ from transformers import (
 )
 from autoalign.conversation import Conversation
 from transformers import Qwen2Tokenizer, Qwen2TokenizerFast
+import transformers
 
 
 # model related args
@@ -30,6 +31,33 @@ class DataArguments:
     data_path: str
     conv_template_name: str = field(metadata={"help": "name of conversation template"})
 
+def trainer_save_model_safe(trainer: transformers.Trainer):
+    from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
+    from torch.distributed.fsdp import StateDictType, FullStateDictConfig
+
+    save_policy = FullStateDictConfig(offload_to_cpu=True, rank0_only=True)
+    with FSDP.state_dict_type(
+        trainer.model, StateDictType.FULL_STATE_DICT, save_policy
+    ):
+        trainer.save_model()
+
+def adpative_config(conv_template_name, tokenizer, model, output_dir):
+    """ specify eos token and bos token for model and tokenizer based on conversation template """
+    conversation = Conversation.from_template(conv_template_name)
+    eos_token = conversation.role_ends["gpt"].strip()
+    eos_token_id = tokenizer(eos_token).input_ids[-1]
+    # print(f"{tokenizer(eos_token)=} {eos_token=} {eos_token_id=} {tokenizer.decode([eos_token_id])=}")
+
+    assert eos_token == tokenizer.decode([eos_token_id]), "eos token is not a valid token"
+    tokenizer.eos_token_id = eos_token_id
+    tokenizer.eos_token = eos_token
+    
+    model.config.bos_token_id = tokenizer.bos_token_id
+    model.config.eos_token_id = tokenizer.eos_token_id
+
+    model.generation_config.bos_token_id = tokenizer.bos_token_id
+    model.generation_config.eos_token_id = tokenizer.eos_token_id
+    return 
 
 def tokenize_conversation(
     conv,
@@ -107,6 +135,8 @@ def main():
         return_tensors="pt",
     )
 
+    adpative_config(data_args.conv_template_name, tokenizer, model, training_args.output_dir)
+
     # create trainer
     trainer = Trainer(
         model=model,
@@ -119,6 +149,14 @@ def main():
     # start training
     trainer.train()
 
-
+    # Save model
+    model.config.use_cache = True
+    trainer.save_state()
+    tokenizer.save_pretrained(training_args.output_dir)
+    if trainer.is_deepspeed_enabled:
+        trainer.save_model()
+    else:
+        trainer_save_model_safe(trainer)
+    
 if __name__ == "__main__":
     main()
