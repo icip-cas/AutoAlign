@@ -15,8 +15,9 @@ class Conversation:
     template_name: str
     role_starts: Dict[str, str]
     role_ends: Dict[str, str]
-    overwrite_system_message: str = ""
-    default_system_message: str = ""
+    overwrite_system_message: str = None
+    default_system_message: str = None
+    # roles: system, human, gpt
     # offset to handle non-additive tokenizers, i.e. tokenizer(s1+s2) != tokenizer(s1)+tokenizer(s2)
     # NB: whether tokenizer adds bos_token does not affect our label preparing
     # set to 1 if tokenizer adds an extra token when tokenizing assistant role_start alone
@@ -25,6 +26,9 @@ class Conversation:
     # set to 1 if tokenizer adds a bos_token
     bos_offset: int = 0
     messages: List[Tuple[str]] = field(default_factory=list)
+
+    def get_messages(self):
+        return self.messages
 
     def get_conversation_str(self, add_generation_prompt=False):
         """get full conversation str"""
@@ -41,9 +45,9 @@ class Conversation:
         """fill in conversation messages"""
         # handle system_message
         if conv["conversations"][0]["from"] != "system":
-            if self.overwrite_system_message:
+            if self.overwrite_system_message is not None:
                 self.messages.append(("system", self.overwrite_system_message))
-            elif self.default_system_message:
+            elif self.default_system_message is not None:
                 self.messages.append(("system", self.default_system_message))
             else:
                 self.messages.append(("system", ""))
@@ -59,9 +63,25 @@ class Conversation:
             if role in ["human", "gpt"]:
                 self.messages.append((role, message_str))
 
-    def update_last_message(self, message: str):
-        self.messages[-1][1] = message
+    def set_system_message(self, system_message: str):
+        """Set the system message."""
+        if self.messages[0]:
+            self.messages.append(("system", system_message))
+        else:
+            self.messages[0][1] = system_message
 
+    def get_system_message(self):
+        """return the system message."""
+        return self.messages[0][1] if self.messages[0] else None
+
+    def append_message(self, role: str, message: str):
+        """Append a new message."""
+        self.messages.append((role, message))
+
+    def update_last_message(self, message: str):
+        """Update the last message.
+        """
+        self.messages[-1][1] = message
 
     def get_tokenized_conversation(
         self,
@@ -180,7 +200,6 @@ class Conversation:
                     "human": "[/INST]",
                     "gpt": "</s>",
                 },
-                # FIXME: what is the system_message for llama-3-instruct?
                 offset=0,
                 bos_offset=0,
             )
@@ -205,4 +224,4 @@ class Conversation:
                 offset=0,
                 bos_offset=0,
             )
-        raise ValueError("Unknown conversation template.")
+        raise NotImplementedError("Unknown conversation template.")

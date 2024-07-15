@@ -8,7 +8,7 @@ autoalign-cli dpo \
     --per_device_train_batch_size ${TRAIN_BATCH_SIZE:-"1"} \
     --per_device_eval_batch_size ${EVAL_BATCH_SIZE:-"4"} \
     --gradient_accumulation_steps ${GA:-"4"} \
-    --evaluation_strategy ${EVAL_STRATEGY:-"no"} \
+    --eval_strategy ${EVAL_STRATEGY:-"no"} \
     --eval_steps ${EVAL_STEPS:-"15000"} \
     --save_strategy ${SAVE_STRATEGY:-"epoch"} \
     --save_steps ${SAVE_STEPS:-"400"} \
