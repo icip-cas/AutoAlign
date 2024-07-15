@@ -34,7 +34,7 @@ class ModelArguments:
 class DataArguments:
     data_path: str
     conv_template_name: str = field(metadata={"help": "name of conversation template"})
-    num_workers: str = field(metadata={"help": "number of workers for data processing"}, default=16)
+    num_workers: str = field(metadata={"help": "number of workers for data processing"}, default=8)
 
 
 def tokenize_conversation(

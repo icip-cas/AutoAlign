@@ -33,7 +33,8 @@ def get_device_count() -> int:
     
 def get_logger(name: str) -> logging.Logger:
     formatter = logging.Formatter(
-        fmt="%(asctime)s - %(levelname)s - %(name)s - %(message)s", datefmt="%m/%d/%Y %H:%M:%S"
+        fmt="[%(asctime)s] [%(levelname)s] [%(filename)s:%(lineno)d:%(funcName)s] %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S,%f"
     )
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(formatter)
