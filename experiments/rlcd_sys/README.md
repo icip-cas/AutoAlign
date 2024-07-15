@@ -26,18 +26,18 @@ These perference pairs can be collected by running the following scripts:
 
 ```bash
 # prepare for inference
-export PROMPTS_FILE_NAME="M1_setting2_merged_split_1.json"
+export PROMPTS_FILE="../../data/train/ultrafeedback_ata.json"
 export OUTPUT_DIR="./outputs/"
-export OUTPUT_CHOSEN_FILE_NAME="M1_setting2_merged_split_1_chosen.json"
-export OUTPUT_REJECTED_FILE_NAME="M1_setting2_merged_split_1_rejected.json"
+export OUTPUT_CHOSEN_FILE_NAME="ultrafeedback_ata_chosen.json"
+export OUTPUT_REJECTED_FILE_NAME="ultrafeedback_ata_rejected.json"
 bash prepare_for_rlcd.sh
 ```
 
 ```bash
 # inference with the postive and negative prompts
-export TEMPLATE_NAME="qwen-7b-chat"
-export MODEL_NAME=""
-export SAVED_MODEL_PATH="./saved_models/"
+export TEMPLATE_NAME="chatml"
+export MODEL_NAME="qwen2-7b"
+export SAVED_MODEL_PATH="./pretrained_models/Qwen2-7B"
 bash inference_for_rlcd.sh
 bash prepare_for_dpo.sh
 ```

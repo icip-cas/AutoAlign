@@ -31,7 +31,8 @@ dependencies = [
     "fire",
     "trl>=0.9.3",
     "openai",
-    "tenacity"
+    "tenacity",
+    "vllm==0.4.3",
 ]
 
 [project.optional-dependencies]
@@ -41,7 +42,6 @@ train = [
 eval = [
   "torchvision==0.18.0",
   "torchaudio==2.3.0",
-  "vllm==0.4.3",
   "human-eval==1.0.3",
   "alpaca-eval==0.6.3",
   "opencompass==0.2.3"

@@ -1,7 +1,7 @@
 autoalign-cli sft \
     --model_name_or_path ${MODEL_PATH:-"Qwen2/Qwen2-7B"}  \
     --data_path ${DATA_PATH:-"data/dummy_sft.json"} \
-    --conv_template_name ${CONV_TEMPLATE:-"qwen-7b-chat"} \
+    --conv_template_name ${CONV_TEMPLATE:-"chatml"} \
     --bf16 True \
     --output_dir ${OUTPUT_DIR:-"models/qwen2-7b"} \
     --num_train_epochs ${EPOCH:-"3"} \
