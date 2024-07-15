@@ -4,7 +4,8 @@ from typing import Optional
 import torch
 import transformers
 from transformers.trainer_pt_utils import LabelSmoother
-
+import json
+from datasets import Dataset
 
 from datasets import load_dataset
 from functools import partial
@@ -55,6 +56,13 @@ def run_dpo():
     print(f"{model_args=}")
     print(f"{data_args=}")
 
+    # read data
+    with open(data_args.data_path, "r") as f:
+        data = json.load(f)
+
+    # get dataset
+    dataset = Dataset.from_list(data)
+
     # load model and tokenizer
     model = transformers.AutoModelForCausalLM.from_pretrained(
         model_args.model_name_or_path, attn_implementation="flash_attention_2", torch_dtype=torch.bfloat16
@@ -75,9 +83,6 @@ def run_dpo():
     if isinstance(tokenizer, (Qwen2Tokenizer, Qwen2TokenizerFast)):
         tokenizer.bos_token = "<|im_start|>"
         tokenizer.bos_token_id = tokenizer.convert_tokens_to_ids(tokenizer.bos_token)
-
-    # get dataset
-    dataset = load_dataset("json", data_files=data_args.data_path, split="train")
 
     # process dataset
     dataset = dataset.map(

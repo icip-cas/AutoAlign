@@ -1,3 +1,13 @@
+/lightning_logs
+/model
+/models
+/*log
+/thirdparty
+
+# data
+data/*
+!data/dummy_*
+
 .lock
 # mac
 .DS_Store
