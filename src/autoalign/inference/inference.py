@@ -3,11 +3,12 @@ from autoalign.conversation import Conversation
 import json
 import os
 
-from autoalign.inference.inferencer import MultiProcessHFInferencer
+from autoalign.inference.inferencer import MultiProcessHFInferencer, MultiProcessVllmInferencer
 
 def parse_args():
 
     parser = argparse.ArgumentParser()
+    parser.add_argument("--backend", type=str, choices=["hf", "vllm"], required=True)
     parser.add_argument("--model-name", type=str, required=True)
     parser.add_argument("--model-path", type=str, required=True)
     parser.add_argument("--template", type=str, required=True)
@@ -26,33 +27,30 @@ def inference():
 
     args = parse_args()
 
-    def preprocess(d):
-        d["instruction"] = d["conversations"][0]["value"]
-        return d
-
     with open(args.test_file, "r", encoding="utf-8") as f:
         all_test_points = json.loads(f.read())
 
-    all_test_points = [preprocess(d) for d in all_test_points]
-
     if args.debug_mode:
-        all_test_points = all_test_points[:100]
+        all_test_points = all_test_points[:2]
 
-    inferencer = MultiProcessHFInferencer(
-        model_path=args.model_path,
-        max_new_tokens=args.max_new_tokens_per_utterance,
-        num_beams=1,
-        top_p=1,
-        temperature=0
-    )
+    if args.backend == "hf":
+        inferencer = MultiProcessHFInferencer(
+            model_path=args.model_path,
+            max_new_tokens=args.max_new_tokens_per_utterance,
+            num_beams=1,
+            top_p=1,
+            temperature=0,
+            do_sample=False
+        )
 
-    # inferencer = MultiProcessVllmInferencer(
-    #     model_path=args.model_path,
-    #     max_new_tokens=args.max_new_tokens_per_utterance,
-    #     num_beams=1,
-    #     top_p=1,
-    #     temperature=0
-    # )
+    elif args.backend == "vllm":
+        inferencer = MultiProcessVllmInferencer(
+            model_path=args.model_path,
+            max_new_tokens=args.max_new_tokens_per_utterance,
+            num_beams=1,
+            top_p=1,
+            temperature=0
+        )
 
     test_file_name = args.test_file.split("/")[-1]
     os.makedirs(os.path.join(args.output_dir, args.model_name), exist_ok=True)

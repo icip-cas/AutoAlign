@@ -1,6 +1,7 @@
 import torch
 from tqdm import tqdm
 from transformers import (
+    AutoConfig,
     AutoTokenizer,
     AutoModelForCausalLM,
     pipeline
@@ -9,7 +10,7 @@ import multiprocessing as mp
 from typing import List, Dict
 from accelerate import Accelerator
 from accelerate.utils import gather_object
-
+import math
 import openai
 from multiprocessing.pool import ThreadPool
 from tenacity import (
@@ -22,9 +23,9 @@ from tenacity import (
 from datetime import timedelta
 from accelerate import Accelerator
 from accelerate.utils import InitProcessGroupKwargs
-
+import ray
 import multiprocessing as mp
-import os
+from vllm import LLM, SamplingParams
 
 class MultiProcessHFInferencer:
 
@@ -35,6 +36,7 @@ class MultiProcessHFInferencer:
                 max_new_tokens:int=512,
                 temperature:float=0,
                 top_p:float=1,
+                nccl_timeout:int=64000
                 ):
         
         self.max_new_tokens = max_new_tokens
@@ -43,7 +45,7 @@ class MultiProcessHFInferencer:
         self.do_sample = do_sample
         self.top_p = top_p
 
-        kwargs = InitProcessGroupKwargs(timeout=timedelta(seconds=64000))
+        kwargs = InitProcessGroupKwargs(timeout=timedelta(seconds=nccl_timeout))
         self.accelerator = Accelerator(kwargs_handlers=[kwargs])
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -57,7 +59,6 @@ class MultiProcessHFInferencer:
             attn_implementation="flash_attention_2",
             device_map={"": self.accelerator.process_index},
         )
-
 
     def inference(self,
                 data,
@@ -80,6 +81,7 @@ class MultiProcessHFInferencer:
             responses = []
 
             for d in tqdm(data_on_process):
+                # currently only support bs=1
                 inputs = self.tokenizer(d, return_tensors="pt").to(self.device)
                 outputs = self.model.generate(
                     **inputs,
@@ -87,7 +89,9 @@ class MultiProcessHFInferencer:
                     top_p=self.top_p,
                     temperature=self.temperature,
                     num_beams=self.num_beams,
-                    max_new_tokens=self.max_new_tokens
+                    max_new_tokens=self.max_new_tokens,
+                    eos_token_id=self.tokenizer.eos_token_id,
+                    pad_token_id=self.tokenizer.pad_token_id
                 )
 
                 outputs = outputs[:, len(inputs["input_ids"][0]):]
@@ -103,77 +107,6 @@ class MultiProcessHFInferencer:
 
     def get_tokenizer(self):
         return self.tokenizer
-    
-class OpenAIInferencer:
-
-    def __init__(
-        self,
-        model:str,
-        api_key:str,
-        api_base:str=None,
-        temperature:float=0,
-        max_tokens:int=1024,
-        request_timeout=120,
-    ) -> None:
-        self.model = model
-        self.temperature = temperature
-        self.max_tokens = max_tokens
-        self.request_timeout = request_timeout
-        openai.api_key = api_key
-        if api_base is not None:
-            openai.api_base = api_base
-
-    @retry(wait=wait_chain(*[wait_fixed(3) for i in range(3)] +
-                        [wait_fixed(5) for i in range(2)] +
-                        [wait_fixed(10)]))
-    def inference(self, prompt, stop=None):
-        response = openai.Completion.create(
-            model=self.model,
-            prompt=prompt,
-            temperature=self.temperature,
-            max_tokens=self.max_tokens,
-            stop=stop
-        )
-        return response['choices'][0]['text'].strip()
-
-    @retry(wait=wait_chain(*[wait_fixed(3) for i in range(3)] +
-                        [wait_fixed(5) for i in range(2)] +
-                        [wait_fixed(10)]))
-    def chat_inference(self, messages: List[Dict]):
-        try:
-            response = openai.ChatCompletion.create(
-                model=self.model,
-                messages=messages,
-                temperature=self.temperature,
-                request_timeout=self.request_timeout,
-            )
-        except Exception as e:
-            if str(e).startswith("Detected an error in the prompt. Please try again with a different prompt.") or \
-                str(e).startswith("Sorry! We've encountered an issue with repetitive patterns in your prompt. Please try again with a different prompt."):
-                print(e)
-                return "Prompt Error"
-            print(e)
-        return response['choices'][0]['message']['content'].strip()
-    
-    def multiprocess_chat_inference(self, 
-                                    batch_of_messages: List[List[Dict]], 
-                                    num_workers:int=8):
-
-        pool = ThreadPool(num_workers)
-        all_completions = list(
-            tqdm(pool.imap(self.chat_inference, batch_of_messages), 
-                 total=len(batch_of_messages))
-        )
-
-        return all_completions
-
-    def encode(self, prompt:str) -> List:
-        enc = tiktoken.encoding_for_model(self.model)
-        return enc.encode(prompt)
-    
-    def decode(self, tokens:List) -> str:
-        enc = tiktoken.encoding_for_model(self.model)
-        return enc.decode(tokens)
     
 class HFPipelineInferencer:
 
@@ -313,24 +246,21 @@ class OpenAIInferencer:
 class MultiProcessVllmInferencer:
 
     def __init__(self, 
-                model_path:str, 
-                num_gpus:int,
+                model_path:str,
+                num_gpus_per_model:int=1,
                 do_sample:bool=False,
                 num_beams:int=1,
-                max_new_tokens:int=512,
+                max_new_tokens:int=1024,
                 temperature:float=0,
                 top_p:float=1.0,
                 top_k:int=-1,
                 frequency_penalty=0.0,
-                model_max_tokens=4096,
                 ):
 
-        self.num_gpus = num_gpus
-
-        self.manager = mp.Manager()
+        self.num_gpus_total = torch.cuda.device_count()
+        self.num_gpus_per_model = num_gpus_per_model
 
         self.model_path = model_path
-        self.model_max_tokens = model_max_tokens
 
         self.sampling_params = SamplingParams(
             max_tokens=max_new_tokens,
@@ -344,47 +274,52 @@ class MultiProcessVllmInferencer:
             early_stopping=False,
         )
 
-    def inference_on_device(self, device_id, data, shared_dict, batch_size=32):
+        self.use_ray = False
 
-        os.environ["CUDA_VISIBLE_DEVICES"] = str(device_id) # hacking the visible devices to isolate gpus
+        if self.num_gpus_total // num_gpus_per_model > 1:
+            self.use_ray = True
+            ray.init()
+
+    @staticmethod
+    def single_process_inference(model_path, num_gpus_per_model,
+                                *args, **kwargs):
 
         model = LLM(
-            model=self.model_path, # for small models, tensor parallel doesn't accelerate much
-            tensor_parallel_size=1,
-            max_num_batched_tokens=self.model_max_tokens,
+            model=model_path,
+            tensor_parallel_size=num_gpus_per_model
         )
 
-        for i in tqdm(range(0, len(data), batch_size)):
-            batched_inp = []
-            for j in data[i: i + batch_size]:
-                batched_inp.append(j)
+        return model.generate(*args, **kwargs)
 
-            outputs = model.generate(
-                batched_inp, 
-                self.sampling_params,
-                use_tqdm=False
+    def inference(self, data:List[str], batch_size=32):
+
+        if self.use_ray:
+            get_answers_func = ray.remote(num_gpus=self.num_gpus_per_model)(
+                MultiProcessVllmInferencer.single_process_inference
+            ).remote
+        else:
+            get_answers_func = MultiProcessVllmInferencer.single_process_inference
+
+        num_processes = max(1, self.num_gpus_total // self.num_gpus_per_model)
+        chunk_size = math.ceil(len(data) / num_processes)
+        
+        gathered_responses = []
+        for i in range(0, len(data), chunk_size):
+            gathered_responses.append(
+                get_answers_func(
+                    self.model_path,
+                    self.num_gpus_per_model,
+                    data[i:i+chunk_size],
+                    self.sampling_params
+                )
             )
-                
-            for k in range(len(batched_inp)):
-                shared_dict[(i + k) * self.num_gpus + device_id] = outputs[k].outputs[0].text
+        if self.use_ray:
+            gathered_responses = [ray.get(response)[0] for response in gathered_responses]
 
-    def inference(self, data:List, batch_size=32):
+        print(gathered_responses)
 
-        processes = []
-        shared_dict = self.manager.dict()
+        gathered_responses = [response.outputs[0].text for response in gathered_responses]
 
-        for device_id in range(self.num_gpus):
-            data_on_device = data[device_id::self.num_gpus]
-            p = mp.Process(
-                target=self.inference_on_device, 
-                args=(device_id, data_on_device, shared_dict, batch_size)
-            )
-            p.start()
-            processes.append(p)
+        print(gathered_responses)
 
-        for p in processes:
-            p.join()
-
-        sorted_results = [value for key, value in sorted(shared_dict.items(), key=lambda item: item[0])]
-
-        return sorted_results
+        return gathered_responses

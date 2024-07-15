@@ -3,19 +3,13 @@ import random
 import subprocess
 import sys
 from enum import Enum, unique
+import argparse
 
 from .train import sft, dpo
 from .inference import inference
 from .utils import get_logger, get_device_count
 
 logger = get_logger(__name__)
-
-def _help():
-
-    print("="*10)
-    print("autoalign-cli")
-    print("="*10)
-    exit()
 
 @unique
 class Command(str, Enum):
@@ -25,61 +19,46 @@ class Command(str, Enum):
     EVAL = "eval"
     INFER = "infer"
 
+def run_distributed_task(file, args):
+    master_addr = os.environ.get("MASTER_ADDR", "127.0.0.1")
+    master_port = os.environ.get("MASTER_PORT", str(random.randint(20001, 29999)))
+    logger.info(f"Initializing distributed tasks at: {master_addr}:{master_port}")
+    
+    command = (
+        f"torchrun --nnodes {os.environ.get('NNODES', '1')} "
+        f"--node_rank {os.environ.get('RANK', '0')} "
+        f"--nproc_per_node {os.environ.get('NPROC_PER_NODE', str(get_device_count()))} "
+        f"--master_addr {master_addr} --master_port {master_port} "
+        f"{file} {' '.join(args)}"
+    )
+    process = subprocess.run(command, shell=True)
+    sys.exit(process.returncode)
+
+def run_inference(args, remaining_args):
+    assert args.backend is not None, "Please specify the backend for inference"
+    backend = args.backend
+    if backend == 'hf':
+        command = f"accelerate launch {inference.__file__} --backend 'hf' {' '.join(remaining_args)}"
+    elif backend == 'vllm':
+        command = f"python {inference.__file__} --backend 'vllm' {' '.join(remaining_args)}"
+    
+    process = subprocess.run(command, shell=True)
+    sys.exit(process.returncode)
+
 def main():
 
-    command = sys.argv.pop(1) if len(sys.argv) != 1 else _help()
-    if command == Command.SFT:
-        master_addr = os.environ.get("MASTER_ADDR", "127.0.0.1")
-        master_port = os.environ.get("MASTER_PORT", str(random.randint(20001, 29999)))
-        logger.info("Initializing distributed tasks at: {}:{}".format(master_addr, master_port))
-        process = subprocess.run(
-            (
-                "torchrun --nnodes {nnodes} --node_rank {node_rank} --nproc_per_node {nproc_per_node} "
-                "--master_addr {master_addr} --master_port {master_port} {file_name} {args}"
-            ).format(
-                nnodes=os.environ.get("NNODES", "1"),
-                node_rank=os.environ.get("RANK", "0"),
-                nproc_per_node=os.environ.get("NPROC_PER_NODE", str(get_device_count())),
-                master_addr=master_addr,
-                master_port=master_port,
-                file_name=sft.__file__,
-                args=" ".join(sys.argv[1:]),
-            ),
-            shell=True,
-        )
-        sys.exit(process.returncode)
-    elif command == Command.DPO:
-        master_addr = os.environ.get("MASTER_ADDR", "127.0.0.1")
-        master_port = os.environ.get("MASTER_PORT", str(random.randint(20001, 29999)))
-        logger.info("Initializing distributed tasks at: {}:{}".format(master_addr, master_port))
-        process = subprocess.run(
-            (
-                "torchrun --nnodes {nnodes} --node_rank {node_rank} --nproc_per_node {nproc_per_node} "
-                "--master_addr {master_addr} --master_port {master_port} {file_name} {args}"
-            ).format(
-                nnodes=os.environ.get("NNODES", "1"),
-                node_rank=os.environ.get("RANK", "0"),
-                nproc_per_node=os.environ.get("NPROC_PER_NODE", str(get_device_count())),
-                master_addr=master_addr,
-                master_port=master_port,
-                file_name=dpo.__file__,
-                args=" ".join(sys.argv[1:]),
-            ),
-            shell=True,
-        )
-        sys.exit(process.returncode)
-    elif command == Command.EVAL:
-        NotImplementedError()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('command', type=str, choices=[c.value for c in Command])
+    parser.add_argument('--backend', type=str, choices=["hf", "vllm"])
+    args, remaining_args = parser.parse_known_args()
 
-    elif command == Command.INFER:
-        process = subprocess.run(
-            (
-                "accelerate launch {file_name} {args}"
-            ).format(
-                file_name=inference.__file__,
-                args=" ".join(sys.argv[1:]),
-            ),
-            shell=True
-        )
+    if args.command == Command.SFT:
+        run_distributed_task(sft.__file__, remaining_args)
+    elif args.command == Command.DPO:
+        run_distributed_task(dpo.__file__, remaining_args)
+    elif args.command == Command.EVAL:
+        raise NotImplementedError()
+    elif args.command == Command.INFER:
+        run_inference(args, remaining_args)
     else:
-        raise NotImplementedError("Unknown command: {}".format(command))
+        raise ValueError(f"Unknown command: {args.command}")

@@ -16,7 +16,7 @@ class Conversation:
     role_starts: Dict[str, str]
     role_ends: Dict[str, str]
     overwrite_system_message: str = None
-    default_system_message: str = None
+    default_system_message: str = None # when the data contains no system message and no overwrite_system_message is provided
     # roles: system, human, gpt
     # offset to handle non-additive tokenizers, i.e. tokenizer(s1+s2) != tokenizer(s1)+tokenizer(s2)
     # NB: whether tokenizer adds bos_token does not affect our label preparing
@@ -52,7 +52,7 @@ class Conversation:
             else:
                 self.messages.append(("system", ""))
         else:
-            if self.overwrite_system_message:
+            if self.overwrite_system_message is not None:
                 self.messages.append(("system", self.overwrite_system_message))
             else:
                 self.messages.append(("system", conv["conversations"][0]["value"]))
@@ -117,7 +117,7 @@ class Conversation:
         return tokenized_conversation
 
     @classmethod
-    def from_template(cls, template_name):
+    def from_template(cls, template_name, overwrite_system_message:str=None):
         """get Conversation object from template_name"""
         if template_name == "vicuna_v1.1":
             return cls(
@@ -132,12 +132,13 @@ class Conversation:
                     "human": " ",
                     "gpt": "</s>",
                 },
-                overwrite_system_message="A chat between a curious user and an artificial intelligence assistant. "
+                default_system_message="A chat between a curious user and an artificial intelligence assistant. "
                 "The assistant gives helpful, detailed, and polite answers to the user's questions.",
+                overwrite_system_message=overwrite_system_message,
                 offset=1,
                 bos_offset=1,
             )
-        elif template_name == "qwen-7b-chat":
+        elif template_name == "chatml":
             return cls(
                 template_name=template_name,
                 role_starts={
@@ -150,11 +151,12 @@ class Conversation:
                     "human": "<|im_end|>\n",
                     "gpt": "<|im_end|>\n",
                 },
-                overwrite_system_message="You are a helpful assistant.",
+                default_system_message="You are a helpful assistant.",
+                overwrite_system_message=overwrite_system_message,
                 offset=0,
                 bos_offset=0,
             )
-        elif template_name == "qwen-7b-chat-keep-system":
+        elif template_name == "chatml-keep-system":
             return cls(
                 template_name=template_name,
                 role_starts={
@@ -167,6 +169,7 @@ class Conversation:
                     "human": "<|im_end|>\n",
                     "gpt": "<|im_end|>\n",
                 },
+                overwrite_system_message=overwrite_system_message,
                 offset=0,
                 bos_offset=0,
             )
@@ -184,6 +187,7 @@ class Conversation:
                     "gpt": "<|eot_id|>",
                 },
                 # FIXME: what is the system_message for llama-3-instruct?
+                overwrite_system_message=overwrite_system_message,
                 offset=0,
                 bos_offset=0,
             )
@@ -200,10 +204,11 @@ class Conversation:
                     "human": "[/INST]",
                     "gpt": "</s>",
                 },
+                overwrite_system_message=overwrite_system_message,
                 offset=0,
                 bos_offset=0,
             )
-        elif template_name == "qwen-7b-chat-idsys":
+        elif template_name == "chatml-idsys":
             return cls(
                 template_name=template_name,
                 role_starts={
@@ -216,11 +221,12 @@ class Conversation:
                     "human": "<|im_end|>\n",
                     "gpt": "<|im_end|>\n",
                 },
-                overwrite_system_message="You are Zhuque, a conversational AI assistant "
+                default_system_message="You are Zhuque, a conversational AI assistant "
                 "trained by Chinese Information Processing Laboratory (CIP). "
                 "你是朱雀，一个由中文信息处理实验室训练的对话式人工智能助手。"
                 "You are to give helpful, detailed, and polite answers to the user's questions."
                 "你应当为用户的问题提供有帮助的、详细的、礼貌的回答。",
+                overwrite_system_message=overwrite_system_message,
                 offset=0,
                 bos_offset=0,
             )

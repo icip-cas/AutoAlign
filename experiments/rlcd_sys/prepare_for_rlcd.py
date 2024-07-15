@@ -1,4 +1,4 @@
-from zhuque.prompts.rlcd import HARMLESS, HELPFUL, COMPLETENESS, INFORMATIVENESS, HARMLESS_ZH, HELPFUL_ZH, COMPLETENESS_ZH, INFORMATIVENESS_ZH
+from autoalign.prompts.rlcd import HARMLESS, HELPFUL, COMPLETENESS, INFORMATIVENESS, HARMLESS_ZH, HELPFUL_ZH, COMPLETENESS_ZH, INFORMATIVENESS_ZH
 import argparse
 import random
 import json
@@ -35,11 +35,18 @@ for idx, d in enumerate(all_data):
     ins = d["conversations"][0]["value"]
     system_prompts = en_system_prompts if is_chinese_or_english(ins) == "en" else zh_system_prompts
     system = random.choice(system_prompts)
-    all_chosen_data[idx]["system"] = system[0]
-    all_rejected_data[idx]["system"] = system[1]
+    if d["conversations"][-1]["from"] == "gpt":
+        d["conversations"] = d["conversations"][:-1]
+    if d["conversations"][0]["from"] == "system":
+        all_chosen_data[idx]["conversations"][0]["value"] = system[0]
+        all_rejected_data[idx]["conversation"][0]["value"] = system[1]
+    else:
+        # insert system message at the first
+        all_chosen_data[idx]["conversations"].insert(0, {"from": "system", "value": system[0]})
+        all_rejected_data[idx]["conversations"].insert(0, {"from": "system", "value": system[1]})
 
 with open(args.output_chosen, "w", encoding="utf-8") as f:
-    f.write(json.dumps(all_chosen_data, ensure_ascii=False))
+    f.write(json.dumps(all_chosen_data, indent=4, ensure_ascii=False))
 
 with open(args.output_rejected, "w", encoding="utf-8") as f:
-    f.write(json.dumps(all_rejected_data, ensure_ascii=False))
+    f.write(json.dumps(all_rejected_data, indent=4, ensure_ascii=False))
