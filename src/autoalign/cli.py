@@ -4,9 +4,9 @@ import subprocess
 import sys
 from enum import Enum, unique
 
-from .utils import get_logger, get_device_count
 from .train import sft, dpo
 from .inference import inference
+from .utils import get_logger, get_device_count
 
 logger = get_logger(__name__)
 

@@ -45,7 +45,7 @@ bash prepare_for_dpo.sh
 Then training!
 
 ```bash
-autoalign train
+autoalign-cli dpo 
 ```
 
 ## Citation

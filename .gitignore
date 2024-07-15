@@ -23,3 +23,10 @@ flagged/
 /models
 /pretrained_models
 /runs
+/saved_models
+/checkpoints
+/hf_models
+
+# others
+**/*.log
+/wandb
