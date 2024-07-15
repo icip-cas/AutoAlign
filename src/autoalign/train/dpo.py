@@ -49,7 +49,7 @@ def preprocess(sample, conv_template_name):
     )
 
 
-def train():
+def run_dpo():
     # parse arguments
     parser = transformers.HfArgumentParser((ModelArguments, DataArguments, DPOConfig))
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
@@ -105,4 +105,4 @@ def train():
 
 
 if __name__ == "__main__":
-    train()
+    run_dpo()

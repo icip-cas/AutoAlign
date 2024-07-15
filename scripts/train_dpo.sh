@@ -1,10 +1,4 @@
-set -x
-N_GPUS=${KUBERNETES_CONTAINER_RESOURCE_GPU:-$(nvidia-smi --query-gpu=gpu_name --format=csv,noheader | wc -l)}
-
-torchrun --nproc_per_node="${N_GPUS:-"8"}" \
-    --nnodes="${WORLD_SIZE:-"1"}" \
-    --node_rank="${RANK:-"0"}" \
-    --master_port="${MASTER_PORT:-"2333"}" src/autoalign/train/dpo.py \
+autoalign-cli dpo \
     --model_name_or_path ${MODEL_PATH:-"Qwen2/Qwen2-7B"}  \
     --data_path ${DATA_PATH:-"data/dummy_dpo.json"} \
     --conv_template_name ${CONV_TEMPLATE:-"qwen-7b-chat"} \
@@ -14,7 +8,7 @@ torchrun --nproc_per_node="${N_GPUS:-"8"}" \
     --per_device_train_batch_size ${TRAIN_BATCH_SIZE:-"1"} \
     --per_device_eval_batch_size ${EVAL_BATCH_SIZE:-"4"} \
     --gradient_accumulation_steps ${GA:-"4"} \
-    --evaluation_strategy ${EVAL_STRATEGY:-"no"} \
+    --eval_strategy ${EVAL_STRATEGY:-"no"} \
     --eval_steps ${EVAL_STEPS:-"15000"} \
     --save_strategy ${SAVE_STRATEGY:-"epoch"} \
     --save_steps ${SAVE_STEPS:-"400"} \

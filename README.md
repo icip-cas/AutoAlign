@@ -13,7 +13,7 @@ Auto-Alignment 是一个基于自动对齐技术的训练、部署和评测的�
 Default
 
 ```
-pip install -e .
+pip install -e .[train]
 ```
 
 Evaluation (Optional)
@@ -31,18 +31,11 @@ pip install -e .[dev]
 
 ## Usage
 
-``` python
-from autoalign import Aligner
-# 加载基础模型
-base_model = load_model("llama3-8b")
-# 示例数据
-data = “对齐数据、原则、反馈”
-# 创建 Aligner 实例
-aligner = Aligner(data)
-# 使用 Aligner 进行对齐
-aligned_model = aligner.align(model)
-# 部署 Aligned 模型
-aligned_model.serve()
+``` bash
+autoalign-cli sft
+autoalign-cli dpo
+autoalign-cli infer
+autoalign-cli eval 
 ```
 
 ## Fine-tuning

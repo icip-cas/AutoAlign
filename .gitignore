@@ -13,18 +13,30 @@ data/*
 .DS_Store
 
 # env
-/.vscode
-/.idea
-**/__pycache__
-*.pyc
 .pytest_cache
+.venv*
+venv
+.env
+*.pyc
+*.swp
+*.egg-info
+__pycache__
+.DS_Store
+.vscode
+*.log
+*.out
 
-# doc
-docs/build
-docs/.vscode
-docs/source/_build
+_*
+flagged/
 
 # models
 /models
 /pretrained_models
 /runs
+/saved_models
+/checkpoints
+/hf_models
+
+# others
+**/*.log
+/wandb
