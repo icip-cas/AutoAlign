@@ -1,5 +1,6 @@
 """finetune"""
 import json
+import os
 from functools import partial
 from dataclasses import dataclass, field
 
@@ -16,6 +17,10 @@ from transformers import (
 from autoalign.conversation import Conversation
 from transformers import Qwen2Tokenizer, Qwen2TokenizerFast
 
+local_rank = None
+def rank0_print(*args):
+    if local_rank == 0:
+        print(*args)
 
 # model related args
 @dataclass
@@ -29,6 +34,7 @@ class ModelArguments:
 class DataArguments:
     data_path: str
     conv_template_name: str = field(metadata={"help": "name of conversation template"})
+    num_workers: str = field(metadata={"help": "number of workers for data processing"}, default=16)
 
 
 def tokenize_conversation(
@@ -54,13 +60,13 @@ def tokenize_conversation(
 
     return tokenized_conversation
 
-
-def main():
+def run_sft():
     # parse arguments
     parser = HfArgumentParser((ModelArguments, DataArguments, TrainingArguments))
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
-    print(f"{model_args=}")
-    print(f"{data_args=}")
+    local_rank = training_args.local_rank
+    rank0_print(f"{model_args=}")
+    rank0_print(f"{data_args=}")
 
     # read data
     with open(data_args.data_path, "r") as f:
@@ -79,7 +85,7 @@ def main():
     # NB: use eos_token for padding
     tokenizer.pad_token = tokenizer.eos_token
     # set padding_side
-    tokenizer.padding_side = "left"
+    tokenizer.padding_side = "right"
     # specifically set bos_token_id for Qwen2Tokenizer
     if isinstance(tokenizer, (Qwen2Tokenizer, Qwen2TokenizerFast)):
         tokenizer.bos_token = "<|im_start|>"
@@ -97,8 +103,10 @@ def main():
             model_max_length=model_args.model_max_length,
         ),
         remove_columns=list(dataset.features),
-        num_proc=8,
+        num_proc=data_args.num_workers,
     )
+
+    rank0_print(dataset[0])
 
     # get data collator
     data_collator = DataCollatorForSeq2Seq(
@@ -118,7 +126,7 @@ def main():
 
     # start training
     trainer.train()
-
+    trainer.save_model()
 
 if __name__ == "__main__":
-    main()
+    run_sft()

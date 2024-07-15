@@ -13,7 +13,7 @@ Auto-Alignment 是一个基于自动对齐技术的训练、部署和评测的�
 Default
 
 ```
-pip install -e .
+pip install -e .[train]
 ```
 
 Evaluation (Optional)
