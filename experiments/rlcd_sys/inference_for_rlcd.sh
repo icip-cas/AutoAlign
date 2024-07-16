@@ -16,3 +16,4 @@ autoalign-cli infer --backend "vllm" \
             --test-file ${OUTPUT_DIR}/${OUTPUT_REJECTED_FILE_NAME} \
             --template ${TEMPLATE_NAME} \
             --source "${REJECTED_SOURCE_TAG}" \
+            --debug-mode

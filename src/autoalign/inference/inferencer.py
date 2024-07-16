@@ -1,7 +1,6 @@
 import torch
 from tqdm import tqdm
 from transformers import (
-    AutoConfig,
     AutoTokenizer,
     AutoModelForCausalLM,
     pipeline
@@ -275,6 +274,7 @@ class MultiProcessVllmInferencer:
         )
 
         self.use_ray = False
+        self.tokenizer = AutoTokenizer.from_pretrained(model_path)
 
         if self.num_gpus_total // num_gpus_per_model > 1:
             self.use_ray = True
@@ -286,12 +286,12 @@ class MultiProcessVllmInferencer:
 
         model = LLM(
             model=model_path,
-            tensor_parallel_size=num_gpus_per_model
+            tensor_parallel_size=num_gpus_per_model,
         )
 
         return model.generate(*args, **kwargs)
 
-    def inference(self, data:List[str], batch_size=32):
+    def inference(self, data:List[str]):
 
         if self.use_ray:
             get_answers_func = ray.remote(num_gpus=self.num_gpus_per_model)(
@@ -314,12 +314,13 @@ class MultiProcessVllmInferencer:
                 )
             )
         if self.use_ray:
-            gathered_responses = [ray.get(response)[0] for response in gathered_responses]
+            gathered_responses = ray.get(gathered_responses)
 
-        print(gathered_responses)
-
+        gathered_responses = [item for sublist in gathered_responses for item in sublist]
         gathered_responses = [response.outputs[0].text for response in gathered_responses]
 
-        print(gathered_responses)
-
         return gathered_responses
+    
+    def get_tokenizer(self):
+
+        return self.tokenizer
