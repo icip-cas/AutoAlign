@@ -35,7 +35,7 @@ pip install -e .[dev]
 autoalign-cli sft
 autoalign-cli dpo
 autoalign-cli infer
-autoalign-cli eval 
+autoalign-cli eval --backend "vllm"
 ```
 
 ## Fine-tuning

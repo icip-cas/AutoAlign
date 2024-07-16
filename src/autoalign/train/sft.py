@@ -46,7 +46,7 @@ def trainer_save_model_safe(trainer: transformers.Trainer):
     ):
         trainer.save_model()
 
-def adpative_config(conv_template_name, tokenizer, model, output_dir):
+def adpative_config(conv_template_name, tokenizer, model):
     """ specify eos token and bos token for model and tokenizer based on conversation template """
     conversation = Conversation.from_template(conv_template_name)
     eos_token = conversation.role_ends["gpt"].strip()
@@ -62,7 +62,8 @@ def adpative_config(conv_template_name, tokenizer, model, output_dir):
 
     model.generation_config.bos_token_id = tokenizer.bos_token_id
     model.generation_config.eos_token_id = tokenizer.eos_token_id
-    return 
+    
+    return None
 
 def tokenize_conversation(
     conv,
@@ -91,6 +92,7 @@ def run_sft():
     # parse arguments
     parser = HfArgumentParser((ModelArguments, DataArguments, TrainingArguments))
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+    
     local_rank = training_args.local_rank
     rank0_print(f"{model_args=}")
     rank0_print(f"{data_args=}")
@@ -142,7 +144,7 @@ def run_sft():
         return_tensors="pt",
     )
 
-    adpative_config(data_args.conv_template_name, tokenizer, model, training_args.output_dir)
+    adpative_config(data_args.conv_template_name, tokenizer, model)
 
     # create trainer
     trainer = Trainer(

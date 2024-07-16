@@ -2,6 +2,7 @@ import argparse
 from autoalign.conversation import Conversation
 import json
 import os
+import random
 
 from autoalign.inference.inferencer import MultiProcessHFInferencer, MultiProcessVllmInferencer
 
@@ -31,7 +32,7 @@ def inference():
         all_test_points = json.loads(f.read())
 
     if args.debug_mode:
-        all_test_points = all_test_points[:2]
+        all_test_points = all_test_points[:1000]
 
     if args.backend == "hf":
         inferencer = MultiProcessHFInferencer(
@@ -71,15 +72,21 @@ def inference():
         conv.fill_in_messages(d)
         all_convs.append(conv)
 
-    turn_inputs = [conv.get_conversation_str() for conv in all_convs]
+    turn_inputs = [conv.get_conversation_str(add_generation_prompt=True) for conv in all_convs]
+
+    idx = random.choice(range(len(all_test_points)))
 
     print("===============")
-    print(turn_inputs[0])
+    print(f"Rendered Sample[{idx}]: {turn_inputs[idx]}")
     print("===============")
         
     all_responses = inferencer.inference(turn_inputs)
 
+    assert len(all_test_points) == len(all_responses)
+
     all_responses = [r.lstrip() for r in all_responses]
+    print(f"Sample Response[{idx}]: {all_responses[idx]}")
+    
     for conv, res in zip(all_convs, all_responses):
         res = res.rstrip(inferencer.get_tokenizer().eos_token)
         conv.append_message("gpt", res)
@@ -88,15 +95,16 @@ def inference():
         all_outputs = []
         for idx, (conv, d) in enumerate(zip(all_convs, all_test_points)):
             messages = conv.get_messages()
+            d["conversations"].append(
+                {
+                    "from": "gpt",
+                    "value": messages[-1][1]
+                }
+            )
             all_outputs.append(
                 {
                     "id": d["id"] if "id" in d else f"{test_file_name}_{idx}",
-                    "conversations": d["conversations"].append(
-                        {
-                            "from": "gpt",
-                            "value": messages[-1][1]
-                        }
-                    ),
+                    "conversations": d["conversations"],
                     "source": args.source 
                 }
             )
