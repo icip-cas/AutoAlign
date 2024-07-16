@@ -14,6 +14,7 @@ from trl import DPOTrainer, DPOConfig
 from autoalign.conversation import Conversation
 from transformers import Qwen2Tokenizer, Qwen2TokenizerFast
 
+from autoalign.train.utils import adpative_config
 
 IGNORE_TOKEN_ID = LabelSmoother.ignore_index
 
@@ -75,6 +76,9 @@ def run_dpo():
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         model_args.model_name_or_path,
     )
+
+    adpative_config(data_args.conv_template_name, tokenizer, model)
+
     # NB: use eos_token for padding
     tokenizer.pad_token = tokenizer.eos_token
     # set padding_side

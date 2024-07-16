@@ -11,11 +11,14 @@ parser.add_argument("--chosen-source", type=str)
 parser.add_argument("--rejected-source", type=str)
 parser.add_argument("--abandon-same-response", action="store_true")
 parser.add_argument("--set-source-tag", type=str, default=None) # idx->tag
-parser.add_argument("--keep-system-instruction", type=str) # TODO
+parser.add_argument("--remove-system-message", action="store_true")
 parser.add_argument("--strategy", type=str)
 parser.add_argument("--output-file-path", required=True)
 
 args = parser.parse_args()
+
+if args.chosen_source and args.rejected_source:
+    assert args.chosen_source != args.rejected_source
 
 set_idx = None
 set_tag = None
@@ -24,47 +27,6 @@ if args.set_source_tag is not None:
     set_idx, set_tag = args.set_source_tag.split("->")
     set_idx = int(set_idx)
 
-"""
-[
-    {
-      "prompt":"part 1. definition\ngiven a story, answer the question about the story. the question is the last sentence in the input. these stories can be difficult due to their length and how each story has at least one of the three following scenarios: the first is when the individual's belief matches reality, the second is when the individual's belief does not match reality, and the third is when an individual has a false belief about another individual's beliefs. the question will ask about the location of an object in the story with respect to either none or one of the three scenarios.\npart 2. example\njacob entered the dining_room. william entered the dining_room. the tomato is in the green_drawer. william exited the dining_room. jacob moved the tomato to the blue_cupboard. jacob is in the dining_room. olivia entered the dining_room. the cucumber is in the blue_cupboard. olivia exited the dining_room. jacob moved the cucumber to the green_drawer. william entered the pantry. jacob entered the pantry. the asparagus is in the red_cupboard. jacob exited the pantry. william moved the asparagus to the green_pantry. abigail entered the hall. william entered the hall. the persimmon is in the blue_pantry. william exited the hall. abigail moved the persimmon to the blue_envelope. where does abigail think that william searches for the persimmon?\nanswer: blue_pantry\nexplanation: the persimmon was last in the blue_pantry before william exited the hall. after william exited the hall, abigail moved the persimmon to the blue_envelope, so she knows where william will look for it.\npart 3. exercise\nethan entered the office. charlotte entered the office. the lettuce is in the blue_box. charlotte exited the office. ethan moved the lettuce to the red_treasure_chest. ethan exited the office. charlotte entered the office. where is the lettuce really? isabella entered the sunroom. charlotte entered the sunroom. the green_pepper is in the green_drawer. charlotte exited the sunroom. isabella moved the green_pepper to the red_pantry. isabella exited the sunroom. charlotte entered the sunroom. where does isabella think that charlotte searches for the green_pepper? charlotte entered the lounge. ethan entered the lounge. the beans is in the green_cupboard. ethan exited the lounge. charlotte moved the beans to the blue_crate. where is the beans really? ella entered the lounge. charlotte is in the lounge. the broccoli is in the blue_crate. charlotte exited the lounge. ella moved the broccoli to the green_cupboard. ella exited the lounge. charlotte entered the lounge. where is the broccoli really?\nanswer:",
-      "prompt_id":"58bde641397654a889a019dd74956009ab8a5fd1a62e7d3d100e42a4075c8f6c",
-      "chosen":[
-        {
-          "value":"part 1. definition\ngiven a story, answer the question about the story. the question is the last sentence in the input. these stories can be difficult due to their length and how each story has at least one of the three following scenarios: the first is when the individual's belief matches reality, the second is when the individual's belief does not match reality, and the third is when an individual has a false belief about another individual's beliefs. the question will ask about the location of an object in the story with respect to either none or one of the three scenarios.\npart 2. example\njacob entered the dining_room. william entered the dining_room. the tomato is in the green_drawer. william exited the dining_room. jacob moved the tomato to the blue_cupboard. jacob is in the dining_room. olivia entered the dining_room. the cucumber is in the blue_cupboard. olivia exited the dining_room. jacob moved the cucumber to the green_drawer. william entered the pantry. jacob entered the pantry. the asparagus is in the red_cupboard. jacob exited the pantry. william moved the asparagus to the green_pantry. abigail entered the hall. william entered the hall. the persimmon is in the blue_pantry. william exited the hall. abigail moved the persimmon to the blue_envelope. where does abigail think that william searches for the persimmon?\nanswer: blue_pantry\nexplanation: the persimmon was last in the blue_pantry before william exited the hall. after william exited the hall, abigail moved the persimmon to the blue_envelope, so she knows where william will look for it.\npart 3. exercise\nethan entered the office. charlotte entered the office. the lettuce is in the blue_box. charlotte exited the office. ethan moved the lettuce to the red_treasure_chest. ethan exited the office. charlotte entered the office. where is the lettuce really? isabella entered the sunroom. charlotte entered the sunroom. the green_pepper is in the green_drawer. charlotte exited the sunroom. isabella moved the green_pepper to the red_pantry. isabella exited the sunroom. charlotte entered the sunroom. where does isabella think that charlotte searches for the green_pepper? charlotte entered the lounge. ethan entered the lounge. the beans is in the green_cupboard. ethan exited the lounge. charlotte moved the beans to the blue_crate. where is the beans really? ella entered the lounge. charlotte is in the lounge. the broccoli is in the blue_crate. charlotte exited the lounge. ella moved the broccoli to the green_cupboard. ella exited the lounge. charlotte entered the lounge. where is the broccoli really?\nanswer:",
-          "from":"human"
-        },
-        {
-          "value":"1. red_treasure_chest\nexplanation: the lettuce was last moved to the red_treasure_chest by ethan.\n\n2. green_drawer\nexplanation: isabella moved the green_pepper to the red_pantry after charlotte exited the sunroom. charlotte didn't see this change, so she would still think the green_pepper is in the green_drawer.\n\n3. blue_crate\nexplanation: charlotte moved the beans to the blue_crate, which is their current location.\n\n4. green_cupboard\nexplanation: ella moved the broccoli to the green_cupboard after charlotte exited the lounge, making it the real location of the broccoli.",
-          "from":"gpt"
-        }
-      ],
-      "rejected":[
-        {
-          "value":"part 1. definition\ngiven a story, answer the question about the story. the question is the last sentence in the input. these stories can be difficult due to their length and how each story has at least one of the three following scenarios: the first is when the individual's belief matches reality, the second is when the individual's belief does not match reality, and the third is when an individual has a false belief about another individual's beliefs. the question will ask about the location of an object in the story with respect to either none or one of the three scenarios.\npart 2. example\njacob entered the dining_room. william entered the dining_room. the tomato is in the green_drawer. william exited the dining_room. jacob moved the tomato to the blue_cupboard. jacob is in the dining_room. olivia entered the dining_room. the cucumber is in the blue_cupboard. olivia exited the dining_room. jacob moved the cucumber to the green_drawer. william entered the pantry. jacob entered the pantry. the asparagus is in the red_cupboard. jacob exited the pantry. william moved the asparagus to the green_pantry. abigail entered the hall. william entered the hall. the persimmon is in the blue_pantry. william exited the hall. abigail moved the persimmon to the blue_envelope. where does abigail think that william searches for the persimmon?\nanswer: blue_pantry\nexplanation: the persimmon was last in the blue_pantry before william exited the hall. after william exited the hall, abigail moved the persimmon to the blue_envelope, so she knows where william will look for it.\npart 3. exercise\nethan entered the office. charlotte entered the office. the lettuce is in the blue_box. charlotte exited the office. ethan moved the lettuce to the red_treasure_chest. ethan exited the office. charlotte entered the office. where is the lettuce really? isabella entered the sunroom. charlotte entered the sunroom. the green_pepper is in the green_drawer. charlotte exited the sunroom. isabella moved the green_pepper to the red_pantry. isabella exited the sunroom. charlotte entered the sunroom. where does isabella think that charlotte searches for the green_pepper? charlotte entered the lounge. ethan entered the lounge. the beans is in the green_cupboard. ethan exited the lounge. charlotte moved the beans to the blue_crate. where is the beans really? ella entered the lounge. charlotte is in the lounge. the broccoli is in the blue_crate. charlotte exited the lounge. ella moved the broccoli to the green_cupboard. ella exited the lounge. charlotte entered the lounge. where is the broccoli really?\nanswer:",
-          "from":"human"
-        },
-        {
-          "value":"of course! i'll do my best to assist you with your questions. please go ahead and ask your first question. 😊",
-          "from":"gpt"
-        }
-      ],
-      "conversations":[
-        {
-          "value":"part 1. definition\ngiven a story, answer the question about the story. the question is the last sentence in the input. these stories can be difficult due to their length and how each story has at least one of the three following scenarios: the first is when the individual's belief matches reality, the second is when the individual's belief does not match reality, and the third is when an individual has a false belief about another individual's beliefs. the question will ask about the location of an object in the story with respect to either none or one of the three scenarios.\npart 2. example\njacob entered the dining_room. william entered the dining_room. the tomato is in the green_drawer. william exited the dining_room. jacob moved the tomato to the blue_cupboard. jacob is in the dining_room. olivia entered the dining_room. the cucumber is in the blue_cupboard. olivia exited the dining_room. jacob moved the cucumber to the green_drawer. william entered the pantry. jacob entered the pantry. the asparagus is in the red_cupboard. jacob exited the pantry. william moved the asparagus to the green_pantry. abigail entered the hall. william entered the hall. the persimmon is in the blue_pantry. william exited the hall. abigail moved the persimmon to the blue_envelope. where does abigail think that william searches for the persimmon?\nanswer: blue_pantry\nexplanation: the persimmon was last in the blue_pantry before william exited the hall. after william exited the hall, abigail moved the persimmon to the blue_envelope, so she knows where william will look for it.\npart 3. exercise\nethan entered the office. charlotte entered the office. the lettuce is in the blue_box. charlotte exited the office. ethan moved the lettuce to the red_treasure_chest. ethan exited the office. charlotte entered the office. where is the lettuce really? isabella entered the sunroom. charlotte entered the sunroom. the green_pepper is in the green_drawer. charlotte exited the sunroom. isabella moved the green_pepper to the red_pantry. isabella exited the sunroom. charlotte entered the sunroom. where does isabella think that charlotte searches for the green_pepper? charlotte entered the lounge. ethan entered the lounge. the beans is in the green_cupboard. ethan exited the lounge. charlotte moved the beans to the blue_crate. where is the beans really? ella entered the lounge. charlotte is in the lounge. the broccoli is in the blue_crate. charlotte exited the lounge. ella moved the broccoli to the green_cupboard. ella exited the lounge. charlotte entered the lounge. where is the broccoli really?\nanswer:",
-          "from":"human"
-        },
-        {
-          "value":"1. red_treasure_chest\nexplanation: the lettuce was last moved to the red_treasure_chest by ethan.\n\n2. green_drawer\nexplanation: isabella moved the green_pepper to the red_pantry after charlotte exited the sunroom. charlotte didn't see this change, so she would still think the green_pepper is in the green_drawer.\n\n3. blue_crate\nexplanation: charlotte moved the beans to the blue_crate, which is their current location.\n\n4. green_cupboard\nexplanation: ella moved the broccoli to the green_cupboard after charlotte exited the lounge, making it the real location of the broccoli.",
-          "from":"gpt"
-        }
-      ],
-      "score_chosen":8.5,
-      "score_rejected":1.0
-    }
-]
-"""
-
 """"
 策略1：负样本用模型自己生成的，正样本用监督信号
 策略2：正样本用两个中间更长的，负样本用两个中间更短的
@@ -72,35 +34,39 @@ if args.set_source_tag is not None:
 策略4：正样本用加上principle的，负样本用加负向principle的
 """
 
-def length_strategy(s):
+def length_strategy(d):
     # set the logest conversation as chosen
-    for key in s.keys():
+    for key in d.keys():
         if key.startswith("conversation_"):
-            if "chosen" not in s.keys():
-                s["chosen"] = s[key]
-            if "rejected" not in s.keys():
-                s["rejected"] = s[key]
+            if "chosen" not in d.keys():
+                d["chosen"] = d[key]
+            if "rejected" not in d.keys():
+                d["rejected"] = d[key]
 
-            if len(s[key][-1]["content"]) > len(s["chosen"][-1]["content"]):
-                s["chosen"] = s[key]
+            if len(d[key][-1]["content"]) > len(d["chosen"][-1]["content"]):
+                d["chosen"] = d[key]
             else:
-                s["rejected"] = s[key]
-    return s
+                d["rejected"] = d[key]
+    d["conversations"] = d["chosen"]
+    return d
+
+def given_strategy(d):
+
+    d["chosen"] = deepcopy(d["conversation_" + args.chosen_source])
+    d["rejected"] = deepcopy(d["conversation_" + args.rejected_source])
+    del d["conversation_" + args.chosen_source]
+    del d["conversation_" + args.rejected_source]
+    return d
 
 def strategy(preferences_store):
 
     if args.chosen_source and args.rejected_source:
         for d in preferences_store:
-            d["chosen"] = deepcopy(d["conversation_" + args.chosen_source])
-            d["rejected"] = deepcopy(d["conversation_" + args.rejected_source])
-            d["conversations"] = d["chosen"]
-            del d["conversation_" + args.chosen_source]
-            del d["conversation_" + args.rejected_source]
+            d = given_strategy(d)
 
     elif strategy == "length":
         for d in preferences_store:
             d = length_strategy(d)
-            d["conversations"] = d["chosen"]
 
     else:
         raise ValueError()
@@ -133,10 +99,20 @@ for idx, input_file in enumerate(args.input_files):
                     print(idx)
                     d["source"] = set_tag
                 source = d["source"]
+
+                if d["conversations"][0]["from"] == "system":
+                    if args.remove_system_message:
+                        d["conversations"] = d["conversations"][1:]
+                        prompt = d["conversations"][0]["value"]
+                    else:
+                        prompt = d["conversations"][1]["value"]
+                else:
+                    prompt = d["conversations"][0]["value"]
+
                 preferences_store.append({
-                    "prompt": d["conversations"][0]["content"],
+                    "prompt": prompt,
                     "prompt_id": d["id"],
-                    f"conversation_{source}": d["conversations"][:2] # only single turn
+                    f"conversation_{source}": d["conversations"]
                 })
         else:
             for d, p in tqdm(zip(data, preferences_store)):
@@ -148,10 +124,13 @@ for idx, input_file in enumerate(args.input_files):
                     d["source"] = set_tag
                 source = d["source"]
 
+                if d["conversations"][0]["from"] == "system" and args.remove_system_message:
+                    d["conversations"] = d["conversations"][1:]
+
                 if "id" in d and p["prompt_id"] != d["id"]:
                     print(f"Warning: {d['id']} mismatch.")
 
-                p[f"conversation_{source}"] = d["conversations"][:2] # only single turn
+                p[f"conversation_{source}"] = d["conversations"]
 
 preferences_store = strategy(preferences_store)
 
@@ -159,7 +138,7 @@ if args.abandon_same_response:
     num_all_abandon_response = 0
     _preferences_store = []
     for p in preferences_store:
-        if p["chosen"][-1]["content"] == p["rejected"][-1]["content"]:
+        if p["chosen"][-1]["value"] == p["rejected"][-1]["value"]:
             num_all_abandon_response += 1
         else:
             _preferences_store.append(p)
@@ -180,10 +159,4 @@ print("==============================")
 
 with open(args.output_file_path, "w", encoding="utf-8") as f:
 
-    for p in preferences_store:
-        f.write(
-            json.dumps(
-                p, 
-                ensure_ascii=False
-            ) + "\n"
-        )
+    f.write(json.dumps(preferences_store, indent=4, ensure_ascii=False))

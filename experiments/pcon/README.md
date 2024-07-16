@@ -1,0 +1,21 @@
+## Parameter Contrast
+
+One simple weak supervision signal is that treat the response from bigger model as positive, and treat the response from smaller one as negative.
+
+These perference pairs can be collected by running the following scripts:
+
+```
+export WEAK_MODEL_NAME=qwen2-0_5b
+export WEAK_MODEL_PATH=pretrained_models/Qwen2-0.5B
+export STRONG_MODLE_NAME=qwen2-7b
+export STRONG_MODLE_PATH=pretrained_models/Qwen2-7B
+export TEMPLATE_NAME="chatml"
+bash inference_for_pcon.sh
+bash prepare_for_pcon.sh
+```
+
+Then start training!
+
+```
+bash train_dpo.sh
+```

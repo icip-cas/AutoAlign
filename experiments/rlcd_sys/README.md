@@ -30,7 +30,7 @@ export PROMPTS_FILE="../../data/train/ultrafeedback_ata.json"
 export OUTPUT_DIR="./outputs/"
 export OUTPUT_CHOSEN_FILE_NAME="ultrafeedback_ata_chosen.json"
 export OUTPUT_REJECTED_FILE_NAME="ultrafeedback_ata_rejected.json"
-bash prepare_for_rlcd.sh
+source prepare_for_rlcd.sh
 ```
 
 ```bash
@@ -38,14 +38,14 @@ bash prepare_for_rlcd.sh
 export TEMPLATE_NAME="chatml"
 export MODEL_NAME="qwen2-7b"
 export SAVED_MODEL_PATH="./pretrained_models/Qwen2-7B"
-bash inference_for_rlcd.sh
+source inference_for_rlcd.sh
 bash prepare_for_dpo.sh
 ```
 
 Then start training!
 
 ```bash
-autoalign-cli dpo 
+bash train_dpo.sh
 ```
 
 ## Citation

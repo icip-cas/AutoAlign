@@ -18,6 +18,8 @@ from autoalign.conversation import Conversation
 from transformers import Qwen2Tokenizer, Qwen2TokenizerFast
 import transformers
 
+from autoalign.train.utils import adpative_config
+
 local_rank = None
 def rank0_print(*args):
     if local_rank == 0:
@@ -45,25 +47,6 @@ def trainer_save_model_safe(trainer: transformers.Trainer):
         trainer.model, StateDictType.FULL_STATE_DICT, save_policy
     ):
         trainer.save_model()
-
-def adpative_config(conv_template_name, tokenizer, model):
-    """ specify eos token and bos token for model and tokenizer based on conversation template """
-    conversation = Conversation.from_template(conv_template_name)
-    eos_token = conversation.role_ends["gpt"].strip()
-    eos_token_id = tokenizer(eos_token).input_ids[-1]
-    # print(f"{tokenizer(eos_token)=} {eos_token=} {eos_token_id=} {tokenizer.decode([eos_token_id])=}")
-
-    assert eos_token == tokenizer.decode([eos_token_id]), "eos token is not a valid token"
-    tokenizer.eos_token_id = eos_token_id
-    tokenizer.eos_token = eos_token
-    
-    model.config.bos_token_id = tokenizer.bos_token_id
-    model.config.eos_token_id = tokenizer.eos_token_id
-
-    model.generation_config.bos_token_id = tokenizer.bos_token_id
-    model.generation_config.eos_token_id = tokenizer.eos_token_id
-    
-    return None
 
 def tokenize_conversation(
     conv,
