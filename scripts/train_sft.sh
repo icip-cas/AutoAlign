@@ -11,7 +11,6 @@ autoalign-cli sft \
     --eval_strategy ${EVAL_STRATEGY:-"no"} \
     --eval_steps ${EVAL_STEPS:-"1500"} \
     --save_strategy ${SAVE_STRATEGY:-"epoch"} \
-    --save_total_limit ${SAVE_TOTAL_LIMIT:-"10"} \
     --learning_rate ${LR:-"2e-5"} \
     --weight_decay 0. \
     --warmup_ratio 0.04 \

@@ -13,7 +13,7 @@ def test_get_tokenized_conversation(
     template_name: str = "qwen-7b-chat",
     tokenizer_name_or_path: str = "Qwen/Qwen1.5-7B",
     model_max_length: int = 4096,
-    data_path: str = "data/dummy_conversation.json",
+    data_path: str = "data/dummy_sft.json",
 ):
     """test tokenization and labels preparing"""
     # get tokenizer
@@ -47,6 +47,7 @@ def test_get_tokenized_conversation(
         # check whether target texts match
         target_ids = [list(y) for x, y in groupby(labels, lambda x: x != IGNORED_TOKEN_ID) if x]
         target_texts = map(tokenizer.decode, target_ids)
+        print(" ".join(list(target_texts)))
         assistant_responses = [_["value"] for _ in conv["conversations"] if _["from"] == "gpt"]
         for target_text, assistant_response in zip(target_texts, assistant_responses):
             assert target_text == assistant_response + conversation.role_ends["gpt"], "target text and gpt response do not match!"

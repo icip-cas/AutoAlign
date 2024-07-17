@@ -1,6 +1,6 @@
 from autoalign.conversation import Conversation
 
-def adpative_config(conv_template_name, tokenizer, model):
+def configure_model(conv_template_name, tokenizer, model):
     """ specify eos token and bos token for model and tokenizer based on conversation template """
     conversation = Conversation.from_template(conv_template_name)
     eos_token = conversation.role_ends["gpt"].strip()
@@ -16,5 +16,7 @@ def adpative_config(conv_template_name, tokenizer, model):
 
     model.generation_config.bos_token_id = tokenizer.bos_token_id
     model.generation_config.eos_token_id = tokenizer.eos_token_id
+
+    model.config.use_cache = False # disable cache for training
     
     return None
