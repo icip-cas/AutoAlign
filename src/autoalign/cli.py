@@ -5,8 +5,6 @@ import sys
 from enum import Enum, unique
 import argparse
 
-from .train import sft, dpo
-from .inference import inference
 from .utils import get_logger, get_device_count
 
 logger = get_logger(__name__)
@@ -53,12 +51,15 @@ def main():
     args, remaining_args = parser.parse_known_args()
 
     if args.command == Command.SFT:
+        from .train import sft
         run_distributed_task(sft.__file__, remaining_args)
     elif args.command == Command.DPO:
+        from .train import dpo
         run_distributed_task(dpo.__file__, remaining_args)
     elif args.command == Command.EVAL:
         raise NotImplementedError()
     elif args.command == Command.INFER:
+        from .inference import inference
         run_inference(args, remaining_args)
     else:
         raise ValueError(f"Unknown command: {args.command}")
