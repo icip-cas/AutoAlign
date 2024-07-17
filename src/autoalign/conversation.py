@@ -138,6 +138,42 @@ class Conversation:
                 offset=1,
                 bos_offset=1,
             )
+        elif template_name == "llama-2-chat":
+            return cls(
+                template_name=template_name,
+                role_starts={
+                    "system": "<s>[INST] <<SYS>>\n",
+                    "human": "\n\n",
+                    "gpt": "[/INST]",
+                },
+                role_ends={
+                    "system": "\n<</SYS>>",
+                    "human": " ",
+                    "gpt": "</s>",
+                }, 
+                default_system_message="You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  "
+                "Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.\n\n"
+                "If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.",
+                overwrite_system_message=overwrite_system_message,
+                offset=0,
+                bos_offset=1,
+            )
+        elif template_name == "llama-2-chat-keep-system":
+            return cls(
+                template_name=template_name,
+                role_starts={
+                    "system": "<s>[INST] <<SYS>>\n",
+                    "human": "\n\n",
+                    "gpt": "[/INST]",
+                },
+                role_ends={
+                    "system": "\n<</SYS>>",
+                    "human": " ",
+                    "gpt": "</s>",
+                }, 
+                offset=0,
+                bos_offset=1,
+            )
         elif template_name == "chatml":
             return cls(
                 template_name=template_name,
@@ -157,6 +193,7 @@ class Conversation:
                 bos_offset=0,
             )
         elif template_name == "chatml-keep-system":
+            # chatml template with system message kept, if no system message is provided, the system message is empty
             return cls(
                 template_name=template_name,
                 role_starts={
@@ -169,7 +206,6 @@ class Conversation:
                     "human": "<|im_end|>\n",
                     "gpt": "<|im_end|>\n",
                 },
-                overwrite_system_message=overwrite_system_message,
                 offset=0,
                 bos_offset=0,
             )

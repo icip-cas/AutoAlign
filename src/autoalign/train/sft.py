@@ -18,7 +18,7 @@ from autoalign.conversation import Conversation
 from transformers import Qwen2Tokenizer, Qwen2TokenizerFast
 import transformers
 
-from autoalign.train.utils import adpative_config
+from autoalign.train.utils import configure_model
 
 local_rank = None
 def rank0_print(*args):
@@ -37,6 +37,7 @@ class ModelArguments:
 class DataArguments:
     data_path: str
     conv_template_name: str = field(metadata={"help": "name of conversation template"})
+    num_workers: str = field(default=8, metadata={"help": "number of workers for tokenization"})
 
 def trainer_save_model_safe(trainer: transformers.Trainer):
     from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
@@ -118,8 +119,6 @@ def run_sft():
         num_proc=data_args.num_workers,
     )
 
-    rank0_print(dataset[0])
-
     # get data collator
     data_collator = DataCollatorForSeq2Seq(
         tokenizer=tokenizer,
@@ -127,7 +126,7 @@ def run_sft():
         return_tensors="pt",
     )
 
-    adpative_config(data_args.conv_template_name, tokenizer, model)
+    configure_model(data_args.conv_template_name, tokenizer, model)
 
     # create trainer
     trainer = Trainer(
