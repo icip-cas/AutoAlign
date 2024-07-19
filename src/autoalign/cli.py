@@ -32,13 +32,13 @@ def run_distributed_task(file, args):
     process = subprocess.run(command, shell=True)
     sys.exit(process.returncode)
 
-def run_inference(args, remaining_args):
+def run_inference(file, args, remaining_args):
     assert args.backend is not None, "Please specify the backend for inference"
     backend = args.backend
     if backend == 'hf':
-        command = f"accelerate launch {inference.__file__} --backend 'hf' {' '.join(remaining_args)}"
+        command = f"accelerate launch {file} --backend 'hf' {' '.join(remaining_args)}"
     elif backend == 'vllm':
-        command = f"python {inference.__file__} --backend 'vllm' {' '.join(remaining_args)}"
+        command = f"python {file} --backend 'vllm' {' '.join(remaining_args)}"
     
     process = subprocess.run(command, shell=True)
     sys.exit(process.returncode)
@@ -60,6 +60,6 @@ def main():
         raise NotImplementedError()
     elif args.command == Command.INFER:
         from .inference import inference
-        run_inference(args, remaining_args)
+        run_inference(inference.__file__, args, remaining_args)
     else:
         raise ValueError(f"Unknown command: {args.command}")

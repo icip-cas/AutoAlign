@@ -3,6 +3,7 @@ import json
 import os
 from functools import partial
 from dataclasses import dataclass, field
+import pathlib
 
 import torch
 from datasets import Dataset
@@ -138,7 +139,10 @@ def run_sft():
     )
 
     # start training
-    trainer.train()
+    if list(pathlib.Path(training_args.output_dir).glob("checkpoint-*")):
+        trainer.train(resume_from_checkpoint=True)
+    else:
+        trainer.train()
 
     # Save model
     model.config.use_cache = True

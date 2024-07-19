@@ -11,7 +11,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--input-files-list", nargs='+', required=True)
 parser.add_argument("--output-file-suffix", type=str, required=True)
 parser.add_argument("--output-dir", type=str, default="./data/train/")
-parser.add_argument("--identity-file", type=str, default="data/train/identity_v0.json")
+parser.add_argument("--add-identity", action="store_true")
+parser.add_argument("--identity-file", type=str, default=None)
 parser.add_argument("--n-split", type=int, default=3)
 parser.add_argument("--use-prop", type=str, required=True)
 parser.add_argument("--seed", type=int, default=42)
@@ -74,17 +75,20 @@ def preprocess(content):
                 ele['conversations'][1] = ele['conversations'][1].replace('zhuque','Zhuque')
 
             new_content.append(conv)
-
-    new_content.extend(identity_data)
+    
     random.shuffle(new_content)
     print(f"#in: {len(content)}, #out: {len(new_content)}")
 
     return new_content
 
-with open(args.identity_file) as f:
-    identity_data = json.load(f)
+if args.add_identity:
 
-print("We have {} identity_data".format(len(identity_data)))
+    assert args.identity_file is not None, "Please provide identity file"
+
+    with open(args.identity_file) as f:
+        identity_data = json.load(f)
+
+    print("We have {} identity_data".format(len(identity_data)))
 
 count_num = 0
 idx = 0
@@ -116,12 +120,13 @@ random.shuffle(all_data)
 split_size = len(all_data) // n_files
 for i in range(n_files):
     split_data[i] = all_data[i*split_size:(i+1)*split_size]
-    # add identity data after some conv
-    added_data = random.sample(split_data[i], 1000)
-    for d in added_data:
-        d['conversations'].extend(random.choice(identity_data)['conversations'])
-    # add identity for each split
-    split_data[i].extend(identity_data)
+    if args.add_identity:
+        # add identity data after some conv
+        added_data = random.sample(split_data[i], 1000)
+        for d in added_data:
+            d['conversations'].extend(random.choice(identity_data)['conversations'])
+        # add identity for each split
+        split_data[i].extend(identity_data)
 
 print(f"Total data: {count_num}")
 print(f"Total zh data: {zh}")

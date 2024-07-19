@@ -5,8 +5,8 @@ from transformers import AutoTokenizer
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--input-file', type=str, default='data/v2_200k_loss_high_ratio_filtered.json')
-parser.add_argument('--tokenizer-path', type=str, default='./pretrained_models/Qwen1.5-0.5B-Chat')
+parser.add_argument('--input-file', type=str, required=True)
+parser.add_argument('--tokenizer-path', type=str, required=True)
 
 args = parser.parse_args()
 

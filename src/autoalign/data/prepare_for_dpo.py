@@ -27,13 +27,6 @@ if args.set_source_tag is not None:
     set_idx, set_tag = args.set_source_tag.split("->")
     set_idx = int(set_idx)
 
-""""
-策略1：负样本用模型自己生成的，正样本用监督信号
-策略2：正样本用两个中间更长的，负样本用两个中间更短的
-策略3：正样本用加上principle的，负样本用不加principle的
-策略4：正样本用加上principle的，负样本用加负向principle的
-"""
-
 def length_strategy(d):
     # set the logest conversation as chosen
     for key in d.keys():
