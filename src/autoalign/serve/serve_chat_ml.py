@@ -68,7 +68,6 @@ def _chat_stream(model, tokenizer, query, history):
         return_tensors='pt',
     )
     inputs = inputs.to(model.device)
-    print(inputs.shape)
     streamer = TextIteratorStreamer(tokenizer=tokenizer, skip_prompt=True, timeout=60.0, skip_special_tokens=True)
     generation_kwargs = dict(
         input_ids=inputs,

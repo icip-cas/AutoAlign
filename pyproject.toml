@@ -5,10 +5,14 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "autoalign"
 description = ""
-version = "0.0.1"
+version = "0.1.0"
 requires-python = ">=3.10"
 authors = [
+    { name = "gxy-gxy", email = "guanxinyan23@mails.ucas.ac.cn" }
     { name = "luxinyu1", email = "luxinyu2021@iscas.ac.cn" }
+    { name = "Rosenberg371", email = "wenxueru23@mails.ucas.ac.cn" }
+    { name = "xiangh8", email = "1694590773@qq.com" }
+    { name = "xudong2022", email = "xudong2022@iscas.ac.cn" }
 ]
 
 dependencies = [

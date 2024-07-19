@@ -40,3 +40,5 @@ flagged/
 # others
 **/*.log
 /wandb
+/caches
+/outputs
