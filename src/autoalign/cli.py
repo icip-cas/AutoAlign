@@ -57,7 +57,8 @@ def main():
         from .train import dpo
         run_distributed_task(dpo.__file__, remaining_args)
     elif args.command == Command.EVAL:
-        raise NotImplementedError()
+        from .eval.run_eval import run_eval
+        run_eval(remaining_args)
     elif args.command == Command.INFER:
         from .inference import inference
         run_inference(inference.__file__, args, remaining_args)
