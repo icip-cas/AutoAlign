@@ -140,6 +140,7 @@ def run_sft():
 
     # start training
     if list(pathlib.Path(training_args.output_dir).glob("checkpoint-*")):
+        rank0_print("Resume training from existing checkpoint...")
         trainer.train(resume_from_checkpoint=True)
     else:
         trainer.train()
