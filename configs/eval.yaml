@@ -1,0 +1,31 @@
+# 评测的模型标识名称
+# The identifying name of the model to evaluate
+model_name: llama-2-7b_ultrachat
+
+# 评测的模型路径
+# The path of the model to evaluate
+model_path: /data2/luxinyu2021/auto-alignment/saved_models/llama-2-7b_ultrachat
+
+# 评测的类型
+# The type of evaluation
+# 可选项：
+# objective_core: 评测模型的核心客观指标。(evaluating the core objective metrics of the model)
+# objective_all: 评测模型的所有客观指标。(evaluating all the objective metrics of the model)
+# subjective: 评测模型的主观指标。(evaluating the subjective metrics of the model)
+eval_type: objective_all
+
+# 单个模型worker所占用的GPU数量
+# The number of GPUs occupied by a single model worker
+per_model_gpu: 1
+
+# 单个worker的batch_size
+# The batch size of a single worker
+batch_size: 8
+
+# opencompass文件夹的路径
+# The path of opencompass
+opencompass_path: opencompass
+
+# opencompass的推理backend
+# The inference backend of opencompass
+backend: vllm

@@ -10,6 +10,7 @@ requires-python = ">=3.10"
 authors = [
     { name = "gxy-gxy", email = "guanxinyan23@mails.ucas.ac.cn" },
     { name = "luxinyu1", email = "luxinyu2021@iscas.ac.cn" },
+    { name = "luyaojie", email = "luyaojie@iscas.ac.cn" },
     { name = "Rosenberg371", email = "wenxueru23@mails.ucas.ac.cn" },
     { name = "xiangh8", email = "1694590773@qq.com" },
     { name = "xudong2022", email = "xudong2022@iscas.ac.cn" },
@@ -48,7 +49,6 @@ eval = [
   "torchaudio==2.3.0",
   "human-eval==1.0.3",
   "alpaca-eval==0.6.3",
-  "opencompass@git+https://github.com/open-compass/opencompass.git@0.2.3",
 ]
 
 dev = [
