@@ -32,7 +32,9 @@ def generate_config(model_name, model_path, eval_type, per_model_gpu, batch_size
     CONFIG_CORE = """from mmengine.config import read_base
 from opencompass.models import HuggingFaceCausalLM, VLLM
 with read_base():
-
+    from ..opencompass.configs.datasets.mmlu.mmlu_gen import mmlu_datasets
+    from ..opencompass.configs.datasets.gsm8k.gsm8k_gen import gsm8k_datasets
+    from ..opencompass.configs.datasets.humaneval.humaneval_gen import humaneval_datasets
     from ..opencompass.configs.datasets.humaneval_cn.humaneval_cn_gen import humaneval_cn_datasets
     from ..opencompass.configs.summarizers.example import summarizer
 from opencompass.partitioners import SizePartitioner, NaivePartitioner
