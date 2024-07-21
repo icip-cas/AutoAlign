@@ -26,12 +26,13 @@ def parse_args(args: str):
 logger = get_logger(__name__)
 
 def generate_config(model_name, model_path, eval_type, per_model_gpu, batch_size, opencompass_path, backend):
+    #    from ..opencompass.configs.datasets.mmlu.mmlu_gen import mmlu_datasets
+    # from ..opencompass.configs.datasets.gsm8k.gsm8k_gen import gsm8k_datasets
+    # from ..opencompass.configs.datasets.humaneval.humaneval_gen import humaneval_datasets
     CONFIG_CORE = """from mmengine.config import read_base
 from opencompass.models import HuggingFaceCausalLM, VLLM
 with read_base():
-    from ..opencompass.configs.datasets.mmlu.mmlu_gen import mmlu_datasets
-    from ..opencompass.configs.datasets.gsm8k.gsm8k_gen import gsm8k_datasets
-    from ..opencompass.configs.datasets.humaneval.humaneval_gen import humaneval_datasets
+
     from ..opencompass.configs.datasets.humaneval_cn.humaneval_cn_gen import humaneval_cn_datasets
     from ..opencompass.configs.summarizers.example import summarizer
 from opencompass.partitioners import SizePartitioner, NaivePartitioner
@@ -147,8 +148,9 @@ models = [
     return os.path.join("../", config_path)
 
 
-def start_opencompass(config_path, opencompass_path):
-    command = ["cd {opencompass_path} \n python run.py {config_path}".format(config_path=config_path, opencompass_path=opencompass_path)]
+def start_opencompass(work_dir, config_path, opencompass_path):
+    command = ["cd {opencompass_path} \n python run.py {config_path} --work-dir {work_dir}" \
+               .format(config_path=config_path, opencompass_path=opencompass_path, work_dir=os.path.join("..", work_dir))]
     try:
         process = subprocess.Popen(command, shell=True, text=True, preexec_fn=os.setsid)
         # wait
@@ -169,7 +171,7 @@ def start_opencompass(config_path, opencompass_path):
     return_code = process.returncode
     print("Return code:", return_code)
 
-def handle_result(model_name, opencompass_path):
+def handle_result(model_name, work_dir):
     objective_datasets = [{"dataset":"gsm8k", "metric":"accuracy", "title": "GSM-8K(EN)"},
                           {"dataset":"math", "metric":"accuracy", "title": "MATH(EN)"},
                           {"dataset":"openai_humaneval", "metric":"humaneval_pass@1", "title": "HumanEval(EN)"},
@@ -183,14 +185,13 @@ def handle_result(model_name, opencompass_path):
     ordered_df = pd.DataFrame(columns = ["MT-Bench(EN)","AlpacaEval 1.0(EN)","AlpacaEval 2.0(EN)", "AlignBench(CH)", "MATH(EN)", "GSM-8K(EN)", 
                             "SuperCLUE-Math6(CH)", "HumanEval(EN)", "MBPP(EN)" , "HumanEval-CN(CH)", "MBPP-CN(CH)", "MMLU(EN)", "GPQA(EN)",
                             "CMMLU(CH)", "C-Eval(CH)"])
-    opencompass_outputs_path = os.path.join(opencompass_path, "outputs/default")
-    assert os.path.isdir(opencompass_outputs_path)
+    assert os.path.isdir(work_dir)
     encounter_model_name = False
     latest_file = None
     new_row = {}
     # Traverse all the first-level subdirectories under the 'outputs' folder of opencompass.
-    for eval in os.listdir(opencompass_outputs_path):
-        evaluation_path = os.path.join(opencompass_outputs_path, eval, "summary")
+    for eval in os.listdir(work_dir):
+        evaluation_path = os.path.join(work_dir, eval, "summary")
         # For a given evaluation, determine whether a 'summary' folder exists; ignore folders that do not have a 'summary.'
         if not os.path.isdir(evaluation_path):
             continue
@@ -216,7 +217,7 @@ def handle_result(model_name, opencompass_path):
                             row = row[1]
                             if row["dataset"] == dataset["dataset"] and row["metric"] == dataset["metric"]:
                                 new_row[dataset["title"]] = row[model_name]
-    ordered_df.loc[len(df)] = new_row
+    ordered_df.loc[len(ordered_df)] = new_row
     return ordered_df
 
 def warn_duplicate(model_name, position):
@@ -337,18 +338,30 @@ def run_mt_bench_eval(model_path: str, model_name: str, batch_size: int, api_bas
     logger.info(f"show result finished")
     return
 
+def transpose_and_format_dataframe(input_dataframe, output_txt_path):
+    transposed_df = input_dataframe.transpose()
+    max_index_len = pd.Series([len(str(x)) for x in transposed_df.index]).max()
+    max_widths = transposed_df.applymap(lambda x: len(str(x))).max()
+    max_widths = max_widths.tolist()
+    max_widths.insert(0, max_index_len)
+    with open(output_txt_path, 'w', encoding='utf-8') as txt_file:
+        for row in transposed_df.itertuples(index=True, name=None):
+            formatted_row = '\t\t'.join(str(val if not pd.isna(row[idx]) else "-").ljust(max_widths[idx])\
+                for idx, val in enumerate(list(row)))
+            txt_file.write(formatted_row + '\n')
+
 def run_objective_eval(model_name, model_path, eval_type, per_model_gpu, batch_size, opencompass_path, backend):
-    if os.path.exists("outputs/{model_name}.csv".format(model_name=model_name)):
+    if os.path.exists("configs/{model_name}.py".format(model_name=model_name)):
         warn_duplicate(model_name, "configs")
-    if os.path.exists("outputs/{model_name}.csv".format(model_name=model_name)):
+    if os.path.exists("outputs/{model_name}/.csv".format(model_name=model_name)):
         warn_duplicate(model_name, "ordered_results")
-    opencompass_outputs_path = os.path.join(opencompass_path, "outputs/default")
-    if os.path.isdir(opencompass_outputs_path):
+    work_dir = "outputs/{model_name}/opencompass_log/".format(model_name=model_name)
+    if os.path.isdir(work_dir):
         check_duplicate = False
-        for eval in os.listdir(opencompass_outputs_path):
+        for eval in os.listdir(work_dir):
             if check_duplicate:
                 break
-            evaluation_path = os.path.join(opencompass_outputs_path, eval, "summary")
+            evaluation_path = os.path.join(work_dir, eval, "summary")
             if not os.path.isdir(evaluation_path):
                 continue
             for file in os.listdir(evaluation_path):
@@ -360,11 +373,12 @@ def run_objective_eval(model_name, model_path, eval_type, per_model_gpu, batch_s
                         check_duplicate = True
                         break
     config_path = generate_config(model_name, model_path, eval_type, per_model_gpu, batch_size, opencompass_path, backend)
-    start_opencompass(config_path, opencompass_path)
-    ordered_df = handle_result(model_name, opencompass_path)
+    start_opencompass(work_dir, config_path, opencompass_path)
+    ordered_df = handle_result(model_name, work_dir)
     if not os.path.isdir("outputs"):
         os.makedirs("outputs")
-    ordered_df.to_csv("outputs/{model_name}.csv".format(model_name=model_name), index=False)
+    ordered_df.to_csv("outputs/{model_name}/ordered_res.csv".format(model_name=model_name), index=False)
+    transpose_and_format_dataframe(ordered_df, "outputs/{model_name}/ordered_res.txt".format(model_name=model_name))
 
 
 def run_eval(args) -> None:
