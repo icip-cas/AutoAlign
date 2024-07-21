@@ -13,8 +13,10 @@ import pandas as pd
 import signal
 from argparse import ArgumentParser
 
-from autoalign.inference.inferencer import OpenAIInferencer
+from autoalign.inference.inferencer import MultiProcessVllmInferencer
 from autoalign.utils import get_logger
+from .inference_mt_bench import run_eval, reorg_answer_file
+from .gen_judgmen_mt_bench import judge
 
 def parse_args(args: str):
 
@@ -231,7 +233,7 @@ def warn_duplicate(model_name, position):
         else:
             print("Invalid input, tap your keyboard again.")
 
-def build_data(datas, batch_size,tokenizer,inferencer: OpenAIInferencer) -> list:
+def build_data(datas, batch_size,tokenizer,inferencer: MultiProcessVllmInferencer) -> list:
     sorted_datas = sorted(datas, key=lambda x: len(x['instruction']))
     dealdatas = []
     batch_num = (len(sorted_datas)-1)// batch_size + 1
@@ -245,39 +247,14 @@ def build_data(datas, batch_size,tokenizer,inferencer: OpenAIInferencer) -> list
                 tokenize=False,
                 add_generation_prompt=True
             ))
-        outputs = inferencer.multiprocess_inference(prompts)
+        outputs = inferencer.inference(prompts)
         for j, data in enumerate(batch_datas):
             data['prompt'] = data['instruction']
             data["output"] = outputs[j]
             dealdatas.append(data.copy())
     return dealdatas
 
-def start_api(model_name: str, model_path: str, per_model_gpu: int) -> None:
-    port = 9329
-    # 检测9329端口是否被占用
-    while True:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            try:
-                s.bind(("localhost", port))
-                break
-            except OSError:
-                port += 1
-    logger.info(f"starting api for model: {model_name}, model_path: {model_path}, port: {port}")
-    command = f"""python3 -m fastchat.serve.controller > /dev/null 2>&1 &
-    python3 -m fastchat.serve.vllm_worker --model-path {model_path} --model-names {model_name} --num-gpus {per_model_gpu} > /dev/null 2>&1 &
-    python3 -m fastchat.serve.openai_api_server --host localhost --port {port} > /dev/null 2>&1 &
-"""
-    process = subprocess.run(command, shell=True)
-    if process.returncode != 0:
-        logger.error(f"api for model: {model_name} failed to start")
-        return
-    logger.info(f"starting api for model: {model_name}, model_path: {model_path}")
-    logger.info(f"to ensure the api is started, we will wait for 300 seconds")
-    sleep(300)
-    logger.info(f"wait finished, api should be started")
-    return port
-    
-def run_alpaca_eval(model_name: str, model_path: str, batch_size: int, inferencer: OpenAIInferencer) -> None:
+def run_alpaca_eval(model_name: str, model_path: str, batch_size: int, inferencer: MultiProcessVllmInferencer) -> None:
     eval_set = datasets.load_dataset("tatsu-lab/alpaca_eval", "alpaca_eval")["eval"]
     logger.info(f"Running ALPaCA evaluation for model: {model_name}, model_path: {model_path}")
     tokenizer = AutoTokenizer.from_pretrained(model_path)
@@ -289,13 +266,13 @@ def run_alpaca_eval(model_name: str, model_path: str, batch_size: int, inference
         return
     for data in datas:
         data["generator"] = model_name
-    if not os.path.exists(f"./eval_result/alpaca/{model_name}"):
-        os.makedirs(f"./eval_result/alpaca/{model_name}")
-    with open(f"./eval_result/alpaca/{model_name}/{model_name}_outputs.json", 'w') as f:
+    if not os.path.exists(f"data/alpaca/{model_name}"):
+        os.makedirs(f"data/alpaca/{model_name}")
+    with open(f"data/alpaca/{model_name}/{model_name}_outputs.json", 'w') as f:
         json.dump(datas, f, indent=4)
     logger.info(f"outputs generated, starting to evaluate")
-    command = f"""alpaca_eval --model_outputs ./eval_result/alpaca/{model_name}/{model_name}_outputs.json \
-    --output_path ./eval_result/alpaca/{model_name}/ \
+    command = f"""alpaca_eval --model_outputs data/alpaca/{model_name}/{model_name}_outputs.json \
+    --output_path data/alpaca/{model_name}/ \
     --annotators_config weighted_alpaca_eval_gpt4_turbo \
     --is_overwrite_leaderboard"""
     process = subprocess.run(command, shell=True)
@@ -305,37 +282,59 @@ def run_alpaca_eval(model_name: str, model_path: str, batch_size: int, inference
         logger.info(f"alpaca evaluation finished")
     return
 
-def run_mt_bench_eval(model_path: str, model_name: str, batch_size: int, api_base: str) -> None:
+def display_result_single(bench_name: str, input_file: str, judge_model: str, model_list: list) -> None:
+    if input_file is None:
+        input_file = (
+            f"data/{bench_name}/model_judgment/{judge_model}_single.jsonl"
+        )
+    else:
+        input_file = input_file
+
+    print(f"Input file: {input_file}")
+    df_all = pd.read_json(input_file, lines=True)
+    df = df_all[["model", "score", "turn"]]
+    df = df[df["score"] != -1]
+
+    if model_list is not None:
+        df = df[df["model"].isin(model_list)]
+
+    print("\n########## First turn ##########")
+    df_1 = df[df["turn"] == 1].groupby(["model", "turn"]).mean()
+    print(df_1.sort_values(by="score", ascending=False))
+
+    if bench_name == "mt_bench":
+        print("\n########## Second turn ##########")
+        df_2 = df[df["turn"] == 2].groupby(["model", "turn"]).mean()
+        print(df_2.sort_values(by="score", ascending=False))
+
+        print("\n########## Average ##########")
+        df_3 = df[["model", "score"]].groupby(["model"]).mean()
+        print(df_3.sort_values(by="score", ascending=False))
+
+def run_mt_bench_eval(model_path: str, model_name: str, batch_size: int) -> None:
     batch_size = max(8, batch_size)
     logger.info(f"Running MT-Bench evaluation for model: {model_name}, model_path: {model_path}")
-    command = f"""python3 -m fastchat.llm_judge.gen_api_answer \
-    --model {model_name} \
-    --model_path {model_path} \
-    --api_base {api_base} \
-    --parallel {batch_size}"""
-    process = subprocess.run(command, shell=True)
-    if process.returncode != 0:
-        logger.error(f"mt-bench generation failed")
-        return
+
+    question_file = f"data/mtbench/question.jsonl"
+    answer_file = f"data/mtbench/model_answer/{model_name}.jsonl"
+
+    run_eval(
+        model_path=model_path,
+        model_id=model_name,
+        question_file=question_file,
+        answer_file=answer_file,
+        max_new_token=1024,
+        num_choices=1
+    )
+
+    reorg_answer_file(answer_file)
+
     logger.info(f"mt-bench generation finished")
     logger.info(f"starting to evaluate")
-    command = f"""python3 -m fastchat.llm_judge.gen_judgment \
-    --model-list {model_name} \
-    --parallel 8"""
-    process = subprocess.run(command, shell=True)
-    if process.returncode != 0:
-        logger.error(f"mt-bench evaluation failed")
-        return
+    judge(model_list=[model_name], parallel=4)
     logger.info(f"mt-bench evaluation finished")
-    
-    command = f""" python3 -m fastchat.llm_judge.show_result \
-    --model-list {model_name}"""
-    process = subprocess.run(command, shell=True)
-    if process.returncode != 0:
-        logger.error(f"show result failed")
-        return
-    logger.info(f"show result finished")
-    return
+
+    display_result_single("mt_bench", None, "gpt-4", [model_name])
 
 def run_objective_eval(model_name, model_path, eval_type, per_model_gpu, batch_size, opencompass_path, backend):
     if os.path.exists("outputs/{model_name}.csv".format(model_name=model_name)):
@@ -396,10 +395,9 @@ def run_eval(args) -> None:
         if not os.environ.get("OPENAI_BASE_URL") or not os.environ.get("OPENAI_API_KEY"):
             logger.error("OPENAI_BASE_URL or OPENAI_API_KEY not set")
             return
-        port = start_api(model_name, model_path, per_model_gpu)
-        inferencer = OpenAIInferencer(model_name, api_key="local", api_base=f"http://localhost:{port}/v1", max_tokens=2048)
+        inferencer = MultiProcessVllmInferencer(model_path=model_path, num_gpus_per_model=per_model_gpu)
+        run_mt_bench_eval(model_path, model_name, batch_size)
         run_alpaca_eval(model_name, model_path, batch_size, inferencer)
-        run_mt_bench_eval(model_path, model_name, batch_size, api_base=f"http://localhost:{port}/v1")
     else:
         logger.error(f"eval_type {eval_type} not supported")
         return

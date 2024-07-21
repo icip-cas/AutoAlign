@@ -8,11 +8,12 @@ import shortuuid
 import torch
 from tqdm import tqdm
 
-from fastchat.llm_judge.common import load_questions, temperature_config
+from ..conversation import from_template
+from .common_mt_bench import load_questions, temperature_config
 
 from autoalign.conversation import Conversation
 
-from autoalign.inference.inferencer import HFPipelineInferencer
+from autoalign.inference.inferencer import HFPipelineInferencer, MultiProcessVllmInferencer
 
 def run_eval(
     model_path,
@@ -28,7 +29,7 @@ def run_eval(
     # random shuffle the questions to balance the loading
     random.shuffle(questions)
 
-    inferencer = HFPipelineInferencer(
+    inferencer = MultiProcessVllmInferencer(
         model_path,
         max_new_tokens=max_new_token,
         num_gpus=1,
@@ -71,7 +72,7 @@ def get_model_answers(
     choices = []
     for i in range(num_choices):
         torch.manual_seed(i)
-        conv = get_conversation_template(model_id)
+        conv = from_template(model_id)
         turns = []
         for j in range(len(question["turns"])):
             qs = question["turns"][j]
@@ -181,12 +182,6 @@ if __name__ == "__main__":
         "--model-id", type=str, required=True, help="A custom name for the model."
     )
     parser.add_argument(
-        "--bench-name",
-        type=str,
-        default="mt_bench",
-        help="The name of the benchmark question set.",
-    )
-    parser.add_argument(
         "--question-begin",
         type=int,
         help="A debug option. The begin index of questions.",
@@ -215,11 +210,11 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    question_file = f"data/{args.bench_name}/question.jsonl"
+    question_file = f"data/mtbench/question.jsonl"
     if args.answer_file:
         answer_file = args.answer_file
     else:
-        answer_file = f"data/{args.bench_name}/model_answer/{args.model_id}.jsonl"
+        answer_file = f"data/mtbench/model_answer/{args.model_id}.jsonl"
 
     print(f"Output to {answer_file}")
 
