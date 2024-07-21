@@ -4,7 +4,6 @@ import os
 import random
 import time
 
-import shortuuid
 import torch
 from tqdm import tqdm
 
@@ -148,7 +147,6 @@ def get_model_answers(
     with open(os.path.expanduser(answer_file), "a") as fout:
         ans_json = {
             "question_id": question["question_id"],
-            "answer_id": shortuuid.uuid(),
             "model_id": model_id,
             "choices": choices,
             "tstamp": time.time(),
