@@ -8,11 +8,9 @@ import shortuuid
 import torch
 from tqdm import tqdm
 
-from ..conversation import from_template
-from .common_mt_bench import load_questions, temperature_config
+from .utils import load_questions, temperature_config
 
 from autoalign.conversation import Conversation
-
 from autoalign.inference.inferencer import HFPipelineInferencer, MultiProcessVllmInferencer
 
 def run_eval(
@@ -201,11 +199,6 @@ if __name__ == "__main__":
         type=int,
         default=1,
         help="How many completion choices to generate.",
-    )
-    parser.add_argument(
-        "--inferencer",
-        choices=["guidance", "default", "proxy"],
-        default="guidance",
     )
 
     args = parser.parse_args()

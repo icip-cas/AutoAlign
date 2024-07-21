@@ -9,7 +9,7 @@ import json
 import numpy as np
 from tqdm import tqdm
 
-from .common_mt_bench import (
+from .utils import (
     load_questions,
     load_model_answers,
     load_judge_prompts,

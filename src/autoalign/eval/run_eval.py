@@ -21,7 +21,7 @@ from .gen_judgmen_mt_bench import judge
 def parse_args(args: str):
 
     parser = ArgumentParser()
-    parser.add_argument('--config_path', type=str, default=None)
+    parser.add_argument('--config_path', type=str, default=None, required=True)
     args = parser.parse_args(args)
     return args
 
@@ -369,13 +369,8 @@ def run_objective_eval(model_name, model_path, eval_type, per_model_gpu, batch_s
 def run_eval(args) -> None:
     # 若args中存在config_path
     args = parse_args(args)
-    if args.config_path:
-        # 从config_path中读取yaml配置
-        with open(args.config_path, "r") as f:
-            config = yaml.safe_load(f)
-    else:
-        with open("../../../configs/eval.yaml", "r") as f:
-            config = yaml.safe_load(f)
+    with open(args.config_path, "r") as f:
+        config = yaml.safe_load(f)
     model_name = config["model_name"]
     # 获取time_stamp拼接至model_name
     time_stamp = time.strftime("%Y%m%d-%H%M%S", time.localtime())
