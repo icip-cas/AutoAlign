@@ -1,6 +1,9 @@
 import importlib
 import os
 
+PROJ_BASE_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+print(PROJ_BASE_PATH)
+
 def get_package_path(package_name):
     try:
         package = importlib.import_module(package_name)

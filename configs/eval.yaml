@@ -12,7 +12,7 @@ model_path: /data2/luxinyu2021/auto-alignment/saved_models/llama-2-7b_ultrachat
 # objective_core: 评测模型的核心客观指标。(evaluating the core objective metrics of the model)
 # objective_all: 评测模型的所有客观指标。(evaluating all the objective metrics of the model)
 # subjective: 评测模型的主观指标。(evaluating the subjective metrics of the model)
-eval_type: objective_all
+eval_type: subjective
 
 # 单个模型worker所占用的GPU数量
 # The number of GPUs occupied by a single model worker
