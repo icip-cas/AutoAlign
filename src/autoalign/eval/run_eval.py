@@ -15,13 +15,13 @@ from argparse import ArgumentParser
 
 from autoalign.inference.inferencer import MultiProcessVllmInferencer
 from autoalign.utils import get_logger
-from .inference_mt_bench import run_eval, reorg_answer_file
+from .inference_mt_bench import _run_mt_bench_eval, reorg_answer_file
 from .gen_judgmen_mt_bench import judge
 
 def parse_args(args: str):
 
     parser = ArgumentParser()
-    parser.add_argument('--config_path', type=str, default=None)
+    parser.add_argument('--config_path', type=str, default=None, required=True)
     args = parser.parse_args(args)
     return args
 
@@ -318,11 +318,13 @@ def run_mt_bench_eval(model_path: str, model_name: str, batch_size: int) -> None
     question_file = f"data/mtbench/question.jsonl"
     answer_file = f"data/mtbench/model_answer/{model_name}.jsonl"
 
-    run_eval(
+    _run_mt_bench_eval(
         model_path=model_path,
         model_id=model_name,
         question_file=question_file,
         answer_file=answer_file,
+        question_begin=None,
+        question_end=None,
         max_new_token=1024,
         num_choices=1
     )
@@ -369,13 +371,8 @@ def run_objective_eval(model_name, model_path, eval_type, per_model_gpu, batch_s
 def run_eval(args) -> None:
     # 若args中存在config_path
     args = parse_args(args)
-    if args.config_path:
-        # 从config_path中读取yaml配置
-        with open(args.config_path, "r") as f:
-            config = yaml.safe_load(f)
-    else:
-        with open("../../../configs/eval.yaml", "r") as f:
-            config = yaml.safe_load(f)
+    with open(args.config_path, "r") as f:
+        config = yaml.safe_load(f)
     model_name = config["model_name"]
     # 获取time_stamp拼接至model_name
     time_stamp = time.strftime("%Y%m%d-%H%M%S", time.localtime())

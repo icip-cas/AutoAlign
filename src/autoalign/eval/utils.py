@@ -12,24 +12,8 @@ import time
 from typing import Optional
 
 import openai
-import anthropic
 
-from ..conversation import from_template
-
-ANTHROPIC_MODEL_LIST = (
-    "claude-1",
-    "claude-2",
-    "claude-2.0",
-    "claude-2.1",
-    "claude-3-haiku-20240307",
-    "claude-3-haiku-20240307-vertex",
-    "claude-3-sonnet-20240229",
-    "claude-3-sonnet-20240229-vertex",
-    "claude-3-5-sonnet-20240620",
-    "claude-3-opus-20240229",
-    "claude-instant-1",
-    "claude-instant-1.2",
-)
+# from ..conversation import from_template
 
 OPENAI_MODEL_LIST = (
     "gpt-3.5-turbo",
@@ -196,10 +180,6 @@ def run_judge_single(question, answer, judge, ref_answer, multi_turn=False):
 
     if model in OPENAI_MODEL_LIST:
         judgment = chat_completion_openai(model, conv, temperature=0, max_tokens=2048)
-    elif model in ANTHROPIC_MODEL_LIST:
-        judgment = chat_completion_anthropic(
-            model, conv, temperature=0, max_tokens=1024
-        )
     else:
         raise ValueError(f"Invalid judge model name: {model}")
 
@@ -300,13 +280,6 @@ def run_judge_pair(question, answer_a, answer_b, judge, ref_answer, multi_turn=F
     if model in OPENAI_MODEL_LIST:
         conv.set_system_message(system_prompt)
         judgment = chat_completion_openai(model, conv, temperature=0, max_tokens=2048)
-    elif model in ANTHROPIC_MODEL_LIST:
-        if system_prompt != "You are a helpful assistant.":
-            user_prompt = "[Instruction]\n" + system_prompt + "\n\n" + user_prompt
-            conv.messages[0][1] = user_prompt
-        judgment = chat_completion_anthropic(
-            model, conv, temperature=0, max_tokens=1024
-        )
     else:
         raise ValueError(f"Invalid judge model name: {model}")
 
@@ -496,32 +469,6 @@ def chat_completion_openai_azure(model, conv, temperature, max_tokens, api_dict=
             break
 
     return output
-
-
-def chat_completion_anthropic(model, conv, temperature, max_tokens, api_dict=None):
-    if api_dict is not None and "api_key" in api_dict:
-        api_key = api_dict["api_key"]
-    else:
-        api_key = os.environ["ANTHROPIC_API_KEY"]
-
-    output = API_ERROR_OUTPUT
-    for _ in range(API_MAX_RETRY):
-        try:
-            c = anthropic.Anthropic(api_key=api_key)
-            prompt = conv.get_prompt()
-            response = c.completions.create(
-                model=model,
-                prompt=prompt,
-                stop_sequences=[anthropic.HUMAN_PROMPT],
-                max_tokens_to_sample=max_tokens,
-                temperature=temperature,
-            )
-            output = response.completion
-            break
-        except anthropic.APIError as e:
-            print(type(e), e)
-            time.sleep(API_RETRY_SLEEP)
-    return output.strip()
 
 
 def normalize_game_key_single(gamekey, result):

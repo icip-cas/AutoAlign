@@ -4,10 +4,6 @@
 /*log
 /thirdparty
 
-# data
-data/*
-!data/dummy_*
-
 .lock
 # mac
 .DS_Store
@@ -43,3 +39,5 @@ flagged/
 /caches
 /outputs
 /build
+
+/opencompass
