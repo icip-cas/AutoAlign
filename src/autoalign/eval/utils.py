@@ -13,7 +13,7 @@ from typing import Optional
 
 import openai
 
-from ..conversation import from_template
+# from ..conversation import from_template
 
 OPENAI_MODEL_LIST = (
     "gpt-3.5-turbo",

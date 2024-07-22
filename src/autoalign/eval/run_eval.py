@@ -15,7 +15,7 @@ from argparse import ArgumentParser
 
 from autoalign.inference.inferencer import MultiProcessVllmInferencer
 from autoalign.utils import get_logger
-from .inference_mt_bench import run_eval, reorg_answer_file
+from .inference_mt_bench import _run_mt_bench_eval, reorg_answer_file
 from .gen_judgmen_mt_bench import judge
 
 def parse_args(args: str):
@@ -318,11 +318,13 @@ def run_mt_bench_eval(model_path: str, model_name: str, batch_size: int) -> None
     question_file = f"data/mtbench/question.jsonl"
     answer_file = f"data/mtbench/model_answer/{model_name}.jsonl"
 
-    run_eval(
+    _run_mt_bench_eval(
         model_path=model_path,
         model_id=model_name,
         question_file=question_file,
         answer_file=answer_file,
+        question_begin=None,
+        question_end=None,
         max_new_token=1024,
         num_choices=1
     )

@@ -1,1 +1,1 @@
-autoalign-cli eval
+autoalign-cli eval --config_path "configs/eval.yaml"
