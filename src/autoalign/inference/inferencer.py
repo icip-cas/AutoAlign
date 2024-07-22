@@ -278,7 +278,7 @@ class MultiProcessVllmInferencer:
 
         if self.num_gpus_total // num_gpus_per_model > 1:
             self.use_ray = True
-            ray.init()
+            ray.init(ignore_reinit_error=True)
 
     @staticmethod
     def single_process_inference(model_path, num_gpus_per_model,
@@ -291,8 +291,7 @@ class MultiProcessVllmInferencer:
 
         return model.generate(*args, **kwargs)
 
-    def inference(self, data:List[str]):
-
+    def inference(self, data:List[str], temperature:float=None, do_sample:bool=None):
         if self.use_ray:
             get_answers_func = ray.remote(num_gpus=self.num_gpus_per_model)(
                 MultiProcessVllmInferencer.single_process_inference
@@ -305,12 +304,14 @@ class MultiProcessVllmInferencer:
         
         gathered_responses = []
         for i in range(0, len(data), chunk_size):
+            tmp_sampling_params = self.sampling_params
+            tmp_sampling_params.temperature = temperature if temperature is not None else self.sampling_params.temperature
             gathered_responses.append(
                 get_answers_func(
                     self.model_path,
                     self.num_gpus_per_model,
                     data[i:i+chunk_size],
-                    self.sampling_params
+                    tmp_sampling_params
                 )
             )
         if self.use_ray:

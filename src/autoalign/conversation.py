@@ -23,11 +23,11 @@ class RenderStrategy(ABC):
 @dataclass
 class ConversationTemplate:
     name: str
-    role_starts: Dict[Role, str]
-    role_ends: Dict[Role, str]
-    offset: int = 0
+    role_starts: Optional[Dict[Role, str]] = None
+    role_ends: Optional[Dict[Role, str]] = None
+    offset: Optional[int] = 0
     default_system_message: Optional[str] = None
-    strategy: RenderStrategy = None
+    strategy: Optional[RenderStrategy] = None
 
     def get_attributes(self) -> Dict:
         return {
@@ -75,6 +75,22 @@ class Conversation:
                     self.messages.append((role, message_str))
             except ValueError:
                 raise ValueError(f"Invalid role: {role_str}. Must be one of {', '.join([r.value for r in Role])}")
+            
+    def to_openai_api_messages(self):
+        """Convert the conversation to OpenAI chat completion format."""
+
+        ret = []
+
+        for msg in self.messages:
+            role, content = msg
+            if role == Role.SYSTEM and content:
+                ret.append({"role": "system", "content": content})
+            elif role == Role.HUMAN:
+                ret.append({"role": "user", "content": content})
+            elif role == Role.ASSISTANT:
+                ret.append({"role": "assistant", "content": content})
+
+        return ret
 
     @property
     def system_message(self) -> str:
@@ -96,7 +112,7 @@ class Conversation:
     def get_conversation_str(self, add_generation_prompt: bool = False) -> str:
         """Get full conversation str"""
         if self.template.strategy:
-            self.template.strategy.get_conversation_str(self.messages, self.template.get_attributes(), add_generation_prompt)
+            return self.template.strategy.get_conversation_str(self.messages, self.template.get_attributes(), add_generation_prompt)
         
         ret = ""
         for role, message in self.messages:
@@ -170,7 +186,6 @@ class Llama2Strategy(RenderStrategy):
                 ret += f"[/INST] {message} </s>"
         if add_generation_prompt:
             ret += "[/INST]"
-            
         return ret
 
     def generate_labels(self, messages: List[Tuple[Role, str]], 
@@ -187,20 +202,20 @@ class Llama2Strategy(RenderStrategy):
                     cur_inst += f"\n\n{message} [/INST]"
                     first_user_message = False
                 else:
-                    cur_inst += f"<s>[INST] {message} [/INST]"                
+                    cur_inst += f"<s>[INST] {message} [/INST]"
             elif role == Role.ASSISTANT:
                 start_idx = len(tokenizer(cur_inst).input_ids)
                 cur_inst += f" {message} </s>"
-                print(cur_inst)
                 end_idx = len(tokenizer(cur_inst).input_ids)
-                print(tokenizer.convert_ids_to_tokens(tokenizer(cur_inst).input_ids))
-                print(tokenizer.convert_ids_to_tokens(tokenized_conversation.input_ids[:start_idx]))
                 labels[start_idx:end_idx] = tokenized_conversation.input_ids[start_idx:end_idx]
-                print(tokenizer.convert_ids_to_tokens(tokenized_conversation.input_ids[start_idx:end_idx]))
         
         return labels
 
 TEMPLATES = {
+    "gpt-4": ConversationTemplate(
+        name="gpt-4",
+        default_system_message="",
+    ),
     "vicuna_v1.1": ConversationTemplate(
         name="vicuna_v1.1",
         role_starts={
@@ -226,7 +241,7 @@ TEMPLATES = {
         role_ends={
             Role.SYSTEM: "\n<</SYS>>",
             Role.HUMAN: " ",
-            Role.ASSISTANT: "</s><s>",
+            Role.ASSISTANT: "</s>",
         },
         default_system_message="You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe. Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.\n\nIf a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.",
         offset=0,
