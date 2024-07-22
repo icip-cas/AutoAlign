@@ -4,6 +4,9 @@
 /*log
 /thirdparty
 
+# configs
+configs/*.py
+
 # data
 data/*
 !data/dummy_*
@@ -40,8 +43,11 @@ flagged/
 # others
 **/*.log
 /wandb
+/.cache
 /caches
 /outputs
 /build
+/results
+/scripts
 
 /opencompass

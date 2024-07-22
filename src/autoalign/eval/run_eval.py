@@ -353,9 +353,11 @@ def transpose_and_format_dataframe(input_dataframe, output_txt_path):
             txt_file.write(formatted_row + '\n')
 
 def run_objective_eval(model_name, model_path, eval_type, per_model_gpu, batch_size, opencompass_path, backend):
+    # check duplicate model_name
     if os.path.exists("configs/{model_name}.py".format(model_name=model_name)):
         warn_duplicate(model_name, "configs")
-    if os.path.exists("outputs/{model_name}/.csv".format(model_name=model_name)):
+    if os.path.exists("outputs/{model_name}/ordered_res.csv".format(model_name=model_name)) \
+    or os.path.exists("outputs/{model_name}/ordered_res.txt".format(model_name=model_name)):
         warn_duplicate(model_name, "ordered_results")
     work_dir = "outputs/{model_name}/opencompass_log/".format(model_name=model_name)
     if os.path.isdir(work_dir):
@@ -374,8 +376,11 @@ def run_objective_eval(model_name, model_path, eval_type, per_model_gpu, batch_s
                         warn_duplicate(model_name, "raw_results")
                         check_duplicate = True
                         break
+    # config generation
     config_path = generate_config(model_name, model_path, eval_type, per_model_gpu, batch_size, opencompass_path, backend)
+    # start_opencompass process
     start_opencompass(work_dir, config_path, opencompass_path)
+    # summarize the results and display
     ordered_df = handle_result(model_name, work_dir)
     if not os.path.isdir("outputs"):
         os.makedirs("outputs")
