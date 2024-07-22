@@ -263,8 +263,7 @@ def handle_result(model_name, work_dir):
                     for dataset in objective_datasets:
                         for row in df.iterrows():
                             row = row[1]
-                            if row["dataset"] == dataset["dataset"] and row[
-                                    "metric"] == dataset["metric"]:
+                            if row["dataset"] == dataset["dataset"] and row["metric"] == dataset["metric"]:
                                 new_row[dataset["title"]] = row[model_name]
     ordered_df.loc[len(ordered_df)] = new_row
     return ordered_df
@@ -384,20 +383,19 @@ def run_mt_bench_eval(model_path: str, model_name: str, batch_size: int,
     question_file = f"{mtpath}/question.jsonl"
     answer_file = f"{mtpath}/model_answer/{model_name}.jsonl"
 
-    _run_mt_bench_eval(
-        model_path=model_path,
-        model_id=model_name,
-        template_name=template_name,
-        question_file=question_file,
-        answer_file=answer_file,
-        question_begin=None,
-        question_end=None,
-        max_new_token=1024,
-        num_choices=1,
-        num_gpus_per_model=num_gpus_per_model,
-    )
+    # _run_mt_bench_eval(
+    #     model_path=model_path,
+    #     model_id=model_name,
+    #     template_name=template_name,
+    #     question_file=question_file,
+    #     answer_file=answer_file,
+    #     question_begin=None,
+    #     question_end=None,
+    #     max_new_token=1024,
+    #     num_choices=1,
+    # )
 
-    reorg_answer_file(answer_file)
+    # reorg_answer_file(answer_file)
 
     logger.info("mt-bench generation finished")
     logger.info("starting to evaluate")
@@ -465,8 +463,8 @@ def run_eval(args) -> None:
         config = yaml.safe_load(f)
     model_name = config["model_name"]
     # 获取time_stamp拼接至model_name
-    time_stamp = time.strftime("%Y%m%d-%H%M%S", time.localtime())
-    model_name = f"{model_name}_{time_stamp}"
+    # time_stamp = time.strftime("%Y%m%d-%H%M%S", time.localtime())
+    model_name = f"{model_name}"
     model_path = config["model_path"]
     batch_size = config["batch_size"]
     eval_type = config["eval_type"]
@@ -482,14 +480,16 @@ def run_eval(args) -> None:
                            batch_size, opencompass_path, opencompass_backend)
     elif eval_type == "subjective":
         # 测试是否已设置OPENAI_BASE_URL和OPENAI_API_KEY
-        if not os.environ.get("OPENAI_BASE_URL") or not os.environ.get(
-                "OPENAI_API_KEY"):
-            logger.error("OPENAI_BASE_URL or OPENAI_API_KEY not set")
-        inferencer = MultiProcessVllmInferencer(
-            model_path=model_path, num_gpus_per_model=per_model_gpu)
-        run_alpaca_eval(model_name, model_path, batch_size, inferencer)
+        # if not os.environ.get("OPENAI_BASE_URL") or not os.environ.get(
+        #         "OPENAI_API_KEY"):
+        #     logger.error("OPENAI_BASE_URL or OPENAI_API_KEY not set")
         run_mt_bench_eval(model_path, model_name, batch_size, mtpath,
                           per_model_gpu, template_name)
+        inferencer = MultiProcessVllmInferencer(
+            model_path=model_path, 
+            num_gpus_per_model=per_model_gpu
+        )
+        run_alpaca_eval(model_name, model_path, batch_size, inferencer)
     else:
         logger.error(f"eval_type {eval_type} not supported")
         return
