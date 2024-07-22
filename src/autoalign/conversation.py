@@ -23,11 +23,11 @@ class RenderStrategy(ABC):
 @dataclass
 class ConversationTemplate:
     name: str
-    role_starts: Dict[Role, str]
-    role_ends: Dict[Role, str]
-    offset: int = 0
+    role_starts: Optional[Dict[Role, str]] = None
+    role_ends: Optional[Dict[Role, str]] = None
+    offset: Optional[int] = 0
     default_system_message: Optional[str] = None
-    strategy: RenderStrategy = None
+    strategy: Optional[RenderStrategy] = None
 
     def get_attributes(self) -> Dict:
         return {
@@ -75,6 +75,22 @@ class Conversation:
                     self.messages.append((role, message_str))
             except ValueError:
                 raise ValueError(f"Invalid role: {role_str}. Must be one of {', '.join([r.value for r in Role])}")
+            
+    def to_openai_api_messages(self):
+        """Convert the conversation to OpenAI chat completion format."""
+
+        ret = []
+
+        for msg in self.messages:
+            role, content = msg
+            if role == Role.SYSTEM and content:
+                ret.append({"role": "system", "content": content})
+            elif role == Role.HUMAN:
+                ret.append({"role": "user", "content": content})
+            elif role == Role.ASSISTANT:
+                ret.append({"role": "assistant", "content": content})
+
+        return ret
 
     @property
     def system_message(self) -> str:
@@ -196,6 +212,10 @@ class Llama2Strategy(RenderStrategy):
         return labels
 
 TEMPLATES = {
+    "gpt-4": ConversationTemplate(
+        name="gpt-4",
+        default_system_message="",
+    ),
     "vicuna_v1.1": ConversationTemplate(
         name="vicuna_v1.1",
         role_starts={

@@ -13,7 +13,7 @@ def dummy_data():
     with open('./data/dummy_sft.json', 'r', encoding='utf-8') as f:
         return json.load(f)
 
-@pytest.fixture(params=TEMPLATES.keys())
+@pytest.fixture(params=[template_name for template_name in TEMPLATES.keys() if template_name != 'gpt-4'])
 def template_conversation(request):
     template_name = request.param
     return Conversation.from_template(template_name)
@@ -38,6 +38,38 @@ def test_fill_in_messages(template_conversation):
     template_conversation.fill_in_messages(conv_dict)
     assert template_conversation.system_message == "You are a helpful assistant."
     assert template_conversation.messages[1:] == [(Role.HUMAN, "Hello"), (Role.ASSISTANT, "Hi there!")]
+
+def test_to_openai_api_messages():
+
+    conv = Conversation.from_template('gpt-4')
+
+    print(conv.to_openai_api_messages())
+    
+    assert conv.to_openai_api_messages() == []
+    
+    conv.system_message = "You are a helpful assistant."
+    expected = [{"role": "system", "content": "You are a helpful assistant."}]
+    assert conv.to_openai_api_messages() == expected
+    
+    conv.append_message(Role.HUMAN, "Hello, how are you?")
+    expected.append({"role": "user", "content": "Hello, how are you?"})
+    assert conv.to_openai_api_messages() == expected
+    
+    conv.append_message(Role.ASSISTANT, "I'm doing well, thank you for asking. How can I assist you today?")
+    expected.append({"role": "assistant", "content": "I'm doing well, thank you for asking. How can I assist you today?"})
+    assert conv.to_openai_api_messages() == expected
+    
+    conv.append_message(Role.HUMAN, "What's the weather like today?")
+    expected.append({"role": "user", "content": "What's the weather like today?"})
+    assert conv.to_openai_api_messages() == expected
+    
+    conv = Conversation.from_template('gpt-4')
+    conv.append_message(Role.HUMAN, "Hi")
+    conv.append_message(Role.ASSISTANT, "Hello!")
+    assert conv.to_openai_api_messages() == [
+        {"role": "user", "content": "Hi"},
+        {"role": "assistant", "content": "Hello!"}
+    ]
 
 def test_invalid_template():
     with pytest.raises(ValueError):
