@@ -1,6 +1,5 @@
 import json
 import subprocess
-from time import sleep
 import time
 import datasets
 import torch
@@ -8,7 +7,6 @@ import yaml
 import os
 from transformers import AutoTokenizer
 import tqdm
-import socket
 import pandas as pd
 import signal
 from argparse import ArgumentParser
@@ -18,19 +16,19 @@ from autoalign.utils import get_logger
 from .inference_mt_bench import _run_mt_bench_eval, reorg_answer_file
 from .gen_judgmen_mt_bench import judge
 
+
 def parse_args(args: str):
 
     parser = ArgumentParser()
-    parser.add_argument('--config_path', type=str, default=None, required=True)
+    parser.add_argument("--config_path", type=str, default=None, required=True)
     args = parser.parse_args(args)
     return args
 
+
 logger = get_logger(__name__)
 
+
 def generate_config(model_name, model_path, eval_type, per_model_gpu, batch_size, opencompass_path, backend):
-    #    from ..opencompass.configs.datasets.mmlu.mmlu_gen import mmlu_datasets
-    # from ..opencompass.configs.datasets.gsm8k.gsm8k_gen import gsm8k_datasets
-    # from ..opencompass.configs.datasets.humaneval.humaneval_gen import humaneval_datasets
     CONFIG_CORE = """from mmengine.config import read_base
 from opencompass.models import HuggingFaceCausalLM, VLLM
 with read_base():
@@ -105,7 +103,7 @@ models = [
         run_cfg=dict(num_gpus={num_gpus}, num_procs=1),
         batch_padding=True,
     )
-]"""    
+]"""
 
     CONFIG_VLLM = """
 eval = dict(
@@ -126,20 +124,28 @@ models = [
     generation_kwargs=dict(temperature=0),
     batch_size={batch_size},
     run_cfg=dict(num_gpus={num_gpus}, num_procs=1))
-]"""    
+]"""
     config = ""
     if eval_type == "objective_core":
         if backend == "hf":
-            config = CONFIG_CORE + CONFIG_HF.format(model_name=model_name, model_path=model_path, batch_size=batch_size, num_gpus=per_model_gpu)
+            config = CONFIG_CORE + CONFIG_HF.format(
+                model_name=model_name, model_path=model_path, batch_size=batch_size, num_gpus=per_model_gpu
+            )
         elif backend == "vllm":
-            config = CONFIG_CORE + CONFIG_VLLM.format(model_name=model_name, model_path=model_path, batch_size=batch_size, num_gpus=per_model_gpu)
+            config = CONFIG_CORE + CONFIG_VLLM.format(
+                model_name=model_name, model_path=model_path, batch_size=batch_size, num_gpus=per_model_gpu
+            )
         else:
             raise ValueError("Error backend. Acceptable backend value: [hf, vllm]")
     elif eval_type == "objective_all":
         if backend == "hf":
-            config = CONFIG_ALL + CONFIG_HF.format(model_name=model_name, model_path=model_path, batch_size=batch_size, num_gpus=per_model_gpu)
+            config = CONFIG_ALL + CONFIG_HF.format(
+                model_name=model_name, model_path=model_path, batch_size=batch_size, num_gpus=per_model_gpu
+            )
         elif backend == "vllm":
-            config = CONFIG_ALL + CONFIG_VLLM.format(model_name=model_name, model_path=model_path, batch_size=batch_size, num_gpus=per_model_gpu)
+            config = CONFIG_ALL + CONFIG_VLLM.format(
+                model_name=model_name, model_path=model_path, batch_size=batch_size, num_gpus=per_model_gpu
+            )
         else:
             raise ValueError("Error backend. Acceptable backend value: [hf, vllm]")
     else:
@@ -147,14 +153,17 @@ models = [
     if not os.path.isdir("configs"):
         os.makedirs("configs")
     config_path = "configs/{model_name}.py".format(model_name=model_name)
-    with open(config_path, 'w') as file:
+    with open(config_path, "w") as file:
         file.write(config)
     return os.path.join("../", config_path)
 
 
 def start_opencompass(work_dir, config_path, opencompass_path):
-    command = ["cd {opencompass_path} \n python run.py {config_path} --work-dir {work_dir}" \
-               .format(config_path=config_path, opencompass_path=opencompass_path, work_dir=os.path.join("..", work_dir))]
+    command = [
+        "cd {opencompass_path} \n python run.py {config_path} --work-dir {work_dir}".format(
+            config_path=config_path, opencompass_path=opencompass_path, work_dir=os.path.join("..", work_dir)
+        )
+    ]
     try:
         process = subprocess.Popen(command, shell=True, text=True, preexec_fn=os.setsid)
         # wait
@@ -168,27 +177,46 @@ def start_opencompass(work_dir, config_path, opencompass_path):
         print(f"Opencompass ended with errors: {e}")
     # print info
     if output is not None:
-        print("Output:", output.decode('utf-8'))
+        print("Output:", output.decode("utf-8"))
     if error is not None:
-        print("Error:", error.decode('utf-8'))
+        print("Error:", error.decode("utf-8"))
     # get return code of opencompass
     return_code = process.returncode
     print("Return code:", return_code)
 
+
 def handle_result(model_name, work_dir):
-    objective_datasets = [{"dataset":"gsm8k", "metric":"accuracy", "title": "GSM-8K(EN)"},
-                          {"dataset":"math", "metric":"accuracy", "title": "MATH(EN)"},
-                          {"dataset":"openai_humaneval", "metric":"humaneval_pass@1", "title": "HumanEval(EN)"},
-                          {"dataset":"openai_humaneval_cn", "metric":"humaneval_pass@1", "title": "HumanEval-CN(CH)"},
-                          {"dataset":"mbpp", "metric":"score", "title": "MBPP(EN)"},
-                          {"dataset":"mbpp_cn", "metric":"score", "title": "MBPP-CN(CH)"},
-                          {"dataset":"mmlu", "metric":"naive_average", "title": "MMLU(EN)"},
-                          {"dataset":"GPQA_diamond", "metric":"accuracy", "title": "GPQA(EN)"},
-                          {"dataset":"cmmlu", "metric":"naive_average", "title": "CMMLU(CH)"},
-                          {"dataset":"ceval", "metric":"naive_average", "title": "C-Eval(CH)"}]
-    ordered_df = pd.DataFrame(columns = ["MT-Bench(EN)","AlpacaEval 1.0(EN)","AlpacaEval 2.0(EN)", "AlignBench(CH)", "MATH(EN)", "GSM-8K(EN)", 
-                            "SuperCLUE-Math6(CH)", "HumanEval(EN)", "MBPP(EN)" , "HumanEval-CN(CH)", "MBPP-CN(CH)", "MMLU(EN)", "GPQA(EN)",
-                            "CMMLU(CH)", "C-Eval(CH)"])
+    objective_datasets = [
+        {"dataset": "gsm8k", "metric": "accuracy", "title": "GSM-8K(EN)"},
+        {"dataset": "math", "metric": "accuracy", "title": "MATH(EN)"},
+        {"dataset": "openai_humaneval", "metric": "humaneval_pass@1", "title": "HumanEval(EN)"},
+        {"dataset": "openai_humaneval_cn", "metric": "humaneval_pass@1", "title": "HumanEval-CN(CH)"},
+        {"dataset": "mbpp", "metric": "score", "title": "MBPP(EN)"},
+        {"dataset": "mbpp_cn", "metric": "score", "title": "MBPP-CN(CH)"},
+        {"dataset": "mmlu", "metric": "naive_average", "title": "MMLU(EN)"},
+        {"dataset": "GPQA_diamond", "metric": "accuracy", "title": "GPQA(EN)"},
+        {"dataset": "cmmlu", "metric": "naive_average", "title": "CMMLU(CH)"},
+        {"dataset": "ceval", "metric": "naive_average", "title": "C-Eval(CH)"},
+    ]
+    ordered_df = pd.DataFrame(
+        columns=[
+            "MT-Bench(EN)",
+            "AlpacaEval 1.0(EN)",
+            "AlpacaEval 2.0(EN)",
+            "AlignBench(CH)",
+            "MATH(EN)",
+            "GSM-8K(EN)",
+            "SuperCLUE-Math6(CH)",
+            "HumanEval(EN)",
+            "MBPP(EN)",
+            "HumanEval-CN(CH)",
+            "MBPP-CN(CH)",
+            "MMLU(EN)",
+            "GPQA(EN)",
+            "CMMLU(CH)",
+            "C-Eval(CH)",
+        ]
+    )
     assert os.path.isdir(work_dir)
     encounter_model_name = False
     latest_file = None
@@ -206,7 +234,7 @@ def handle_result(model_name, work_dir):
                 file_name = os.path.join(evaluation_path, file)
                 df = pd.read_csv(file_name)
                 if model_name in df.columns:
-                    if encounter_model_name == False:
+                    if encounter_model_name is False:
                         encounter_model_name = True
                         latest_file = file_name
                     else:
@@ -224,9 +252,10 @@ def handle_result(model_name, work_dir):
     ordered_df.loc[len(ordered_df)] = new_row
     return ordered_df
 
+
 def warn_duplicate(model_name, position):
     print("Found duplicate model_name: {} in {}. This may cause overwriting. Continue(y) or Exit(n)? [y/n]".format(model_name, position))
-    while(True):
+    while True:
         in_content = input()
         if in_content.lower() == "y":
             break
@@ -236,32 +265,30 @@ def warn_duplicate(model_name, position):
         else:
             print("Invalid input, tap your keyboard again.")
 
-def build_data(datas, batch_size,tokenizer,inferencer: MultiProcessVllmInferencer) -> list:
-    sorted_datas = sorted(datas, key=lambda x: len(x['instruction']))
+
+def build_data(datas, batch_size, tokenizer, inferencer: MultiProcessVllmInferencer) -> list:
+    sorted_datas = sorted(datas, key=lambda x: len(x["instruction"]))
     dealdatas = []
-    batch_num = (len(sorted_datas)-1)// batch_size + 1
+    batch_num = (len(sorted_datas) - 1) // batch_size + 1
     for i in tqdm.tqdm(range(batch_num)):
-        batch_datas = sorted_datas[i*batch_size:(i+1)*batch_size]
+        batch_datas = sorted_datas[i * batch_size : (i + 1) * batch_size]
         prompts = []
         for data in batch_datas:
-            messages = [{"role": "user", "content": data['instruction']}]
-            prompts.append(tokenizer.apply_chat_template(
-                messages,
-                tokenize=False,
-                add_generation_prompt=True
-            ))
+            messages = [{"role": "user", "content": data["instruction"]}]
+            prompts.append(tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True))
         outputs = inferencer.inference(prompts)
         for j, data in enumerate(batch_datas):
-            data['prompt'] = data['instruction']
+            data["prompt"] = data["instruction"]
             data["output"] = outputs[j]
             dealdatas.append(data.copy())
     return dealdatas
+
 
 def run_alpaca_eval(model_name: str, model_path: str, batch_size: int, inferencer: MultiProcessVllmInferencer) -> None:
     eval_set = datasets.load_dataset("tatsu-lab/alpaca_eval", "alpaca_eval")["eval"]
     logger.info(f"Running ALPaCA evaluation for model: {model_name}, model_path: {model_path}")
     tokenizer = AutoTokenizer.from_pretrained(model_path)
-    logger.info(f"starting to generate outputs")
+    logger.info("starting to generate outputs")
     try:
         datas = build_data(eval_set, batch_size=batch_size, tokenizer=tokenizer, inferencer=inferencer)
     except Exception as e:
@@ -271,25 +298,24 @@ def run_alpaca_eval(model_name: str, model_path: str, batch_size: int, inference
         data["generator"] = model_name
     if not os.path.exists(f"data/alpaca/{model_name}"):
         os.makedirs(f"data/alpaca/{model_name}")
-    with open(f"data/alpaca/{model_name}/{model_name}_outputs.json", 'w') as f:
+    with open(f"data/alpaca/{model_name}/{model_name}_outputs.json", "w") as f:
         json.dump(datas, f, indent=4)
-    logger.info(f"outputs generated, starting to evaluate")
+    logger.info("outputs generated, starting to evaluate")
     command = f"""alpaca_eval --model_outputs data/alpaca/{model_name}/{model_name}_outputs.json \
     --output_path data/alpaca/{model_name}/ \
     --annotators_config weighted_alpaca_eval_gpt4_turbo \
     --is_overwrite_leaderboard"""
     process = subprocess.run(command, shell=True)
     if process.returncode != 0:
-        logger.error(f"alpaca evaluation failed, we will continue to run the next evaluation")
+        logger.error("alpaca evaluation failed, we will continue to run the next evaluation")
     else:
-        logger.info(f"alpaca evaluation finished")
+        logger.info("alpaca evaluation finished")
     return
+
 
 def display_result_single(bench_name: str, input_file: str, judge_model: str, model_list: list) -> None:
     if input_file is None:
-        input_file = (
-            f"data/{bench_name}/model_judgment/{judge_model}_single.jsonl"
-        )
+        input_file = f"data/{bench_name}/model_judgment/{judge_model}_single.jsonl"
     else:
         input_file = input_file
 
@@ -314,11 +340,12 @@ def display_result_single(bench_name: str, input_file: str, judge_model: str, mo
         df_3 = df[["model", "score"]].groupby(["model"]).mean()
         print(df_3.sort_values(by="score", ascending=False))
 
+
 def run_mt_bench_eval(model_path: str, model_name: str, batch_size: int) -> None:
     batch_size = max(8, batch_size)
     logger.info(f"Running MT-Bench evaluation for model: {model_name}, model_path: {model_path}")
 
-    question_file = f"data/mtbench/question.jsonl"
+    question_file = "data/mtbench/question.jsonl"
     answer_file = f"data/mtbench/model_answer/{model_name}.jsonl"
 
     _run_mt_bench_eval(
@@ -329,17 +356,18 @@ def run_mt_bench_eval(model_path: str, model_name: str, batch_size: int) -> None
         question_begin=None,
         question_end=None,
         max_new_token=1024,
-        num_choices=1
+        num_choices=1,
     )
 
     reorg_answer_file(answer_file)
 
-    logger.info(f"mt-bench generation finished")
-    logger.info(f"starting to evaluate")
+    logger.info("mt-bench generation finished")
+    logger.info("starting to evaluate")
     judge(model_list=[model_name], parallel=4)
-    logger.info(f"mt-bench evaluation finished")
+    logger.info("mt-bench evaluation finished")
 
     display_result_single("mt_bench", None, "gpt-4", [model_name])
+
 
 def transpose_and_format_dataframe(input_dataframe, output_txt_path):
     transposed_df = input_dataframe.transpose()
@@ -347,18 +375,21 @@ def transpose_and_format_dataframe(input_dataframe, output_txt_path):
     max_widths = transposed_df.applymap(lambda x: len(str(x))).max()
     max_widths = max_widths.tolist()
     max_widths.insert(0, max_index_len)
-    with open(output_txt_path, 'w', encoding='utf-8') as txt_file:
+    with open(output_txt_path, "w", encoding="utf-8") as txt_file:
         for row in transposed_df.itertuples(index=True, name=None):
-            formatted_row = '\t\t'.join(str(val if not pd.isna(row[idx]) else "-").ljust(max_widths[idx])\
-                for idx, val in enumerate(list(row)))
-            txt_file.write(formatted_row + '\n')
+            formatted_row = "\t\t".join(
+                str(val if not pd.isna(row[idx]) else "-").ljust(max_widths[idx]) for idx, val in enumerate(list(row))
+            )
+            txt_file.write(formatted_row + "\n")
+
 
 def run_objective_eval(model_name, model_path, eval_type, per_model_gpu, batch_size, opencompass_path, backend):
     # check duplicate model_name
     if os.path.exists("configs/{model_name}.py".format(model_name=model_name)):
         warn_duplicate(model_name, "configs")
-    if os.path.exists("outputs/{model_name}/ordered_res.csv".format(model_name=model_name)) \
-    or os.path.exists("outputs/{model_name}/ordered_res.txt".format(model_name=model_name)):
+    if os.path.exists("outputs/{model_name}/ordered_res.csv".format(model_name=model_name)) or os.path.exists(
+        "outputs/{model_name}/ordered_res.txt".format(model_name=model_name)
+    ):
         warn_duplicate(model_name, "ordered_results")
     work_dir = "outputs/{model_name}/opencompass_log/".format(model_name=model_name)
     if os.path.isdir(work_dir):
@@ -401,7 +432,7 @@ def run_eval(args) -> None:
     model_path = config["model_path"]
     batch_size = config["batch_size"]
     eval_type = config["eval_type"]
-    num_gpus = torch.cuda.device_count()
+    torch.cuda.device_count()
     per_model_gpu = config["per_model_gpu"]
     opencompass_path = config["opencompass_path"]
     opencompass_backend = config["backend"]
