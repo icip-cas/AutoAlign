@@ -3,8 +3,8 @@ export HF_ENDPOINT="https://hf-mirror.com"
 
 export HF_DATASETS_CACHE="./caches/hf_cache/datasets"
 
-MODEL_NAME="mistral-03-7b_ultrachat"
-MODEL_PATH="saved_models/mistral-03-7b_ultrachat"
+MODEL_NAME="qwen2-7b_ultrachat"
+MODEL_PATH="saved_models/qwen2-7b_ultrachat"
 
 accelerate launch -m lm_eval --model hf \
     --model_args pretrained="${MODEL_PATH}" \

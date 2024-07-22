@@ -1,9 +1,9 @@
 """finetune"""
 import json
-import os
 from functools import partial
 from dataclasses import dataclass, field
 import pathlib
+import random
 
 import torch
 from datasets import Dataset
@@ -78,9 +78,10 @@ def run_sft():
     parser = HfArgumentParser((ModelArguments, DataArguments, TrainingArguments))
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
     
+    global local_rank
     local_rank = training_args.local_rank
-    rank0_print(f"{model_args=}")
-    rank0_print(f"{data_args=}")
+    rank0_print(f"{model_args = }")
+    rank0_print(f"{data_args = }")
 
     # read data
     with open(data_args.data_path, "r") as f:
@@ -108,6 +109,8 @@ def run_sft():
     # get dataset
     dataset = Dataset.from_list(data)
 
+    dataset = dataset.select(range(100))
+
     # tokenize dataset
     dataset = dataset.map(
         partial(
@@ -119,6 +122,18 @@ def run_sft():
         remove_columns=list(dataset.features),
         num_proc=data_args.num_workers,
     )
+
+    random_idx = random.randint(0, len(dataset))
+    input_ids = dataset[random_idx]["input_ids"]
+    input_text = tokenizer.decode(input_ids)
+    rank0_print("-----------Full Text-----------")
+    rank0_print(input_text)
+    rank0_print("-----------Train on Text-----------")
+    labels = dataset[random_idx]["labels"]
+    mask = [label != -100 for label in labels]
+    train_ids = [idx for idx, m in zip(input_ids, mask) if m]
+    train_text = tokenizer.decode(train_ids)
+    rank0_print(train_text)
 
     # get data collator
     data_collator = DataCollatorForSeq2Seq(

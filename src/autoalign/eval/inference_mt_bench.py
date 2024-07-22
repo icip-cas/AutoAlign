@@ -4,7 +4,6 @@ import os
 import random
 import time
 
-import shortuuid
 import torch
 from tqdm import tqdm
 
@@ -13,7 +12,7 @@ from .utils import load_questions, temperature_config
 from autoalign.conversation import Conversation
 from autoalign.inference.inferencer import HFPipelineInferencer, MultiProcessVllmInferencer
 
-def run_eval(
+def _run_mt_bench_eval(
     model_path,
     model_id,
     question_file,
@@ -146,7 +145,7 @@ def get_model_answers(
     with open(os.path.expanduser(answer_file), "a") as fout:
         ans_json = {
             "question_id": question["question_id"],
-            "answer_id": shortuuid.uuid(),
+            "answer_id": None,
             "model_id": model_id,
             "choices": choices,
             "tstamp": time.time(),
