@@ -1,269 +1,322 @@
-"""conversation templates"""
-from typing import List, Dict, Tuple
 from dataclasses import dataclass, field
-
+from typing import List, Tuple, Dict, Any, Optional
+from enum import Enum
 from transformers import AutoTokenizer
+from abc import ABC, abstractmethod
 
-# Ignored token id when calculating loss
 IGNORED_TOKEN_ID = -100
+
+class Role(Enum):
+    SYSTEM = "system"
+    HUMAN = "human"
+    ASSISTANT = "gpt"
+
+class RenderStrategy(ABC):
+    @abstractmethod
+    def get_conversation_str(self, messages: List[Tuple[Role, str]], template_attrs: Dict, add_generation_prompt: bool = False) -> str:
+        pass
+
+    @abstractmethod
+    def generate_labels(self, messages: List[Tuple[Role, str]], template_attrs: Dict, tokenized_conversation, tokenizer) -> List[int]:
+        pass
+
+@dataclass
+class ConversationTemplate:
+    name: str
+    role_starts: Dict[Role, str]
+    role_ends: Dict[Role, str]
+    offset: int = 0
+    default_system_message: Optional[str] = None
+    strategy: RenderStrategy = None
+
+    def get_attributes(self) -> Dict:
+        return {
+            "name": self.name,
+            "role_starts": self.role_starts,
+            "role_ends": self.role_ends,
+            "offset": self.offset,
+            "default_system_message": self.default_system_message,
+        }
 
 
 @dataclass
 class Conversation:
-    """class to manage conversation template and data"""
+    template: ConversationTemplate
+    messages: List[Tuple[Role, str]] = field(default_factory=list)
+    _system_message: Optional[str] = field(init=False, default=None)
 
-    template_name: str
-    role_starts: Dict[str, str]
-    role_ends: Dict[str, str]
-    overwrite_system_message: str = None
-    default_system_message: str = None # when the data contains no system message and no overwrite_system_message is provided
-    # roles: system, human, gpt
-    # offset to handle non-additive tokenizers, i.e. tokenizer(s1+s2) != tokenizer(s1)+tokenizer(s2)
-    # NB: whether tokenizer adds bos_token does not affect our label preparing
-    # set to 1 if tokenizer adds an extra token when tokenizing assistant role_start alone
-    # TODO: in theory, it is possible to automatically infer the offset given the tokenizer
-    offset: int = 0
-    # set to 1 if tokenizer adds a bos_token
-    bos_offset: int = 0
-    messages: List[Tuple[str]] = field(default_factory=list)
+    def __post_init__(self):
+        self.system_message = self.template.default_system_message or ""
 
-    def get_messages(self):
-        return self.messages
-
-    def get_conversation_str(self, add_generation_prompt=False):
-        """get full conversation str"""
-        ret = ""
-        for role, message in self.messages:
-            ret += self.role_starts[role] + message + self.role_ends[role]
-
-        if add_generation_prompt:
-            ret += self.role_starts["gpt"]
-
-        return ret
-
-    def fill_in_messages(self, conv):
-        """fill in conversation messages"""
-        # handle system_message
-        if conv["conversations"][0]["from"] != "system":
-            if self.overwrite_system_message is not None:
-                self.messages.append(("system", self.overwrite_system_message))
-            elif self.default_system_message is not None:
-                self.messages.append(("system", self.default_system_message))
-            else:
-                self.messages.append(("system", ""))
+    def _set_system_message(self, message: str):
+        self._system_message = message
+        if self.messages and self.messages[0][0] == Role.SYSTEM:
+            self.messages[0] = (Role.SYSTEM, message)
         else:
-            if self.overwrite_system_message is not None:
-                self.messages.append(("system", self.overwrite_system_message))
-            else:
-                self.messages.append(("system", conv["conversations"][0]["value"]))
+            self.messages.insert(0, (Role.SYSTEM, message))
 
-        # fill in messages
+    def fill_in_messages(self, conv: Dict[str, Any]):
+        """Fill in conversation messages from an external source."""
+        self.messages.clear()  # Clear existing messages
+
+        # Handle system message
+        first_message = conv["conversations"][0]
+        if first_message["from"] == Role.SYSTEM.value:
+            self.system_message = first_message["value"]
+        else:
+            self._set_system_message(self._system_message)  # Use the current system message
+
+        # Fill in other messages
         for message_dict in conv["conversations"]:
-            role, message_str = message_dict["from"], message_dict["value"]
-            if role in ["human", "gpt"]:
-                self.messages.append((role, message_str))
+            role_str, message_str = message_dict["from"], message_dict["value"]
+            try:
+                role = Role(role_str)
+                if role != Role.SYSTEM:  # We've already handled the system message
+                    self.messages.append((role, message_str))
+            except ValueError:
+                raise ValueError(f"Invalid role: {role_str}. Must be one of {', '.join([r.value for r in Role])}")
 
-    def set_system_message(self, system_message: str):
-        """Set the system message."""
-        if self.messages[0]:
-            self.messages.append(("system", system_message))
-        else:
-            self.messages[0][1] = system_message
+    @property
+    def system_message(self) -> str:
+        return self._system_message
 
-    def get_system_message(self):
-        """return the system message."""
-        return self.messages[0][1] if self.messages[0] else None
+    @system_message.setter
+    def system_message(self, message: str):
+        self._set_system_message(message)
 
-    def append_message(self, role: str, message: str):
+    def append_message(self, role: Role, message: str):
         """Append a new message."""
         self.messages.append((role, message))
 
     def update_last_message(self, message: str):
-        """Update the last message.
-        """
-        self.messages[-1][1] = message
+        """Update the last message."""
+        if self.messages:
+            self.messages[-1] = (self.messages[-1][0], message)
 
-    def get_tokenized_conversation(
-        self,
-        tokenizer: AutoTokenizer,
-        model_max_length: int,
-    ):
-        """tokenize conversation and prepare labels"""
-        # get and tokenize full conversation str
-        conversation_str = self.get_conversation_str()
-        tokenized_conversation = tokenizer(conversation_str)
-
-        # prepare labels
-        full_id_len = len(tokenized_conversation.input_ids)
-        labels = [IGNORED_TOKEN_ID] * full_id_len
-        cur_inst = ""
+    def get_conversation_str(self, add_generation_prompt: bool = False) -> str:
+        """Get full conversation str"""
+        if self.template.strategy:
+            self.template.strategy.get_conversation_str(self.messages, self.template.get_attributes(), add_generation_prompt)
+        
+        ret = ""
         for role, message in self.messages:
-            if role in ["system", "human"]:
-                cur_inst += self.role_starts[role] + message + self.role_ends[role]
-            else:
-                cur_inst += self.role_starts[role]
-                start_idx = len(tokenizer(cur_inst).input_ids) - self.offset
-                end_idx = len(tokenizer(cur_inst + message + self.role_ends[role]).input_ids)
-                labels[start_idx:end_idx] = tokenized_conversation.input_ids[start_idx:end_idx]
-                cur_inst += message + self.role_ends[role]
+            ret += self.template.role_starts[role] + message + self.template.role_ends[role]
+        if add_generation_prompt:
+            ret += self.template.role_starts[Role.ASSISTANT]
+        return ret
 
-        tokenized_conversation["labels"] = labels
-
-        # NB: manually truncate to model_max_length
-        tokenized_conversation["input_ids"] = tokenized_conversation["input_ids"][:model_max_length]
-        tokenized_conversation["attention_mask"] = tokenized_conversation["attention_mask"][:model_max_length]
-        tokenized_conversation["labels"] = tokenized_conversation["labels"][:model_max_length]
+    def get_tokenized_conversation(self, tokenizer: AutoTokenizer, model_max_length: int):
+        """Tokenize conversation and prepare labels"""
+        conversation_str = self.get_conversation_str()
+        tokenized_conversation = tokenizer(conversation_str, truncation=True, max_length=model_max_length)
+        tokenized_conversation["labels"] = self._generate_labels(tokenized_conversation, tokenizer)
 
         return tokenized_conversation
 
+    def _generate_labels(self, tokenized_conversation, tokenizer):
+        if self.template.strategy:
+            return self.template.strategy.generate_labels(
+                self.messages, tokenized_conversation, tokenizer, self.template.get_attributes()
+            )
+        
+        labels = [IGNORED_TOKEN_ID] * len(tokenized_conversation.input_ids)
+        cur_inst = ""
+        for role, message in self.messages:
+            if role in [Role.SYSTEM, Role.HUMAN]:
+                cur_inst += self.template.role_starts[role] + message + self.template.role_ends[role]
+            else:
+                cur_inst += self.template.role_starts[role]
+                start_idx = len(tokenizer(cur_inst).input_ids) - self.template.offset
+                end_idx = len(tokenizer(cur_inst + message + self.template.role_ends[role]).input_ids)
+                labels[start_idx:end_idx] = tokenized_conversation.input_ids[start_idx:end_idx]
+                cur_inst += message + self.template.role_ends[role]
+
+        return labels
+
     @classmethod
-    def from_template(cls, template_name, overwrite_system_message:str=None):
-        """get Conversation object from template_name"""
-        if template_name == "vicuna_v1.1":
-            return cls(
-                template_name=template_name,
-                role_starts={
-                    "system": "",
-                    "human": "USER: ",
-                    "gpt": "ASSTSTANT: ",
-                },
-                role_ends={
-                    "system": " ",
-                    "human": " ",
-                    "gpt": "</s>",
-                },
-                default_system_message="A chat between a curious user and an artificial intelligence assistant. "
-                "The assistant gives helpful, detailed, and polite answers to the user's questions.",
-                overwrite_system_message=overwrite_system_message,
-                offset=1,
-                bos_offset=1,
-            )
-        elif template_name == "llama-2-chat":
-            return cls(
-                template_name=template_name,
-                role_starts={
-                    "system": "<s>[INST] <<SYS>>\n",
-                    "human": "\n\n",
-                    "gpt": "[/INST]",
-                },
-                role_ends={
-                    "system": "\n<</SYS>>",
-                    "human": " ",
-                    "gpt": "</s>",
-                }, 
-                default_system_message="You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  "
-                "Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.\n\n"
-                "If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.",
-                overwrite_system_message=overwrite_system_message,
-                offset=0,
-                bos_offset=1,
-            )
-        elif template_name == "llama-2-chat-keep-system":
-            return cls(
-                template_name=template_name,
-                role_starts={
-                    "system": "<s>[INST] <<SYS>>\n",
-                    "human": "\n\n",
-                    "gpt": "[/INST]",
-                },
-                role_ends={
-                    "system": "\n<</SYS>>",
-                    "human": " ",
-                    "gpt": "</s>",
-                }, 
-                offset=0,
-                bos_offset=1,
-            )
-        elif template_name == "chatml":
-            return cls(
-                template_name=template_name,
-                role_starts={
-                    "system": "<|im_start|>system\n",
-                    "human": "<|im_start|>user\n",
-                    "gpt": "<|im_start|>assistant\n",
-                },
-                role_ends={
-                    "system": "<|im_end|>\n",
-                    "human": "<|im_end|>\n",
-                    "gpt": "<|im_end|>\n",
-                },
-                default_system_message="You are a helpful assistant.",
-                overwrite_system_message=overwrite_system_message,
-                offset=0,
-                bos_offset=0,
-            )
-        elif template_name == "chatml-keep-system":
-            # chatml template with system message kept, if no system message is provided, the system message is empty
-            return cls(
-                template_name=template_name,
-                role_starts={
-                    "system": "<|im_start|>system\n",
-                    "human": "<|im_start|>user\n",
-                    "gpt": "<|im_start|>assistant\n",
-                },
-                role_ends={
-                    "system": "<|im_end|>\n",
-                    "human": "<|im_end|>\n",
-                    "gpt": "<|im_end|>\n",
-                },
-                offset=0,
-                bos_offset=0,
-            )
-        elif template_name == "llama-3-instruct":
-            return cls(
-                template_name=template_name,
-                role_starts={
-                    "system": "<s><|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n",
-                    "human": "<|start_header_id|>user<|end_header_id|>\n\n",
-                    "gpt": "<|start_header_id|>assistant<|end_header_id|>\n\n",
-                },
-                role_ends={
-                    "system": "<|eot_id|>",
-                    "human": "<|eot_id|>",
-                    "gpt": "<|eot_id|>",
-                },
-                # FIXME: what is the system_message for llama-3-instruct?
-                overwrite_system_message=overwrite_system_message,
-                offset=0,
-                bos_offset=0,
-            )
-        elif template_name == "mistral-instruct":
-            return cls(
-                template_name=template_name,
-                role_starts={
-                    "system": "",
-                    "human": "[INST]",
-                    "gpt": "",
-                },
-                role_ends={
-                    "system": "",
-                    "human": "[/INST]",
-                    "gpt": "</s>",
-                },
-                overwrite_system_message=overwrite_system_message,
-                offset=0,
-                bos_offset=0,
-            )
-        elif template_name == "chatml-idsys":
-            return cls(
-                template_name=template_name,
-                role_starts={
-                    "system": "<|im_start|>system\n",
-                    "human": "<|im_start|>user\n",
-                    "gpt": "<|im_start|>assistant\n",
-                },
-                role_ends={
-                    "system": "<|im_end|>\n",
-                    "human": "<|im_end|>\n",
-                    "gpt": "<|im_end|>\n",
-                },
-                default_system_message="You are Zhuque, a conversational AI assistant "
-                "trained by Chinese Information Processing Laboratory (CIP). "
-                "你是朱雀，一个由中文信息处理实验室训练的对话式人工智能助手。"
-                "You are to give helpful, detailed, and polite answers to the user's questions."
-                "你应当为用户的问题提供有帮助的、详细的、礼貌的回答。",
-                overwrite_system_message=overwrite_system_message,
-                offset=0,
-                bos_offset=0,
-            )
-        raise NotImplementedError("Unknown conversation template.")
+    def from_template(cls, template_name: str):
+        """Get Conversation object from template_name"""
+        template = TEMPLATES.get(template_name)
+        if template is None:
+            raise ValueError(f"Unknown conversation template: {template_name}")
+        return cls(template=template)
+    
+class Llama2Strategy(RenderStrategy):
+
+    """
+    <s>[INST] <<SYS>>
+    {{ system_prompt }}
+    <</SYS>>
+
+    {{ user_message_1 }} [/INST] {{ model_answer_1 }} </s>
+    <s>[INST] {{ user_message_2 }} [/INST]
+
+    If we use additional strategy, we no longer need to based on the template attributes
+    """
+
+    def get_conversation_str(self, messages: List[Tuple[Role, str]], template_attrs: Dict, add_generation_prompt: bool = False) -> str:
+        ret = ""
+        first_user_message = True
+        for role, message in messages:
+            if role == Role.SYSTEM:
+                ret += f"[INST] <<SYS>>\n{message}\n<</SYS>>"
+            elif role == Role.HUMAN:
+                if first_user_message:
+                    ret += f"\n\n{message} "
+                    first_user_message = False
+                else:
+                    ret += f"<s>[INST] {message} "
+            elif role == Role.ASSISTANT:
+                ret += f"[/INST] {message} </s>"
+        if add_generation_prompt:
+            ret += "[/INST]"
+            
+        return ret
+
+    def generate_labels(self, messages: List[Tuple[Role, str]], 
+                        tokenized_conversation, tokenizer, template_attrs: Dict,) -> List[int]:
+        labels = [IGNORED_TOKEN_ID] * len(tokenized_conversation.input_ids)
+        cur_inst = ""
+        first_user_message = True
+
+        for role, message in messages:
+            if role == Role.SYSTEM:
+                cur_inst += f"[INST] <<SYS>>\n{message}\n<</SYS>>"
+            elif role == Role.HUMAN:
+                if first_user_message:
+                    cur_inst += f"\n\n{message} [/INST]"
+                    first_user_message = False
+                else:
+                    cur_inst += f"<s>[INST] {message} [/INST]"                
+            elif role == Role.ASSISTANT:
+                start_idx = len(tokenizer(cur_inst).input_ids)
+                cur_inst += f" {message} </s>"
+                print(cur_inst)
+                end_idx = len(tokenizer(cur_inst).input_ids)
+                print(tokenizer.convert_ids_to_tokens(tokenizer(cur_inst).input_ids))
+                print(tokenizer.convert_ids_to_tokens(tokenized_conversation.input_ids[:start_idx]))
+                labels[start_idx:end_idx] = tokenized_conversation.input_ids[start_idx:end_idx]
+                print(tokenizer.convert_ids_to_tokens(tokenized_conversation.input_ids[start_idx:end_idx]))
+        
+        return labels
+
+TEMPLATES = {
+    "vicuna_v1.1": ConversationTemplate(
+        name="vicuna_v1.1",
+        role_starts={
+            Role.SYSTEM: "",
+            Role.HUMAN: "USER: ",
+            Role.ASSISTANT: "ASSISTANT: ",
+        },
+        role_ends={
+            Role.SYSTEM: " ",
+            Role.HUMAN: " ",
+            Role.ASSISTANT: "</s>",
+        },
+        default_system_message="A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions.",
+        offset=1
+    ),
+    "llama-2-chat": ConversationTemplate(
+        name="llama-2-chat",
+        role_starts={
+            Role.SYSTEM: "[INST] <<SYS>>\n",
+            Role.HUMAN: "\n\n",
+            Role.ASSISTANT: "[/INST] ",
+        },
+        role_ends={
+            Role.SYSTEM: "\n<</SYS>>",
+            Role.HUMAN: " ",
+            Role.ASSISTANT: "</s><s>",
+        },
+        default_system_message="You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe. Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.\n\nIf a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.",
+        offset=0,
+        strategy=Llama2Strategy()
+    ),
+    "llama-2-chat-keep-system": ConversationTemplate(
+        name="llama-2-chat-keep-system",
+        role_starts={
+            Role.SYSTEM: "<s>[INST] <<SYS>>\n",
+            Role.HUMAN: "\n\n",
+            Role.ASSISTANT: "[/INST]",
+        },
+        role_ends={
+            Role.SYSTEM: "\n<</SYS>>",
+            Role.HUMAN: " ",
+            Role.ASSISTANT: "</s>",
+        },
+        offset=0,
+        strategy=Llama2Strategy()
+    ),
+    "chatml": ConversationTemplate(
+        name="chatml",
+        role_starts={
+            Role.SYSTEM: "<|im_start|>system\n",
+            Role.HUMAN: "<|im_start|>user\n",
+            Role.ASSISTANT: "<|im_start|>assistant\n",
+        },
+        role_ends={
+            Role.SYSTEM: "<|im_end|>\n",
+            Role.HUMAN: "<|im_end|>\n",
+            Role.ASSISTANT: "<|im_end|>\n",
+        },
+        default_system_message="You are a helpful assistant.",
+        offset=0,
+    ),
+    "chatml-keep-system": ConversationTemplate(
+        name="chatml-keep-system",
+        role_starts={
+            Role.SYSTEM: "<|im_start|>system\n",
+            Role.HUMAN: "<|im_start|>user\n",
+            Role.ASSISTANT: "<|im_start|>assistant\n",
+        },
+        role_ends={
+            Role.SYSTEM: "<|im_end|>\n",
+            Role.HUMAN: "<|im_end|>\n",
+            Role.ASSISTANT: "<|im_end|>\n",
+        },
+        offset=0,
+    ),
+    "llama-3-instruct": ConversationTemplate(
+        name="llama-3-instruct",
+        role_starts={
+            Role.SYSTEM: "<s><|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n",
+            Role.HUMAN: "<|start_header_id|>user<|end_header_id|>\n\n",
+            Role.ASSISTANT: "<|start_header_id|>assistant<|end_header_id|>\n\n",
+        },
+        role_ends={
+            Role.SYSTEM: "<|eot_id|>",
+            Role.HUMAN: "<|eot_id|>",
+            Role.ASSISTANT: "<|eot_id|>",
+        },
+        offset=0,
+    ),
+    "mistral-instruct": ConversationTemplate(
+        name="mistral-instruct",
+        role_starts={
+            Role.SYSTEM: "",
+            Role.HUMAN: "[INST]",
+            Role.ASSISTANT: "",
+        },
+        role_ends={
+            Role.SYSTEM: "",
+            Role.HUMAN: "[/INST]",
+            Role.ASSISTANT: "</s>",
+        },
+        offset=0,
+    ),
+    "chatml-idsys": ConversationTemplate(
+        name="chatml-idsys",
+        role_starts={
+            Role.SYSTEM: "<|im_start|>system\n",
+            Role.HUMAN: "<|im_start|>user\n",
+            Role.ASSISTANT: "<|im_start|>assistant\n",
+        },
+        role_ends={
+            Role.SYSTEM: "<|im_end|>\n",
+            Role.HUMAN: "<|im_end|>\n",
+            Role.ASSISTANT: "<|im_end|>\n",
+        },
+        default_system_message="You are Zhuque, a conversational AI assistant trained by Chinese Information Processing Laboratory (CIP). 你是朱雀，一个由中文信息处理实验室训练的对话式人工智能助手。You are to give helpful, detailed, and polite answers to the user's questions. 你应当为用户的问题提供有帮助的、详细的、礼貌的回答。",
+        offset=0,
+    )
+}
