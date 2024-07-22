@@ -157,14 +157,14 @@ def make_judge_single(judge_model, judge_prompts):
 
 def judge(
     bench_name="mt_bench",
-    judge_file="data/judge_prompts.jsonl",
+    judge_file="data/eval/mt-bench/judge_prompts.jsonl",
     judge_model="gpt-4",
     baseline_model="gpt-3.5-turbo",
     mode="single",
     model_list=None,
     parallel=2,
     first_n=None,
-    mtpath="data/eval/mtbench",
+    mtpath="data/eval/mt-bench",
 ):
     question_file = f"{mtpath}/question.jsonl"
     answer_dir = f"{mtpath}/model_answer"
@@ -309,7 +309,7 @@ if __name__ == "__main__":
     parser.add_argument("--parallel", type=int, default=1, help="The number of concurrent API calls.")
     parser.add_argument("--first-n", type=int, help="A debug option. Only run the first `n` judgments.")
     args = parser.parse_args()
-    mtpath = "data/eval/mtbench"
+    mtpath = "data/eval/mt-bench"
     question_file = f"{mtpath}/question.jsonl"
     answer_dir = f"{mtpath}/model_answer"
     ref_answer_dir = f"{mtpath}/reference_answer"

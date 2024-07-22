@@ -3,7 +3,7 @@ from autoalign.conversation import Conversation
 def configure_model(conv_template_name, tokenizer, model):
     """ specify eos token and bos token for model and tokenizer based on conversation template """
     conversation = Conversation.from_template(conv_template_name)
-    eos_token = conversation.role_ends["gpt"].strip()
+    eos_token = conversation.template.stop_str
     eos_token_id = tokenizer(eos_token).input_ids[-1]
     # print(f"{tokenizer(eos_token)=} {eos_token=} {eos_token_id=} {tokenizer.decode([eos_token_id])=}")
 

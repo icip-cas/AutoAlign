@@ -1,3 +1,4 @@
+import os
 import torch
 from tqdm import tqdm
 from transformers import (
@@ -10,7 +11,7 @@ from typing import List, Dict
 from accelerate import Accelerator
 from accelerate.utils import gather_object
 import math
-import openai
+from openai import OpenAI
 from multiprocessing.pool import ThreadPool
 from tenacity import (
     retry,
@@ -25,6 +26,44 @@ from accelerate.utils import InitProcessGroupKwargs
 import ray
 import multiprocessing as mp
 from vllm import LLM, SamplingParams
+
+class HFInferencer:
+
+    def __init__(self, model_name_or_path:str):
+
+        self.model = AutoModelForCausalLM.from_pretrained(
+            model_name_or_path,
+        ).to("cuda")
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            model_name_or_path
+        )
+
+    def inference(self, 
+                  prompt: str,
+                  **kwargs):
+
+        print(self.tokenizer.convert_ids_to_tokens(self.tokenizer([prompt]).input_ids[0]))
+
+        device = self.model.device
+        inputs = self.tokenizer([prompt], return_tensors="pt").to(device)
+        
+        output_ids = self.model.generate(
+            **inputs,
+            **kwargs
+        )
+        if self.model.config.is_encoder_decoder:
+            output_ids = output_ids[0]
+        else:
+            output_ids = output_ids[0][len(inputs["input_ids"][0]) :]
+        generated_text = self.tokenizer.decode(
+            output_ids
+        )
+
+        return generated_text
+    
+    def get_tokenizer(self):
+
+        return self.tokenizer
 
 class MultiProcessHFInferencer:
 
@@ -186,39 +225,25 @@ class OpenAIInferencer:
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.request_timeout = request_timeout
-        openai.api_key = api_key
-        if api_base is not None:
-            openai.api_base = api_base
-
-    @retry(wait=wait_chain(*[wait_fixed(3) for i in range(3)] +
-                        [wait_fixed(5) for i in range(2)] +
-                        [wait_fixed(10)]))
-    def inference(self, prompt, stop=None):
-        response = openai.Completion.create(
-            model=self.model,
-            prompt=prompt,
-            temperature=self.temperature,
-            max_tokens=self.max_tokens,
-            stop=stop
+        
+        self.client = OpenAI(
+            # This is the default and can be omitted
+            base_url=os.environ.get("OPENAI_API_BASE") if api_base is None else api_base,
+            api_key=os.environ.get("OPENAI_API_KEY") if api_key is None else api_key,
         )
-        return response['choices'][0]['text'].strip()
 
     @retry(wait=wait_chain(*[wait_fixed(3) for i in range(3)] +
                         [wait_fixed(5) for i in range(2)] +
                         [wait_fixed(10)]))
     def chat_inference(self, messages: List[Dict]):
         try:
-            response = openai.ChatCompletion.create(
+            response = self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
                 temperature=self.temperature,
                 request_timeout=self.request_timeout,
             )
         except Exception as e:
-            if str(e).startswith("Detected an error in the prompt. Please try again with a different prompt.") or \
-                str(e).startswith("Sorry! We've encountered an issue with repetitive patterns in your prompt. Please try again with a different prompt."):
-                print(e)
-                return "Prompt Error"
             print(e)
         return response['choices'][0]['message']['content'].strip()
     
@@ -291,7 +316,7 @@ class MultiProcessVllmInferencer:
 
         return model.generate(*args, **kwargs)
 
-    def inference(self, data:List[str], temperature:float=None, do_sample:bool=None):
+    def inference(self, data:List[str]):
         if self.use_ray:
             get_answers_func = ray.remote(num_gpus=self.num_gpus_per_model)(
                 MultiProcessVllmInferencer.single_process_inference
@@ -304,14 +329,12 @@ class MultiProcessVllmInferencer:
         
         gathered_responses = []
         for i in range(0, len(data), chunk_size):
-            tmp_sampling_params = self.sampling_params
-            tmp_sampling_params.temperature = temperature if temperature is not None else self.sampling_params.temperature
             gathered_responses.append(
                 get_answers_func(
                     self.model_path,
                     self.num_gpus_per_model,
                     data[i:i+chunk_size],
-                    tmp_sampling_params
+                    self.sampling_params
                 )
             )
         if self.use_ray:

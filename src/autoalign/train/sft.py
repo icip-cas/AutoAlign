@@ -1,6 +1,7 @@
 """finetune"""
 import json
 from functools import partial
+from itertools import groupby
 from dataclasses import dataclass, field
 import pathlib
 import random
@@ -109,8 +110,6 @@ def run_sft():
     # get dataset
     dataset = Dataset.from_list(data)
 
-    dataset = dataset.select(range(100))
-
     # tokenize dataset
     dataset = dataset.map(
         partial(
@@ -130,10 +129,9 @@ def run_sft():
     rank0_print(input_text)
     rank0_print("-----------Train on Text-----------")
     labels = dataset[random_idx]["labels"]
-    mask = [label != -100 for label in labels]
-    train_ids = [idx for idx, m in zip(input_ids, mask) if m]
-    train_text = tokenizer.decode(train_ids)
-    rank0_print(train_text)
+    target_ids = [list(y) for x, y in groupby(labels, lambda x: x != -100) if x]
+    target_texts = list(map(tokenizer.decode, target_ids))
+    rank0_print("\n>>>>>>>>>>>>>>>>>\n".join(target_texts))
 
     # get data collator
     data_collator = DataCollatorForSeq2Seq(

@@ -28,6 +28,7 @@ class ConversationTemplate:
     offset: Optional[int] = 0
     default_system_message: Optional[str] = None
     strategy: Optional[RenderStrategy] = None
+    stop_str: Optional[str] = None
 
     def get_attributes(self) -> Dict:
         return {
@@ -229,7 +230,8 @@ TEMPLATES = {
             Role.ASSISTANT: "</s>",
         },
         default_system_message="A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions.",
-        offset=1
+        offset=1,
+        stop_str="</s>"
     ),
     "llama-2-chat": ConversationTemplate(
         name="llama-2-chat",
@@ -245,7 +247,8 @@ TEMPLATES = {
         },
         default_system_message="You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe. Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.\n\nIf a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.",
         offset=0,
-        strategy=Llama2Strategy()
+        strategy=Llama2Strategy(),
+        stop_str="</s>"
     ),
     "llama-2-chat-keep-system": ConversationTemplate(
         name="llama-2-chat-keep-system",
@@ -260,7 +263,8 @@ TEMPLATES = {
             Role.ASSISTANT: "</s>",
         },
         offset=0,
-        strategy=Llama2Strategy()
+        strategy=Llama2Strategy(),
+        stop_str="</s>"
     ),
     "chatml": ConversationTemplate(
         name="chatml",
@@ -276,6 +280,7 @@ TEMPLATES = {
         },
         default_system_message="You are a helpful assistant.",
         offset=0,
+        stop_str="<|im_end|>"
     ),
     "chatml-keep-system": ConversationTemplate(
         name="chatml-keep-system",
@@ -290,11 +295,12 @@ TEMPLATES = {
             Role.ASSISTANT: "<|im_end|>\n",
         },
         offset=0,
+        stop_str="<|im_end|>"
     ),
     "llama-3-instruct": ConversationTemplate(
         name="llama-3-instruct",
         role_starts={
-            Role.SYSTEM: "<s><|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n",
+            Role.SYSTEM: "<|start_header_id|>system<|end_header_id|>\n\n",
             Role.HUMAN: "<|start_header_id|>user<|end_header_id|>\n\n",
             Role.ASSISTANT: "<|start_header_id|>assistant<|end_header_id|>\n\n",
         },
@@ -318,6 +324,7 @@ TEMPLATES = {
             Role.ASSISTANT: "</s>",
         },
         offset=0,
+        stop_str="</s>"
     ),
     "chatml-idsys": ConversationTemplate(
         name="chatml-idsys",
@@ -333,5 +340,6 @@ TEMPLATES = {
         },
         default_system_message="You are Zhuque, a conversational AI assistant trained by Chinese Information Processing Laboratory (CIP). 你是朱雀，一个由中文信息处理实验室训练的对话式人工智能助手。You are to give helpful, detailed, and polite answers to the user's questions. 你应当为用户的问题提供有帮助的、详细的、礼貌的回答。",
         offset=0,
+        stop_str="<|im_end|>"
     )
 }
