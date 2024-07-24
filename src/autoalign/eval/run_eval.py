@@ -11,9 +11,9 @@ import signal
 from argparse import ArgumentParser
 
 from autoalign.inference.inferencer import MultiProcessVllmInferencer
-from autoalign.utils import get_logger
-from .inference_mt_bench import _run_mt_bench_eval, reorg_answer_file
-from .gen_judgmen_mt_bench import judge
+from autoalign.utils import get_logger, remove_file_if_user_confirms
+from .inference_mt_bench import inference_mt_bench, reorg_answer_file
+from .gen_judgmen_mt_bench import judge_mt_bench
 
 
 def parse_args(args: str):
@@ -346,10 +346,6 @@ def run_alpaca_eval(model_name: str, model_path: str, batch_size: int,
 
 def display_result_single(bench_name: str, input_file: str, judge_model: str,
                           model_list: list) -> None:
-    if input_file is None:
-        input_file = f"data/{bench_name}/model_judgment/{judge_model}_single.jsonl"
-    else:
-        input_file = input_file
 
     print(f"Input file: {input_file}")
     df_all = pd.read_json(input_file, lines=True)
@@ -383,27 +379,32 @@ def run_mt_bench_eval(model_path: str, model_name: str, batch_size: int,
     question_file = f"{mtpath}/question.jsonl"
     answer_file = f"{mtpath}/model_answer/{model_name}.jsonl"
 
-    # _run_mt_bench_eval(
-    #     model_path=model_path,
-    #     model_id=model_name,
-    #     template_name=template_name,
-    #     question_file=question_file,
-    #     answer_file=answer_file,
-    #     question_begin=None,
-    #     question_end=None,
-    #     max_new_token=1024,
-    #     num_choices=1,
-    # )
+    if os.path.exists(answer_file) and not remove_file_if_user_confirms(answer_file):
 
-    # reorg_answer_file(answer_file)
+        logger.info(f"Using existing answer file at {answer_file}")
+
+    else:
+
+        inference_mt_bench(
+            model_path=model_path,
+            model_id=model_name,
+            template_name=template_name,
+            question_file=question_file,
+            answer_file=answer_file,
+            question_begin=None,
+            question_end=None,
+            max_new_token=1024,
+            num_choices=1,
+        )
+
+        reorg_answer_file(answer_file)
 
     logger.info("mt-bench generation finished")
     logger.info("starting to evaluate")
-    judge(model_list=[model_name], parallel=4, mtpath=mtpath)
+    judge_mt_bench(model_list=[model_name], parallel=4, mtpath=mtpath)
     logger.info("mt-bench evaluation finished")
 
     display_result_single("mt_bench", None, "gpt-4", [model_name])
-
 
 def transpose_and_format_dataframe(input_dataframe, output_txt_path):
     transposed_df = input_dataframe.transpose()
@@ -462,8 +463,6 @@ def run_eval(args) -> None:
     with open(args.config_path, "r") as f:
         config = yaml.safe_load(f)
     model_name = config["model_name"]
-    # 获取time_stamp拼接至model_name
-    # time_stamp = time.strftime("%Y%m%d-%H%M%S", time.localtime())
     model_name = f"{model_name}"
     model_path = config["model_path"]
     batch_size = config["batch_size"]

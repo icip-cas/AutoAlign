@@ -12,7 +12,7 @@ from autoalign.conversation import Conversation, Role
 from autoalign.inference.inferencer import HFInferencer
 
 
-def _run_mt_bench_eval(
+def inference_mt_bench(
     model_path,
     model_id,
     template_name,
@@ -198,7 +198,7 @@ if __name__ == "__main__":
 
     print(f"Output to {answer_file}")
 
-    _run_mt_bench_eval(
+    inference_mt_bench(
         model_path=args.model_path,
         model_id=args.model_id,
         question_file=question_file,

@@ -38,6 +38,29 @@ def test_fill_in_messages(template_conversation):
     template_conversation.fill_in_messages(conv_dict)
     assert template_conversation.system_message == "You are a helpful assistant."
     assert template_conversation.messages[1:] == [(Role.HUMAN, "Hello"), (Role.ASSISTANT, "Hi there!")]
+    template_conversation.system_message = "You are a harmful assistant."
+    conv_dict = {
+        "conversations": [
+            {"from": "human", "value": "Hello"},
+            {"from": "gpt", "value": "Hi there!"}
+        ]
+    }
+    template_conversation.fill_in_messages(conv_dict, replace_conv_system_message=False)
+    assert template_conversation.system_message == "You are a harmful assistant."
+    assert template_conversation.messages[0] == (Role.SYSTEM, "You are a harmful assistant.")
+    assert template_conversation.messages[1:] == [(Role.HUMAN, "Hello"), (Role.ASSISTANT, "Hi there!")]
+    conv_dict = {
+        "conversations": [
+            {"from": "system", "value": "You are a helpful assistant."},
+            {"from": "human", "value": "Hello"},
+            {"from": "gpt", "value": "Hi there!"}
+        ]
+    }
+    template_conversation.fill_in_messages(conv_dict)
+    assert template_conversation.system_message == "You are a helpful assistant."
+    assert template_conversation.messages[0] == (Role.SYSTEM, "You are a helpful assistant.")
+    assert template_conversation.messages[1:] == [(Role.HUMAN, "Hello"), (Role.ASSISTANT, "Hi there!")]
+
 
 def test_to_openai_api_messages():
 
