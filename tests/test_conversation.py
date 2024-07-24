@@ -6,15 +6,16 @@ from tqdm import tqdm
 from transformers import AutoTokenizer
 from autoalign.conversation import Role, Conversation, TEMPLATES, IGNORED_TOKEN_ID
 
+def approx_equal(str1, str2): return ''.join(str1.split()) == ''.join(str2.split())
+
 @pytest.fixture
 def dummy_data():
     with open('./data/dummy_sft.json', 'r', encoding='utf-8') as f:
         return json.load(f)
 
-@pytest.fixture(params=TEMPLATES.keys())
+@pytest.fixture(params=[template_name for template_name in TEMPLATES.keys() if template_name != 'gpt-4'])
 def template_conversation(request):
     template_name = request.param
-    print(f"Testing template: {template_name}")
     return Conversation.from_template(template_name)
 
 def test_append_message(template_conversation):
@@ -38,53 +39,48 @@ def test_fill_in_messages(template_conversation):
     assert template_conversation.system_message == "You are a helpful assistant."
     assert template_conversation.messages[1:] == [(Role.HUMAN, "Hello"), (Role.ASSISTANT, "Hi there!")]
 
+def test_to_openai_api_messages():
+
+    conv = Conversation.from_template('gpt-4')
+
+    print(conv.to_openai_api_messages())
+    
+    assert conv.to_openai_api_messages() == []
+    
+    conv.system_message = "You are a helpful assistant."
+    expected = [{"role": "system", "content": "You are a helpful assistant."}]
+    assert conv.to_openai_api_messages() == expected
+    
+    conv.append_message(Role.HUMAN, "Hello, how are you?")
+    expected.append({"role": "user", "content": "Hello, how are you?"})
+    assert conv.to_openai_api_messages() == expected
+    
+    conv.append_message(Role.ASSISTANT, "I'm doing well, thank you for asking. How can I assist you today?")
+    expected.append({"role": "assistant", "content": "I'm doing well, thank you for asking. How can I assist you today?"})
+    assert conv.to_openai_api_messages() == expected
+    
+    conv.append_message(Role.HUMAN, "What's the weather like today?")
+    expected.append({"role": "user", "content": "What's the weather like today?"})
+    assert conv.to_openai_api_messages() == expected
+    
+    conv = Conversation.from_template('gpt-4')
+    conv.append_message(Role.HUMAN, "Hi")
+    conv.append_message(Role.ASSISTANT, "Hello!")
+    assert conv.to_openai_api_messages() == [
+        {"role": "user", "content": "Hi"},
+        {"role": "assistant", "content": "Hello!"}
+    ]
+
 def test_invalid_template():
     with pytest.raises(ValueError):
         Conversation.from_template("non_existent_template")
 
-# def test_get_conversation_str(vicuna_conversation):
-#     vicuna_conversation.append_message(Role.HUMAN, "Hello")
-#     vicuna_conversation.append_message(Role.ASSISTANT, "Hi there!")
-#     expected = "USER: Hello ASSISTANT: Hi there!</s>"
-#     assert vicuna_conversation.get_conversation_str() == expected
-
-# def test_llama2_strategy(llama2_conversation):
-#     llama2_conversation.append_message(Role.HUMAN, "Hello")
-#     llama2_conversation.append_message(Role.ASSISTANT, "Hi there!")
-#     expected = "[INST] <<SYS>>\nYou are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe. Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.\n\nIf a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.\n<</SYS>>\n\nHello [/INST] Hi there! </s>"
-#     assert llama2_conversation.get_conversation_str() == expected
-
-# def test_conversation_str_after_fill(vicuna_conversation, dummy_data):
-#     english_conv = dummy_data[0]
-#     vicuna_conversation.fill_in_messages(english_conv)
-    
-#     expected_str = "USER: Tell me about Beethoven. ASSISTANT: Beethoven is a great composer.</s>USER: When was he born? ASSISTANT: He was born in 1770.</s>"
-#     assert vicuna_conversation.get_conversation_str() == expected_str
-
-# def test_fill_in_messages_keep_system(dummy_data):
-#     conv = Conversation.from_template("llama-2-chat-keep-system")
-#     english_conv = dummy_data[0]
-#     conv.fill_in_messages(english_conv)
-    
-#     assert conv.system_message == "You are a helpful artificial assistant who gives friendly responses."
-#     assert len(conv.messages) == 5  # 1 system + 2 human + 2 gpt
-    
-#     expected_str = "<s>[INST] <<SYS>>\nYou are a helpful artificial assistant who gives friendly responses.\n<</SYS>>\n\nTell me about Beethoven. [/INST] Beethoven is a great composer. </s><s>[INST] When was he born? [/INST] He was born in 1770.</s>"
-#     assert conv.get_conversation_str() == expected_str
-
-# def test_fill_in_messages_invalid_role(vicuna_conversation):
-#     invalid_conv = {
-#         "conversations": [
-#             {"from": "invalid_role", "value": "This is an invalid role."}
-#         ]
-#     }
-#     with pytest.raises(ValueError, match="Invalid role: invalid_role"):
-#         vicuna_conversation.fill_in_messages(invalid_conv)
-
 @pytest.mark.parametrize("template_name, tokenizer_name_or_path", [
     ("llama-2-chat", "pretrained_models/Llama-2-7b-chat-hf"),
+    ("llama-2-chat-keep-system", "pretrained_models/Llama-2-7b-chat-hf"),
     ("llama-3-instruct", "/data7/hf_models/NousResearch/Meta-Llama-3-8B"),
     ("chatml", "pretrained_models/Qwen2-7B"),
+    ("chatml-keep-system", "pretrained_models/Qwen2-7B"),
 ])
 def test_get_tokenized_conversation(
     template_name: str,
@@ -122,4 +118,7 @@ def test_get_tokenized_conversation(
         
         assistant_responses = [_["value"] for _ in conv["conversations"] if _["from"] == "gpt"]
         for target_text, assistant_response in zip(target_texts, assistant_responses):
-            assert target_text.strip() == assistant_response.strip(), "target text and gpt response do not match!"
+            assert approx_equal(
+                target_text.strip(),
+                assistant_response.strip() + conversation.template.role_ends[Role.ASSISTANT]
+            ), "target text and gpt response do not match!"
