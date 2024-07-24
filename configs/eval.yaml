@@ -1,10 +1,13 @@
 # 评测的模型标识名称
 # The identifying name of the model to evaluate
-model_name: qwen2-7b_ultrachat
+model_name: Llama-2-13b-chat-hf
+
+# 评测时使用的上下文模板，可见src/autoalign/conversation.py中的TEMPLATES
+template_name: llama-2-chat
 
 # 评测的模型路径
 # The path of the model to evaluate
-model_path: /data2/luxinyu2021/auto-alignment/saved_models/qwen2-7b_ultrachat
+model_path: /data1/luxinyu/pretrained_models/Llama-2-13b-chat-hf
 
 # 评测的类型
 # The type of evaluation
@@ -22,6 +25,7 @@ per_model_gpu: 1
 # The batch size of a single worker
 batch_size: 8
 
+# ==============Opencompass 设置================
 # opencompass文件夹的路径
 # The path of opencompass
 opencompass_path: opencompass
@@ -29,3 +33,7 @@ opencompass_path: opencompass
 # opencompass 的推理 backend
 # The inference backend of opencompass
 backend: vllm
+
+# ==============MTbench 设置================
+# mtbench文件夹的路径
+mt_path: data/eval/mtbench
