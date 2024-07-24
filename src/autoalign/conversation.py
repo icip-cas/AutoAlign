@@ -6,10 +6,12 @@ from abc import ABC, abstractmethod
 
 IGNORED_TOKEN_ID = -100
 
+
 class Role(Enum):
     SYSTEM = "system"
     HUMAN = "human"
     ASSISTANT = "gpt"
+
 
 class RenderStrategy(ABC):
     @abstractmethod
@@ -19,6 +21,7 @@ class RenderStrategy(ABC):
     @abstractmethod
     def generate_labels(self, messages: List[Tuple[Role, str]], template_attrs: Dict, tokenized_conversation, tokenizer) -> List[int]:
         pass
+
 
 @dataclass
 class ConversationTemplate:
@@ -88,16 +91,22 @@ class Conversation:
         """Append a new message."""
         self.messages.append((role, message))
 
+    def pop_message(self, index=-1):
+        return self.messages.pop(index)
+
     def update_last_message(self, message: str):
         """Update the last message."""
         if self.messages:
             self.messages[-1] = (self.messages[-1][0], message)
 
+    def clear_message(self):
+        self.messages.clear()
+
     def get_conversation_str(self, add_generation_prompt: bool = False) -> str:
         """Get full conversation str"""
         if self.template.strategy:
             self.template.strategy.get_conversation_str(self.messages, self.template.get_attributes(), add_generation_prompt)
-        
+
         ret = ""
         for role, message in self.messages:
             ret += self.template.role_starts[role] + message + self.template.role_ends[role]
@@ -115,10 +124,8 @@ class Conversation:
 
     def _generate_labels(self, tokenized_conversation, tokenizer):
         if self.template.strategy:
-            return self.template.strategy.generate_labels(
-                self.messages, tokenized_conversation, tokenizer, self.template.get_attributes()
-            )
-        
+            return self.template.strategy.generate_labels(self.messages, tokenized_conversation, tokenizer, self.template.get_attributes())
+
         labels = [IGNORED_TOKEN_ID] * len(tokenized_conversation.input_ids)
         cur_inst = ""
         for role, message in self.messages:
@@ -140,7 +147,8 @@ class Conversation:
         if template is None:
             raise ValueError(f"Unknown conversation template: {template_name}")
         return cls(template=template)
-    
+
+
 class Llama2Strategy(RenderStrategy):
 
     """
@@ -170,11 +178,16 @@ class Llama2Strategy(RenderStrategy):
                 ret += f"[/INST] {message} </s>"
         if add_generation_prompt:
             ret += "[/INST]"
-            
+
         return ret
 
-    def generate_labels(self, messages: List[Tuple[Role, str]], 
-                        tokenized_conversation, tokenizer, template_attrs: Dict,) -> List[int]:
+    def generate_labels(
+        self,
+        messages: List[Tuple[Role, str]],
+        tokenized_conversation,
+        tokenizer,
+        template_attrs: Dict,
+    ) -> List[int]:
         labels = [IGNORED_TOKEN_ID] * len(tokenized_conversation.input_ids)
         cur_inst = ""
         first_user_message = True
@@ -187,7 +200,7 @@ class Llama2Strategy(RenderStrategy):
                     cur_inst += f"\n\n{message} [/INST]"
                     first_user_message = False
                 else:
-                    cur_inst += f"<s>[INST] {message} [/INST]"                
+                    cur_inst += f"<s>[INST] {message} [/INST]"
             elif role == Role.ASSISTANT:
                 start_idx = len(tokenizer(cur_inst).input_ids)
                 cur_inst += f" {message} </s>"
@@ -197,8 +210,9 @@ class Llama2Strategy(RenderStrategy):
                 print(tokenizer.convert_ids_to_tokens(tokenized_conversation.input_ids[:start_idx]))
                 labels[start_idx:end_idx] = tokenized_conversation.input_ids[start_idx:end_idx]
                 print(tokenizer.convert_ids_to_tokens(tokenized_conversation.input_ids[start_idx:end_idx]))
-        
+
         return labels
+
 
 TEMPLATES = {
     "vicuna_v1.1": ConversationTemplate(
@@ -213,8 +227,9 @@ TEMPLATES = {
             Role.HUMAN: " ",
             Role.ASSISTANT: "</s>",
         },
-        default_system_message="A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions.",
-        offset=1
+        default_system_message="A chat between a curious user and an artificial intelligence assistant. \
+            The assistant gives helpful, detailed, and polite answers to the user's questions.",
+        offset=1,
     ),
     "llama-2-chat": ConversationTemplate(
         name="llama-2-chat",
@@ -228,9 +243,13 @@ TEMPLATES = {
             Role.HUMAN: " ",
             Role.ASSISTANT: "</s><s>",
         },
-        default_system_message="You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe. Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.\n\nIf a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.",
+        default_system_message="You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, \
+            while being safe. Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or \
+            illegal content. Please ensure that your responses are socially unbiased and positive in nature.\n\n If a question\
+            does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If \
+            you don't know the answer to a question, please don't share false information.",
         offset=0,
-        strategy=Llama2Strategy()
+        strategy=Llama2Strategy(),
     ),
     "llama-2-chat-keep-system": ConversationTemplate(
         name="llama-2-chat-keep-system",
@@ -245,7 +264,7 @@ TEMPLATES = {
             Role.ASSISTANT: "</s>",
         },
         offset=0,
-        strategy=Llama2Strategy()
+        strategy=Llama2Strategy(),
     ),
     "chatml": ConversationTemplate(
         name="chatml",
@@ -316,7 +335,10 @@ TEMPLATES = {
             Role.HUMAN: "<|im_end|>\n",
             Role.ASSISTANT: "<|im_end|>\n",
         },
-        default_system_message="You are Zhuque, a conversational AI assistant trained by Chinese Information Processing Laboratory (CIP). 你是朱雀，一个由中文信息处理实验室训练的对话式人工智能助手。You are to give helpful, detailed, and polite answers to the user's questions. 你应当为用户的问题提供有帮助的、详细的、礼貌的回答。",
+        default_system_message="You are Zhuque, a conversational AI assistant trained by \
+            Chinese Information Processing Laboratory (CIP). 你是朱雀，一个由中文信息处理实验室训练的对话式人工智能助手。\
+            You are to give helpful, detailed, and polite answers to the user's questions. \
+            你应当为用户的问题提供有帮助的、详细的、礼貌的回答。",
         offset=0,
-    )
+    ),
 }
