@@ -10,6 +10,7 @@ from transformers.utils import (
 )
 import logging
 import sys
+import os
 
 def read_json(data_path):
     """read json data"""
@@ -44,3 +45,25 @@ def get_logger(name: str) -> logging.Logger:
     logger.addHandler(handler)
 
     return logger
+
+def remove_file_if_user_confirms(file_path):
+    """
+    Ask the user if they want to remove an existing file.
+    Remove the file if the user confirms.
+
+    :param file_path: Path to the file to potentially remove
+    :return: True if file was removed, False otherwise
+    """
+    if os.path.exists(file_path):
+        while True:
+            user_choice = input(f"The file '{file_path}' already exists. Do you want to remove it? (y/N): ").lower()
+            if user_choice == 'y':
+                os.remove(file_path)
+                return True
+            elif user_choice == 'n':
+                return False
+            else:
+                pass
+    else:
+        print(f"File '{file_path}' does not exist.")
+        return False

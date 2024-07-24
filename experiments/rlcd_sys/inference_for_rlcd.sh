@@ -7,11 +7,11 @@ autoalign-cli infer --backend "vllm" \
             --model-path ${SAVED_MODEL_PATH} \
             --test-file ${OUTPUT_DIR}/${OUTPUT_CHOSEN_FILE_NAME} \
             --template ${TEMPLATE_NAME} \
-            --source ${CHOSEN_SOURCE_TAG} \
+            --source ${CHOSEN_SOURCE_TAG}
 
 autoalign-cli infer --backend "vllm" \
             --model-name ${MODEL_NAME} \
             --model-path ${SAVED_MODEL_PATH} \
             --test-file ${OUTPUT_DIR}/${OUTPUT_REJECTED_FILE_NAME} \
             --template ${TEMPLATE_NAME} \
-            --source ${REJECTED_SOURCE_TAG} \
+            --source ${REJECTED_SOURCE_TAG}

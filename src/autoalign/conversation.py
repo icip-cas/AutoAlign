@@ -49,6 +49,9 @@ class Conversation:
     def __post_init__(self):
         self.system_message = self.template.default_system_message or ""
 
+    def get_messages(self):
+        return self.messages
+
     def _set_system_message(self, message: str):
         self._system_message = message
         if self.messages and self.messages[0][0] == Role.SYSTEM:
@@ -56,14 +59,14 @@ class Conversation:
         else:
             self.messages.insert(0, (Role.SYSTEM, message))
 
-    def fill_in_messages(self, conv: Dict[str, Any]):
+    def fill_in_messages(self, conv: Dict[str, Any], replace_conv_system_message: bool = True):
         """Fill in conversation messages from an external source."""
         self.messages.clear()  # Clear existing messages
 
         # Handle system message
         first_message = conv["conversations"][0]
-        if first_message["from"] == Role.SYSTEM.value:
-            self.system_message = first_message["value"]
+        if first_message["from"] == Role.SYSTEM.value and replace_conv_system_message: # Use the system message from the conversation  
+            self._set_system_message(first_message["value"])
         else:
             self._set_system_message(self._system_message)  # Use the current system message
 
@@ -109,6 +112,8 @@ class Conversation:
         """Update the last message."""
         if self.messages:
             self.messages[-1] = (self.messages[-1][0], message)
+        else:
+            raise ValueError("No messages to update.")
 
     def get_conversation_str(self, add_generation_prompt: bool = False) -> str:
         """Get full conversation str"""
