@@ -1,13 +1,13 @@
 # 评测的模型标识名称
 # Identifying name of the model to evaluate
-model_name: qwen_14b_data_setting2
+model_name: llama-3-8b_ultrachat
 
 # 评测时使用的上下文模板，可见src/autoalign/conversation.py中的TEMPLATES
-template_name: chatml-keep-system
+template_name: llama-3-instruct
 
 # 评测的模型路径
 # The path of the model to evaluate
-model_path: /data2/luxinyu2021/zhuque_v2/saved_models/qwen_14b_data_setting2/
+model_path: /data2/luxinyu2021/auto-alignment/saved_models/llama-3-8b_ultrachat
 
 # 评测的类型
 # The type of evaluation
