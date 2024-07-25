@@ -30,8 +30,8 @@ def _get_args():
     )
     parser.add_argument("--server-port", type=int, default=8001, help="Demo server port.")
     parser.add_argument("--server-name", type=str, default="127.0.0.1", help="Demo server name.")
-    parser.add_argument("--max-length", type=int, default=2048, help="Max token number of conversation.")
-
+    parser.add_argument("--max-length", type=int, default=4096, help="Max token number of conversation.")
+    parser.add_argument("--max-new-length", type=int, default=2048, help="Max new token of a response.")
     args = parser.parse_args()
     return args
 
@@ -52,12 +52,12 @@ def _load_model_tokenizer(args):
         device_map=device_map,
         resume_download=True,
     ).eval()
-    model.generation_config.max_new_tokens = 2048  # For chat.
+    model.generation_config.max_new_tokens = args.max_new_length  # For chat.
 
     return model, tokenizer
 
 
-def _chat_stream(model, tokenizer, template, query, history):
+def _chat_stream(model, tokenizer, template, query, history, max_length):
     conversation = []
     for query_h, response_h in history:
         conversation.append({"from": "human", "value": query_h})
@@ -66,7 +66,7 @@ def _chat_stream(model, tokenizer, template, query, history):
     conv = Conversation.from_template(template_name=template if template is not None else "chatml")
     conv.fill_in_messages(conv={"conversations": conversation})
     # 适配autoalign
-    inputs = conv.get_tokenized_conversation(tokenizer, 2048)
+    inputs = conv.get_tokenized_conversation(tokenizer=tokenizer, model_max_length=max_length, add_generation_prompt=True)
     inputs = torch.tensor(inputs["input_ids"]).unsqueeze(0)
     inputs = inputs.to(model.device)
     streamer = TextIteratorStreamer(tokenizer=tokenizer, skip_prompt=True, timeout=60.0, skip_special_tokens=True)
@@ -95,8 +95,7 @@ def _launch_demo(args, model, tokenizer):
         _chatbot.append((_query, ""))
         full_response = ""
         response = ""
-        for new_text in _chat_stream(model, tokenizer, args.template, _query, history=_task_history):
-            print(new_text)
+        for new_text in _chat_stream(model, tokenizer, args.template, _query, history=_task_history, max_length=args.max_length):
             response += new_text
             _chatbot[-1] = (_query, response)
 

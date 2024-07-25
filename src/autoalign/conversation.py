@@ -130,9 +130,9 @@ class Conversation:
             ret += self.template.role_starts[Role.ASSISTANT]
         return ret
 
-    def get_tokenized_conversation(self, tokenizer: AutoTokenizer, model_max_length: int):
+    def get_tokenized_conversation(self, tokenizer: AutoTokenizer, model_max_length: int, add_generation_prompt: bool = False):
         """Tokenize conversation and prepare labels"""
-        conversation_str = self.get_conversation_str()
+        conversation_str = self.get_conversation_str(add_generation_prompt=add_generation_prompt)
         tokenized_conversation = tokenizer(conversation_str, truncation=True, max_length=model_max_length)
         tokenized_conversation["labels"] = self._generate_labels(tokenized_conversation, tokenizer)
 
