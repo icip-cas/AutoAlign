@@ -13,6 +13,11 @@ def dummy_data():
     with open('./data/dummy_sft.json', 'r', encoding='utf-8') as f:
         return json.load(f)
 
+@pytest.fixture
+def dummy_dpo_data():
+    with open('./data/dummy_dpo.json', 'r', encoding='utf-8') as f:
+        return json.load(f)
+
 @pytest.fixture(params=[template_name for template_name in TEMPLATES.keys() if template_name != 'gpt-4'])
 def template_conversation(request):
     template_name = request.param
@@ -145,3 +150,23 @@ def test_get_tokenized_conversation(
                 target_text.strip(),
                 assistant_response.strip() + conversation.template.role_ends[Role.ASSISTANT]
             ), "target text and gpt response do not match!"
+
+
+@pytest.mark.parametrize("conv_template_name", [
+    ("llama-2-chat"),
+    ("llama-2-chat-keep-system"),
+    ("llama-3-instruct"),
+    ("chatml"),
+    ("chatml-keep-system"),
+])
+def test_dpo_preprocess(dummy_dpo_data, conv_template_name):
+    from autoalign.train.dpo import preprocess as dpo_preprocess
+    print(conv_template_name)
+    for conv in dummy_dpo_data:
+        default_system_ret = dpo_preprocess(conv, conv_template_name)
+        print(default_system_ret)
+
+        conv['system'] = "特定system prompt"
+        custom_system_ret = dpo_preprocess(conv, conv_template_name)
+        print(custom_system_ret)
+        assert conv['system'] not in custom_system_ret
