@@ -32,21 +32,16 @@ class DataArguments:
 
 def preprocess(sample, conv_template_name):
     prompt_conversations = Conversation.from_template(conv_template_name)
-    chosen_conversations = Conversation.from_template(conv_template_name)
-    rejected_conversations = Conversation.from_template(conv_template_name)
+
     if "system" in sample:
-        prompt_conversations.overwrite_system_message = sample["system"]
-        chosen_conversations.overwrite_system_message = sample["system"]
-        rejected_conversations.overwrite_system_message = sample["system"]
+        prompt_conversations.default_system_message = sample["system"]
 
     prompt_conversations.fill_in_messages({"conversations": sample["chosen"][:1]})
-    chosen_conversations.fill_in_messages({"conversations": sample["chosen"]})
-    rejected_conversations.fill_in_messages({"conversations": sample["rejected"]})
 
     return dict(
         prompt=prompt_conversations.get_conversation_str(add_generation_prompt=True),
-        chosen=chosen_conversations.get_conversation_str(),
-        rejected=rejected_conversations.get_conversation_str(),
+        chosen=sample["chosen"][1]["value"],
+        rejected=sample["rejected"][1]["value"],
     )
 
 
