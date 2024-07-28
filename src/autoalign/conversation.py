@@ -31,6 +31,7 @@ class ConversationTemplate:
     offset: Optional[int] = 0
     default_system_message: Optional[str] = None
     strategy: Optional[RenderStrategy] = None
+    stop_str: Optional[str] = None
 
     def get_attributes(self) -> Dict:
         return {
@@ -51,6 +52,9 @@ class Conversation:
     def __post_init__(self):
         self.system_message = self.template.default_system_message or ""
 
+    def get_messages(self):
+        return self.messages
+
     def _set_system_message(self, message: str):
         self._system_message = message
         if self.messages and self.messages[0][0] == Role.SYSTEM:
@@ -58,14 +62,14 @@ class Conversation:
         else:
             self.messages.insert(0, (Role.SYSTEM, message))
 
-    def fill_in_messages(self, conv: Dict[str, Any]):
+    def fill_in_messages(self, conv: Dict[str, Any], replace_conv_system_message: bool = True):
         """Fill in conversation messages from an external source."""
         self.messages.clear()  # Clear existing messages
 
         # Handle system message
         first_message = conv["conversations"][0]
-        if first_message["from"] == Role.SYSTEM.value:
-            self.system_message = first_message["value"]
+        if first_message["from"] == Role.SYSTEM.value and replace_conv_system_message:  # Use the system message from the conversation
+            self._set_system_message(first_message["value"])
         else:
             self._set_system_message(self._system_message)  # Use the current system message
 
@@ -114,6 +118,8 @@ class Conversation:
         """Update the last message."""
         if self.messages:
             self.messages[-1] = (self.messages[-1][0], message)
+        else:
+            raise ValueError("No messages to update.")
 
     def clear_message(self):
         self.messages.clear()
@@ -252,6 +258,7 @@ TEMPLATES = {
         default_system_message="A chat between a curious user and an artificial intelligence assistant. \
             The assistant gives helpful, detailed, and polite answers to the user's questions.",
         offset=1,
+        stop_str="</s>",
     ),
     "llama-2-chat": ConversationTemplate(
         name="llama-2-chat",
@@ -272,6 +279,7 @@ TEMPLATES = {
             you don't know the answer to a question, please don't share false information.",
         offset=0,
         strategy=Llama2Strategy(),
+        stop_str="</s>",
     ),
     "llama-2-chat-keep-system": ConversationTemplate(
         name="llama-2-chat-keep-system",
@@ -287,6 +295,7 @@ TEMPLATES = {
         },
         offset=0,
         strategy=Llama2Strategy(),
+        stop_str="</s>",
     ),
     "chatml": ConversationTemplate(
         name="chatml",
@@ -302,6 +311,7 @@ TEMPLATES = {
         },
         default_system_message="You are a helpful assistant.",
         offset=0,
+        stop_str="<|im_end|>",
     ),
     "chatml-keep-system": ConversationTemplate(
         name="chatml-keep-system",
@@ -316,11 +326,12 @@ TEMPLATES = {
             Role.ASSISTANT: "<|im_end|>\n",
         },
         offset=0,
+        stop_str="<|im_end|>",
     ),
     "llama-3-instruct": ConversationTemplate(
         name="llama-3-instruct",
         role_starts={
-            Role.SYSTEM: "<s><|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n",
+            Role.SYSTEM: "<|start_header_id|>system<|end_header_id|>\n\n",
             Role.HUMAN: "<|start_header_id|>user<|end_header_id|>\n\n",
             Role.ASSISTANT: "<|start_header_id|>assistant<|end_header_id|>\n\n",
         },
@@ -330,6 +341,7 @@ TEMPLATES = {
             Role.ASSISTANT: "<|eot_id|>",
         },
         offset=0,
+        stop_str="<|eot_id|>",
     ),
     "mistral-instruct": ConversationTemplate(
         name="mistral-instruct",
@@ -344,6 +356,7 @@ TEMPLATES = {
             Role.ASSISTANT: "</s>",
         },
         offset=0,
+        stop_str="</s>",
     ),
     "chatml-idsys": ConversationTemplate(
         name="chatml-idsys",
@@ -362,5 +375,6 @@ TEMPLATES = {
             You are to give helpful, detailed, and polite answers to the user's questions. \
             你应当为用户的问题提供有帮助的、详细的、礼貌的回答。",
         offset=0,
+        stop_str="<|im_end|>",
     ),
 }

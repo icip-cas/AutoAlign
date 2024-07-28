@@ -1,13 +1,13 @@
 # 评测的模型标识名称
-# The identifying name of the model to evaluate
-model_name: Llama-2-13b-chat-hf
+# Identifying name of the model to evaluate
+model_name: llama-3-8b_ultrachat
 
 # 评测时使用的上下文模板，可见src/autoalign/conversation.py中的TEMPLATES
-template_name: llama-2-chat
+template_name: llama-3-instruct
 
 # 评测的模型路径
 # The path of the model to evaluate
-model_path: /data1/luxinyu/pretrained_models/Llama-2-13b-chat-hf
+model_path: /data2/luxinyu2021/auto-alignment/saved_models/llama-3-8b_ultrachat
 
 # 评测的类型
 # The type of evaluation
@@ -15,7 +15,7 @@ model_path: /data1/luxinyu/pretrained_models/Llama-2-13b-chat-hf
 # objective_core: 评测模型的核心客观指标。(evaluating the core objective metrics of the model)
 # objective_all: 评测模型的所有客观指标。(evaluating all the objective metrics of the model)
 # subjective: 评测模型的主观指标。(evaluating the subjective metrics of the model)
-eval_type: subjective
+eval_type: objective_all
 
 # 单个模型 worker 所占用的GPU数量
 # The number of GPUs occupied by a single model worker
@@ -36,4 +36,4 @@ backend: vllm
 
 # ==============MTbench 设置================
 # mtbench文件夹的路径
-mt_path: data/eval/mtbench
+mt_path: data/eval/mt-bench

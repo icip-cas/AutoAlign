@@ -62,10 +62,8 @@ def inference():
     all_convs = []
         
     for d in all_test_points:
-        conv = Conversation.from_template(
-            args.template,
-            overwrite_system_message=args.system_message if args.system_message else None
-        )
+        conv = Conversation.from_template(args.template)
+        conv.system_message = args.system_message if args.system_message else None
         # clean the last message if it is from gpt
         if d["conversations"][-1]["from"] == "gpt":
             d["conversations"] = d["conversations"][:-1]
@@ -109,7 +107,7 @@ def inference():
                 }
             )
         
-        f.write(json.dumps(all_outputs, ensure_ascii=False))
+        f.write(json.dumps(all_outputs, indent=4, ensure_ascii=False))
 
 if __name__ == "__main__":
     inference()

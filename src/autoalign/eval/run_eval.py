@@ -1,6 +1,5 @@
 import json
 import subprocess
-import time
 import datasets
 import yaml
 import os
@@ -11,9 +10,9 @@ import signal
 from argparse import ArgumentParser
 
 from autoalign.inference.inferencer import MultiProcessVllmInferencer
-from autoalign.utils import get_logger
-from .inference_mt_bench import _run_mt_bench_eval, reorg_answer_file
-from .gen_judgmen_mt_bench import judge
+from autoalign.utils import get_logger, remove_file_if_user_confirms
+from .inference_mt_bench import inference_mt_bench, reorg_answer_file
+from .gen_judgmen_mt_bench import judge_mt_bench
 
 
 def parse_args(args: str):
@@ -316,10 +315,6 @@ def run_alpaca_eval(model_name: str, model_path: str, batch_size: int, inference
 
 
 def display_result_single(bench_name: str, input_file: str, judge_model: str, model_list: list) -> None:
-    if input_file is None:
-        input_file = f"data/{bench_name}/model_judgment/{judge_model}_single.jsonl"
-    else:
-        input_file = input_file
 
     print(f"Input file: {input_file}")
     df_all = pd.read_json(input_file, lines=True)
@@ -350,24 +345,29 @@ def run_mt_bench_eval(model_path: str, model_name: str, batch_size: int, mtpath:
     question_file = f"{mtpath}/question.jsonl"
     answer_file = f"{mtpath}/model_answer/{model_name}.jsonl"
 
-    _run_mt_bench_eval(
-        model_path=model_path,
-        model_id=model_name,
-        template_name=template_name,
-        question_file=question_file,
-        answer_file=answer_file,
-        question_begin=None,
-        question_end=None,
-        max_new_token=1024,
-        num_choices=1,
-        num_gpus_per_model=num_gpus_per_model,
-    )
+    if os.path.exists(answer_file) and not remove_file_if_user_confirms(answer_file):
 
-    reorg_answer_file(answer_file)
+        logger.info(f"Using existing answer file at {answer_file}")
+
+    else:
+
+        inference_mt_bench(
+            model_path=model_path,
+            model_id=model_name,
+            template_name=template_name,
+            question_file=question_file,
+            answer_file=answer_file,
+            question_begin=None,
+            question_end=None,
+            max_new_token=1024,
+            num_choices=1,
+        )
+
+        reorg_answer_file(answer_file)
 
     logger.info("mt-bench generation finished")
     logger.info("starting to evaluate")
-    judge(model_list=[model_name], parallel=4, mtpath=mtpath)
+    judge_mt_bench(model_list=[model_name], parallel=4, mtpath=mtpath)
     logger.info("mt-bench evaluation finished")
 
     display_result_single("mt_bench", None, "gpt-4", [model_name])
@@ -430,9 +430,7 @@ def run_eval(args) -> None:
     with open(args.config_path, "r") as f:
         config = yaml.safe_load(f)
     model_name = config["model_name"]
-    # 获取time_stamp拼接至model_name
-    time_stamp = time.strftime("%Y%m%d-%H%M%S", time.localtime())
-    model_name = f"{model_name}_{time_stamp}"
+    model_name = f"{model_name}"
     model_path = config["model_path"]
     batch_size = config["batch_size"]
     eval_type = config["eval_type"]
@@ -447,11 +445,12 @@ def run_eval(args) -> None:
         run_objective_eval(model_name, model_path, eval_type, per_model_gpu, batch_size, opencompass_path, opencompass_backend)
     elif eval_type == "subjective":
         # 测试是否已设置OPENAI_BASE_URL和OPENAI_API_KEY
-        if not os.environ.get("OPENAI_BASE_URL") or not os.environ.get("OPENAI_API_KEY"):
-            logger.error("OPENAI_BASE_URL or OPENAI_API_KEY not set")
+        # if not os.environ.get("OPENAI_BASE_URL") or not os.environ.get(
+        #         "OPENAI_API_KEY"):
+        #     logger.error("OPENAI_BASE_URL or OPENAI_API_KEY not set")
+        run_mt_bench_eval(model_path, model_name, batch_size, mtpath, per_model_gpu, template_name)
         inferencer = MultiProcessVllmInferencer(model_path=model_path, num_gpus_per_model=per_model_gpu)
         run_alpaca_eval(model_name, model_path, batch_size, inferencer)
-        run_mt_bench_eval(model_path, model_name, batch_size, mtpath, per_model_gpu, template_name)
     else:
         logger.error(f"eval_type {eval_type} not supported")
         return
