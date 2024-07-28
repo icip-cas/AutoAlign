@@ -156,6 +156,13 @@ class Conversation:
 
         return labels
 
+    def get_attributes(self) -> Dict:
+        return {
+            "template": self.template.get_attributes(),
+            "system_message": self._system_message if self._system_message is not None else "",
+            "role_ends": self.messages,
+        }
+
     @classmethod
     def from_template(cls, template_name: str):
         """Get Conversation object from template_name"""
