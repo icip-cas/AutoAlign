@@ -121,6 +121,7 @@ def chat_loop(
             else:
                 print("No messages to regenerate.")
                 continue
+        # TODO: save and load. The conversation is not supported to be serialized!
         # elif inp.startswith("!!save"):
         #     args = inp.split(" ", 1)
 
