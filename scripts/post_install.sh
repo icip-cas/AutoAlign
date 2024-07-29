@@ -1,5 +1,6 @@
 git clone https://github.com/open-compass/opencompass.git
 cd opencompass
+git checkout tags/0.2.3
 pip install -e .
 # Download core dataset to data/ folder
 wget https://github.com/open-compass/opencompass/releases/download/0.2.2.rc1/OpenCompassData-core-20240207.zip
