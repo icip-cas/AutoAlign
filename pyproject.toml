@@ -38,6 +38,7 @@ dependencies = [
     "openai",
     "tenacity",
     "vllm==0.4.3",
+    "langdetect",
 ]
 
 [project.optional-dependencies]
