@@ -3,11 +3,11 @@ import json
 import re
 
 from langdetect import detect_langs
-import pycld2
 from tqdm import tqdm
 
 from autoalign.prompts.harmful import unwanted_words
 
+print(unwanted_words)
 
 def detect_language(text):
     try:
