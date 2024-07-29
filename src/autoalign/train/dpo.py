@@ -1,5 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Optional
+import pathlib
+from accelerate.state import PartialState
 
 import torch
 import transformers
@@ -34,7 +36,7 @@ def preprocess(sample, conv_template_name):
     prompt_conversations = Conversation.from_template(conv_template_name)
 
     if "system" in sample:
-        prompt_conversations.default_system_message = sample["system"]
+        prompt_conversations.system_message = sample["system"]
 
     prompt_conversations.fill_in_messages({"conversations": sample["chosen"][:1]})
 
@@ -84,11 +86,12 @@ def run_dpo():
         tokenizer.bos_token_id = tokenizer.convert_tokens_to_ids(tokenizer.bos_token)
 
     # process dataset
-    dataset = dataset.map(
-        partial(preprocess, conv_template_name=data_args.conv_template_name),
-        num_proc=8,
-        remove_columns=[col for col in dataset.features if col not in ["prompt", "chosen", "rejected"]],
-    )
+    with PartialState().local_main_process_first():
+        dataset = dataset.map(
+            partial(preprocess, conv_template_name=data_args.conv_template_name),
+            num_proc=8,
+            remove_columns=[col for col in dataset.features if col not in ["prompt", "chosen", "rejected"]],
+        )
 
     # create trainer
     trainer = DPOTrainer(
@@ -100,8 +103,11 @@ def run_dpo():
     )
 
     # start training
-    trainer.train()
-
+    if list(pathlib.Path(training_args.output_dir).glob("checkpoint-*")):
+        print("Resume training from existing checkpoint...")
+        trainer.train(resume_from_checkpoint=True)
+    else:
+        trainer.train()
 
 if __name__ == "__main__":
     run_dpo()
