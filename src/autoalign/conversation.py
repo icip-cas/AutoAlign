@@ -317,7 +317,7 @@ TEMPLATES = {
             Role.ASSISTANT: "<|eot_id|>",
         },
         offset=0,
-        stop_str="<|eot_id|>",
+        stop_str="<|eot_id|>"
     ),
     "mistral-instruct": ConversationTemplate(
         name="mistral-instruct",

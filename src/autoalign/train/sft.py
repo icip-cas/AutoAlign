@@ -5,6 +5,7 @@ from itertools import groupby
 from dataclasses import dataclass, field
 import pathlib
 import random
+from accelerate.state import PartialState
 
 import torch
 from datasets import Dataset
@@ -111,16 +112,17 @@ def run_sft():
     dataset = Dataset.from_list(data)
 
     # tokenize dataset
-    dataset = dataset.map(
-        partial(
-            tokenize_conversation,
-            conv_template_name=data_args.conv_template_name,
-            tokenizer=tokenizer,
-            model_max_length=model_args.model_max_length,
-        ),
-        remove_columns=list(dataset.features),
-        num_proc=data_args.num_workers,
-    )
+    with PartialState().local_main_process_first():
+        dataset = dataset.map(
+            partial(
+                tokenize_conversation,
+                conv_template_name=data_args.conv_template_name,
+                tokenizer=tokenizer,
+                model_max_length=model_args.model_max_length,
+            ),
+            remove_columns=list(dataset.features),
+            num_proc=data_args.num_workers,
+        )
 
     random_idx = random.randint(0, len(dataset))
     input_ids = dataset[random_idx]["input_ids"]
