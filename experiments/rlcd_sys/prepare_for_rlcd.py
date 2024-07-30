@@ -1,4 +1,12 @@
-from autoalign.prompts.rlcd import HARMLESS, HELPFUL, COMPLETENESS, INFORMATIVENESS, HARMLESS_ZH, HELPFUL_ZH, COMPLETENESS_ZH, INFORMATIVENESS_ZH
+from autoalign.prompts.rlcd import (
+    HARMLESS,
+    HELPFUL,
+    COMPLETENESS,
+    INFORMATIVENESS,
+    HELPFUL_ZH,
+    COMPLETENESS_ZH,
+    INFORMATIVENESS_ZH,
+)
 import argparse
 import random
 import json
@@ -23,17 +31,21 @@ with open(args.input_file, "r", encoding="utf-8") as f:
 all_chosen_data = deepcopy(all_data)
 all_rejected_data = deepcopy(all_data)
 
+
 def is_chinese_or_english(string):
     for char in string:
-        if '\u4e00' <= char <= '\u9fff':
+        if "\u4e00" <= char <= "\u9fff":
             return "zh"
-        elif 'a' <= char.lower() <= 'z':
+        elif "a" <= char.lower() <= "z":
             return "en"
     return "en"
-        
+
+
 for idx, d in enumerate(all_data):
     ins = d["conversations"][0]["value"]
-    system_prompts = en_system_prompts if is_chinese_or_english(ins) == "en" else zh_system_prompts
+    system_prompts = (
+        en_system_prompts if is_chinese_or_english(ins) == "en" else zh_system_prompts
+    )
     system = random.choice(system_prompts)
     if d["conversations"][-1]["from"] == "gpt":
         d["conversations"] = d["conversations"][:-1]
@@ -42,8 +54,12 @@ for idx, d in enumerate(all_data):
         all_rejected_data[idx]["conversation"][0]["value"] = system[1]
     else:
         # insert system message at the first
-        all_chosen_data[idx]["conversations"].insert(0, {"from": "system", "value": system[0]})
-        all_rejected_data[idx]["conversations"].insert(0, {"from": "system", "value": system[1]})
+        all_chosen_data[idx]["conversations"].insert(
+            0, {"from": "system", "value": system[0]}
+        )
+        all_rejected_data[idx]["conversations"].insert(
+            0, {"from": "system", "value": system[1]}
+        )
 
 with open(args.output_chosen, "w", encoding="utf-8") as f:
     f.write(json.dumps(all_chosen_data, indent=4, ensure_ascii=False))

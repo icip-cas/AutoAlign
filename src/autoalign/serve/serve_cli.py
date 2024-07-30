@@ -61,8 +61,12 @@ if __name__ == "__main__":
         default=DEFAULT_CKPT_PATH,
         help="Checkpoint name or path, default to %(default)r",
     )
-    parser.add_argument("--cpu-only", action="store_true", help="Run demo with CPU only")
-    parser.add_argument("--template", type=str, required=True, help="Conversation prompt template.")
+    parser.add_argument(
+        "--cpu-only", action="store_true", help="Run demo with CPU only"
+    )
+    parser.add_argument(
+        "--template", type=str, required=True, help="Conversation prompt template."
+    )
     parser.add_argument("--temperature", type=float, default=0.7)
     parser.add_argument("--repetition_penalty", type=float, default=1.0)
     parser.add_argument("--do_sample", type=bool, default=True)

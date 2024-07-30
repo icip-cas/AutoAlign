@@ -20,18 +20,42 @@ DEFAULT_CKPT_PATH = "Qwen/Qwen1.5-7B-Chat"
 def _get_args():
     parser = ArgumentParser()
     parser.add_argument(
-        "-c", "--checkpoint-path", type=str, default=DEFAULT_CKPT_PATH, help="Checkpoint name or path, default to %(default)r"
+        "-c",
+        "--checkpoint-path",
+        type=str,
+        default=DEFAULT_CKPT_PATH,
+        help="Checkpoint name or path, default to %(default)r",
     )
-    parser.add_argument("--cpu-only", action="store_true", help="Run demo with CPU only")
-    parser.add_argument("--template", default=None, help="Conversation prompt template.")
-    parser.add_argument("--share", action="store_true", default=False, help="Create a publicly shareable link for the interface.")
     parser.add_argument(
-        "--inbrowser", action="store_true", default=False, help="Automatically launch the interface in a new tab on the default browser."
+        "--cpu-only", action="store_true", help="Run demo with CPU only"
     )
-    parser.add_argument("--server-port", type=int, default=8001, help="Demo server port.")
-    parser.add_argument("--server-name", type=str, default="127.0.0.1", help="Demo server name.")
-    parser.add_argument("--max-length", type=int, default=4096, help="Max token number of conversation.")
-    parser.add_argument("--max-new-length", type=int, default=2048, help="Max new token of a response.")
+    parser.add_argument(
+        "--template", default=None, help="Conversation prompt template."
+    )
+    parser.add_argument(
+        "--share",
+        action="store_true",
+        default=False,
+        help="Create a publicly shareable link for the interface.",
+    )
+    parser.add_argument(
+        "--inbrowser",
+        action="store_true",
+        default=False,
+        help="Automatically launch the interface in a new tab on the default browser.",
+    )
+    parser.add_argument(
+        "--server-port", type=int, default=8001, help="Demo server port."
+    )
+    parser.add_argument(
+        "--server-name", type=str, default="127.0.0.1", help="Demo server name."
+    )
+    parser.add_argument(
+        "--max-length", type=int, default=4096, help="Max token number of conversation."
+    )
+    parser.add_argument(
+        "--max-new-length", type=int, default=2048, help="Max new token of a response."
+    )
     args = parser.parse_args()
     return args
 
@@ -63,13 +87,19 @@ def _chat_stream(model, tokenizer, template, query, history, max_length):
         conversation.append({"from": "human", "value": query_h})
         conversation.append({"from": "gpt", "value": response_h})
     conversation.append({"from": "human", "value": query})
-    conv = Conversation.from_template(template_name=template if template is not None else "chatml")
+    conv = Conversation.from_template(
+        template_name=template if template is not None else "chatml"
+    )
     conv.fill_in_messages(conv={"conversations": conversation})
     # 适配autoalign
-    inputs = conv.get_tokenized_conversation(tokenizer=tokenizer, model_max_length=max_length, add_generation_prompt=True)
+    inputs = conv.get_tokenized_conversation(
+        tokenizer=tokenizer, model_max_length=max_length, add_generation_prompt=True
+    )
     inputs = torch.tensor(inputs["input_ids"]).unsqueeze(0)
     inputs = inputs.to(model.device)
-    streamer = TextIteratorStreamer(tokenizer=tokenizer, skip_prompt=True, timeout=60.0, skip_special_tokens=True)
+    streamer = TextIteratorStreamer(
+        tokenizer=tokenizer, skip_prompt=True, timeout=60.0, skip_special_tokens=True
+    )
     generation_kwargs = dict(
         input_ids=inputs,
         streamer=streamer,
@@ -95,7 +125,14 @@ def _launch_demo(args, model, tokenizer):
         _chatbot.append((_query, ""))
         full_response = ""
         response = ""
-        for new_text in _chat_stream(model, tokenizer, args.template, _query, history=_task_history, max_length=args.max_length):
+        for new_text in _chat_stream(
+            model,
+            tokenizer,
+            args.template,
+            _query,
+            history=_task_history,
+            max_length=args.max_length,
+        ):
             response += new_text
             _chatbot[-1] = (_query, response)
 
@@ -157,10 +194,16 @@ Qwen1.5-14B-Chat <a href="https://modelscope.cn/models/qwen/Qwen1.5-14B-Chat/sum
             submit_btn = gr.Button("🚀 Submit (发送)")
             regen_btn = gr.Button("🤔️ Regenerate (重试)")
 
-        submit_btn.click(predict, [query, chatbot, task_history], [chatbot], show_progress=True)
+        submit_btn.click(
+            predict, [query, chatbot, task_history], [chatbot], show_progress=True
+        )
         submit_btn.click(reset_user_input, [], [query])
-        empty_btn.click(reset_state, [chatbot, task_history], outputs=[chatbot], show_progress=True)
-        regen_btn.click(regenerate, [chatbot, task_history], [chatbot], show_progress=True)
+        empty_btn.click(
+            reset_state, [chatbot, task_history], outputs=[chatbot], show_progress=True
+        )
+        regen_btn.click(
+            regenerate, [chatbot, task_history], [chatbot], show_progress=True
+        )
 
         gr.Markdown(
             """\

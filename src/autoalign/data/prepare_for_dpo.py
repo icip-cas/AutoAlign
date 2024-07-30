@@ -10,7 +10,7 @@ parser.add_argument("--input-files", nargs="+", required=True)
 parser.add_argument("--chosen-source", type=str)
 parser.add_argument("--rejected-source", type=str)
 parser.add_argument("--abandon-same-response", action="store_true")
-parser.add_argument("--set-source-tag", type=str, default=None) # idx->tag
+parser.add_argument("--set-source-tag", type=str, default=None)  # idx->tag
 parser.add_argument("--remove-system-message", action="store_true")
 parser.add_argument("--strategy", type=str)
 parser.add_argument("--output-file-path", required=True)
@@ -26,6 +26,7 @@ set_tag = None
 if args.set_source_tag is not None:
     set_idx, set_tag = args.set_source_tag.split("->")
     set_idx = int(set_idx)
+
 
 def length_strategy(d):
     # set the logest conversation as chosen
@@ -43,6 +44,7 @@ def length_strategy(d):
     d["conversations"] = d["chosen"]
     return d
 
+
 def given_strategy(d):
 
     d["chosen"] = deepcopy(d["conversation_" + args.chosen_source])
@@ -50,6 +52,7 @@ def given_strategy(d):
     del d["conversation_" + args.chosen_source]
     del d["conversation_" + args.rejected_source]
     return d
+
 
 def strategy(preferences_store):
 
@@ -66,6 +69,7 @@ def strategy(preferences_store):
 
     return preferences_store
 
+
 preferences_store = []
 
 pre_data_len = None
@@ -81,8 +85,8 @@ for idx, input_file in enumerate(args.input_files):
         if idx == 0:
             pre_data_len = data_len
         else:
-            assert data_len==pre_data_len
-        
+            assert data_len == pre_data_len
+
         if idx == 0:
             for d in tqdm(data):
                 # for id contains "chosen" and "rejected"
@@ -102,11 +106,13 @@ for idx, input_file in enumerate(args.input_files):
                 else:
                     prompt = d["conversations"][0]["value"]
 
-                preferences_store.append({
-                    "prompt": prompt,
-                    "prompt_id": d["id"],
-                    f"conversation_{source}": d["conversations"]
-                })
+                preferences_store.append(
+                    {
+                        "prompt": prompt,
+                        "prompt_id": d["id"],
+                        f"conversation_{source}": d["conversations"],
+                    }
+                )
         else:
             for d, p in tqdm(zip(data, preferences_store)):
                 # for id contains "chosen" and "rejected"
@@ -117,7 +123,10 @@ for idx, input_file in enumerate(args.input_files):
                     d["source"] = set_tag
                 source = d["source"]
 
-                if d["conversations"][0]["from"] == "system" and args.remove_system_message:
+                if (
+                    d["conversations"][0]["from"] == "system"
+                    and args.remove_system_message
+                ):
                     d["conversations"] = d["conversations"][1:]
 
                 if "id" in d and p["prompt_id"] != d["id"]:

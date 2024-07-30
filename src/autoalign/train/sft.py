@@ -24,9 +24,12 @@ import transformers
 from autoalign.train.utils import configure_model
 
 local_rank = None
+
+
 def rank0_print(*args):
     if local_rank == 0:
         print(*args)
+
 
 # model related args
 @dataclass
@@ -40,7 +43,10 @@ class ModelArguments:
 class DataArguments:
     data_path: str
     conv_template_name: str = field(metadata={"help": "name of conversation template"})
-    num_workers: str = field(default=8, metadata={"help": "number of workers for tokenization"})
+    num_workers: str = field(
+        default=8, metadata={"help": "number of workers for tokenization"}
+    )
+
 
 def trainer_save_model_safe(trainer: transformers.Trainer):
     from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
@@ -51,6 +57,7 @@ def trainer_save_model_safe(trainer: transformers.Trainer):
         trainer.model, StateDictType.FULL_STATE_DICT, save_policy
     ):
         trainer.save_model()
+
 
 def tokenize_conversation(
     conv,
@@ -75,11 +82,12 @@ def tokenize_conversation(
 
     return tokenized_conversation
 
+
 def run_sft():
     # parse arguments
     parser = HfArgumentParser((ModelArguments, DataArguments, TrainingArguments))
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
-    
+
     global local_rank
     local_rank = training_args.local_rank
     rank0_print(f"{model_args = }")
@@ -168,6 +176,7 @@ def run_sft():
         trainer.save_model()
     else:
         trainer_save_model_safe(trainer)
-    
+
+
 if __name__ == "__main__":
     run_sft()

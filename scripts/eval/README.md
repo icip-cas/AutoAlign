@@ -9,7 +9,7 @@
 - 通用能力: ApacaEval
 
 #### 完全版能力评测
-- 数学: MATH, GSM8K, 
+- 数学: MATH, GSM8K,
 - 代码: HumanEval, MBPP,
 - 知识: MMLU, CMMLU, GPQA
 - 综合能力: BBH, C-Eval
@@ -18,7 +18,7 @@
 ### 使用方法
 #### 一键启动
 ```shell
-bash eval.sh {model_name} {model_path} {batch_size} {num_gpus} 
+bash eval.sh {model_name} {model_path} {batch_size} {num_gpus}
 # 若启动主观评测，请配置OPENAI_BASE_URL与OPENAI_API_KEY,否则
 export OPENAI_BASE_URL="你的openai代理地址，若可以访问openai则不需要配置"
 export OPENAI_API_KEY="你的openai api key"
@@ -47,7 +47,7 @@ python opencompass/run.py --datasets gsm8k_gen math_gen bbh_gen mmlu_gen agieval
 --num-gpus 1
 ```
 
-并下载opencompass数据集，解压到{opencompass root path}/data目录下 
+并下载opencompass数据集，解压到{opencompass root path}/data目录下
 
 ```shell
 wget https://github.com/open-compass/opencompass/releases/download/0.2.2.rc1/OpenCompassData-core-20240207.zip
