@@ -27,9 +27,7 @@ def inference_mt_bench(
     # random shuffle the questions to balance the loading
     random.shuffle(questions)
 
-    inferencer = HFInferencer(
-        model_path
-    )
+    inferencer = HFInferencer(model_path)
 
     get_answers_func = get_model_answers
 
@@ -89,21 +87,23 @@ def get_model_answers(
             try:
                 if not do_sample:
                     output = inferencer.inference(
-                        prompt, 
-                        do_sample=do_sample, 
-                        max_new_tokens=max_new_token
+                        prompt, do_sample=do_sample, max_new_tokens=max_new_token
                     )
                 else:
                     output = inferencer.inference(
-                        prompt, 
-                        temperature=temperature, 
-                        do_sample=do_sample, 
-                        max_new_tokens=max_new_token
+                        prompt,
+                        temperature=temperature,
+                        do_sample=do_sample,
+                        max_new_tokens=max_new_token,
                     )
 
                 if conv.template.stop_str and isinstance(conv.template.stop_str, list):
                     stop_str_indices = sorted(
-                        [output.find(stop_str) for stop_str in conv.template.stop_str if output.find(stop_str) > 0]
+                        [
+                            output.find(stop_str)
+                            for stop_str in conv.template.stop_str
+                            if output.find(stop_str) > 0
+                        ]
                     )
                     if len(stop_str_indices) > 0:
                         output = output[: stop_str_indices[0]]
@@ -167,13 +167,17 @@ if __name__ == "__main__":
         required=True,
         help="The path to the weights. This can be a local folder or a Hugging Face repo ID.",
     )
-    parser.add_argument("--model-id", type=str, required=True, help="A custom name for the model.")
+    parser.add_argument(
+        "--model-id", type=str, required=True, help="A custom name for the model."
+    )
     parser.add_argument(
         "--question-begin",
         type=int,
         help="A debug option. The begin index of questions.",
     )
-    parser.add_argument("--question-end", type=int, help="A debug option. The end index of questions.")
+    parser.add_argument(
+        "--question-end", type=int, help="A debug option. The end index of questions."
+    )
     parser.add_argument("--answer-file", type=str, help="The output answer file.")
     parser.add_argument(
         "--max-new-token",

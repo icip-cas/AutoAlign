@@ -15,11 +15,22 @@ class Role(Enum):
 
 class RenderStrategy(ABC):
     @abstractmethod
-    def get_conversation_str(self, messages: List[Tuple[Role, str]], template_attrs: Dict, add_generation_prompt: bool = False) -> str:
+    def get_conversation_str(
+        self,
+        messages: List[Tuple[Role, str]],
+        template_attrs: Dict,
+        add_generation_prompt: bool = False,
+    ) -> str:
         pass
 
     @abstractmethod
-    def generate_labels(self, messages: List[Tuple[Role, str]], template_attrs: Dict, tokenized_conversation, tokenizer) -> List[int]:
+    def generate_labels(
+        self,
+        messages: List[Tuple[Role, str]],
+        template_attrs: Dict,
+        tokenized_conversation,
+        tokenizer,
+    ) -> List[int]:
         pass
 
 
@@ -62,16 +73,22 @@ class Conversation:
         else:
             self.messages.insert(0, (Role.SYSTEM, message))
 
-    def fill_in_messages(self, conv: Dict[str, Any], replace_conv_system_message: bool = True):
+    def fill_in_messages(
+        self, conv: Dict[str, Any], replace_conv_system_message: bool = True
+    ):
         """Fill in conversation messages from an external source."""
         self.messages.clear()  # Clear existing messages
 
         # Handle system message
         first_message = conv["conversations"][0]
-        if first_message["from"] == Role.SYSTEM.value and replace_conv_system_message:  # Use the system message from the conversation
+        if (
+            first_message["from"] == Role.SYSTEM.value and replace_conv_system_message
+        ):  # Use the system message from the conversation
             self._set_system_message(first_message["value"])
         else:
-            self._set_system_message(self._system_message)  # Use the current system message
+            self._set_system_message(
+                self._system_message
+            )  # Use the current system message
 
         # Fill in other messages
         for message_dict in conv["conversations"]:
@@ -81,7 +98,9 @@ class Conversation:
                 if role != Role.SYSTEM:  # We've already handled the system message
                     self.messages.append((role, message_str))
             except ValueError:
-                raise ValueError(f"Invalid role: {role_str}. Must be one of {', '.join([r.value for r in Role])}")
+                raise ValueError(
+                    f"Invalid role: {role_str}. Must be one of {', '.join([r.value for r in Role])}"
+                )
 
     def to_openai_api_messages(self):
         """Convert the conversation to OpenAI chat completion format."""
@@ -127,37 +146,69 @@ class Conversation:
     def get_conversation_str(self, add_generation_prompt: bool = False) -> str:
         """Get full conversation str"""
         if self.template.strategy:
-            return self.template.strategy.get_conversation_str(self.messages, self.template.get_attributes(), add_generation_prompt)
+            return self.template.strategy.get_conversation_str(
+                self.messages, self.template.get_attributes(), add_generation_prompt
+            )
 
         ret = ""
         for role, message in self.messages:
-            ret += self.template.role_starts[role] + message + self.template.role_ends[role]
+            ret += (
+                self.template.role_starts[role]
+                + message
+                + self.template.role_ends[role]
+            )
         if add_generation_prompt:
             ret += self.template.role_starts[Role.ASSISTANT]
         return ret
 
-    def get_tokenized_conversation(self, tokenizer: AutoTokenizer, model_max_length: int, add_generation_prompt: bool = False):
+    def get_tokenized_conversation(
+        self,
+        tokenizer: AutoTokenizer,
+        model_max_length: int,
+        add_generation_prompt: bool = False,
+    ):
         """Tokenize conversation and prepare labels"""
-        conversation_str = self.get_conversation_str(add_generation_prompt=add_generation_prompt)
-        tokenized_conversation = tokenizer(conversation_str, truncation=True, max_length=model_max_length)
-        tokenized_conversation["labels"] = self._generate_labels(tokenized_conversation, tokenizer)
+        conversation_str = self.get_conversation_str(
+            add_generation_prompt=add_generation_prompt
+        )
+        tokenized_conversation = tokenizer(
+            conversation_str, truncation=True, max_length=model_max_length
+        )
+        tokenized_conversation["labels"] = self._generate_labels(
+            tokenized_conversation, tokenizer
+        )
 
         return tokenized_conversation
 
     def _generate_labels(self, tokenized_conversation, tokenizer):
         if self.template.strategy:
-            return self.template.strategy.generate_labels(self.messages, tokenized_conversation, tokenizer, self.template.get_attributes())
+            return self.template.strategy.generate_labels(
+                self.messages,
+                tokenized_conversation,
+                tokenizer,
+                self.template.get_attributes(),
+            )
 
         labels = [IGNORED_TOKEN_ID] * len(tokenized_conversation.input_ids)
         cur_inst = ""
         for role, message in self.messages:
             if role in [Role.SYSTEM, Role.HUMAN]:
-                cur_inst += self.template.role_starts[role] + message + self.template.role_ends[role]
+                cur_inst += (
+                    self.template.role_starts[role]
+                    + message
+                    + self.template.role_ends[role]
+                )
             else:
                 cur_inst += self.template.role_starts[role]
                 start_idx = len(tokenizer(cur_inst).input_ids) - self.template.offset
-                end_idx = len(tokenizer(cur_inst + message + self.template.role_ends[role]).input_ids)
-                labels[start_idx:end_idx] = tokenized_conversation.input_ids[start_idx:end_idx]
+                end_idx = len(
+                    tokenizer(
+                        cur_inst + message + self.template.role_ends[role]
+                    ).input_ids
+                )
+                labels[start_idx:end_idx] = tokenized_conversation.input_ids[
+                    start_idx:end_idx
+                ]
                 cur_inst += message + self.template.role_ends[role]
 
         return labels
@@ -165,7 +216,9 @@ class Conversation:
     def get_attributes(self) -> Dict:
         return {
             "template": self.template.get_attributes(),
-            "system_message": self._system_message if self._system_message is not None else "",
+            "system_message": self._system_message
+            if self._system_message is not None
+            else "",
             "role_ends": self.messages,
         }
 
@@ -191,7 +244,12 @@ class Llama2Strategy(RenderStrategy):
     If we use additional strategy, we no longer need to based on the template attributes
     """
 
-    def get_conversation_str(self, messages: List[Tuple[Role, str]], template_attrs: Dict, add_generation_prompt: bool = False) -> str:
+    def get_conversation_str(
+        self,
+        messages: List[Tuple[Role, str]],
+        template_attrs: Dict,
+        add_generation_prompt: bool = False,
+    ) -> str:
         ret = ""
         first_user_message = True
         for role, message in messages:
@@ -233,7 +291,9 @@ class Llama2Strategy(RenderStrategy):
                 start_idx = len(tokenizer(cur_inst).input_ids)
                 cur_inst += f" {message} </s>"
                 end_idx = len(tokenizer(cur_inst).input_ids)
-                labels[start_idx:end_idx] = tokenized_conversation.input_ids[start_idx:end_idx]
+                labels[start_idx:end_idx] = tokenized_conversation.input_ids[
+                    start_idx:end_idx
+                ]
 
         return labels
 
@@ -317,7 +377,7 @@ TEMPLATES = {
             Role.ASSISTANT: "<|eot_id|>",
         },
         offset=0,
-        stop_str="<|eot_id|>"
+        stop_str="<|eot_id|>",
     ),
     "mistral-instruct": ConversationTemplate(
         name="mistral-instruct",
@@ -348,21 +408,6 @@ TEMPLATES = {
         },
         offset=0,
         stop_str="</s>",
-    ),
-    "zephyr": ConversationTemplate(
-        name="zephyr",
-        role_starts={
-            Role.SYSTEM: "<|system|>\n",
-            Role.HUMAN: "<|user|>\n",
-            Role.ASSISTANT: "<|assistant|>\n",
-        },
-        role_ends={
-            Role.SYSTEM: "</s>",
-            Role.HUMAN: "</s>",
-            Role.ASSISTANT: "</s>",
-        },
-        offset=0,
-        stop_str="</s>"
     ),
     "chatml-idsys": ConversationTemplate(
         name="chatml-idsys",

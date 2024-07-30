@@ -6,7 +6,7 @@ export HF_DATASETS_CACHE="./caches/hf_cache/datasets"
 
 declare -A MODELS
 
-MODELS["Mistral-7B-Instruct-v0.3"]="pretrained_models/Mistral-7B-Instruct-v0.3"
+MODELS["mistral-01-7b_ultrachat"]="saved_models/mistral-01-7b_ultrachat"
 # Place more models here
 
 TASKS=("arc_challenge" "hellaswag" "truthfulqa" "gsm8k" "mmlu" "winogrande")
@@ -28,5 +28,6 @@ for MODEL_NAME in "${!MODELS[@]}"; do
         --num_fewshot "${NUM_FEWSHOT}" \
         --output_path "${OUTPUT_PATH}" \
         --trust_remote_code
+
   done
 done

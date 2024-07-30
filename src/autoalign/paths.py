@@ -1,15 +1,18 @@
 import importlib
 import os
 
-PROJ_BASE_PATH = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+PROJ_BASE_PATH = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
+
 
 def get_package_path(package_name):
     try:
         package = importlib.import_module(package_name)
 
-        if hasattr(package, '__file__'):
+        if hasattr(package, "__file__"):
             return os.path.dirname(os.path.abspath(package.__file__))
-        elif hasattr(package, '__path__'):
+        elif hasattr(package, "__path__"):
             return package.__path__[0]
         else:
             return f"Cannot determine path for package '{package_name}'"

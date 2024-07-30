@@ -59,7 +59,9 @@ def make_match(
                     multi_turn=multi_turn,
                 )
             else:
-                match = MatchPair(dict(q), m_1, m_2, a_1, a_2, judge, multi_turn=multi_turn)
+                match = MatchPair(
+                    dict(q), m_1, m_2, a_1, a_2, judge, multi_turn=multi_turn
+                )
             matches.append(match)
     return matches
 
@@ -97,7 +99,9 @@ def make_match_all_pairs(
                         multi_turn=multi_turn,
                     )
                 else:
-                    match = MatchPair(dict(q), m_1, m_2, a_1, a_2, judge, multi_turn=multi_turn)
+                    match = MatchPair(
+                        dict(q), m_1, m_2, a_1, a_2, judge, multi_turn=multi_turn
+                    )
                 matches.append(match)
     return matches
 
@@ -121,7 +125,11 @@ def make_match_single(
             a = model_answers[m][q_id]
             if ref_answers is not None:
                 ref = ref_answers[judge.model_name][q_id]
-                matches.append(MatchSingle(dict(q), m, a, judge, ref_answer=ref, multi_turn=multi_turn))
+                matches.append(
+                    MatchSingle(
+                        dict(q), m, a, judge, ref_answer=ref, multi_turn=multi_turn
+                    )
+                )
             else:
                 matches.append(MatchSingle(dict(q), m, a, judge, multi_turn=multi_turn))
     return matches
@@ -131,7 +139,9 @@ def make_judge_pairwise(judge_model, judge_prompts):
     judges = {}
     judges["default"] = Judge(judge_model, judge_prompts["pair-v2"])
     judges["math"] = Judge(judge_model, judge_prompts["pair-math-v1"], ref_based=True)
-    judges["default-mt"] = Judge(judge_model, judge_prompts["pair-v2-multi-turn"], multi_turn=True)
+    judges["default-mt"] = Judge(
+        judge_model, judge_prompts["pair-v2-multi-turn"], multi_turn=True
+    )
     judges["math-mt"] = Judge(
         judge_model,
         judge_prompts["pair-math-v1-multi-turn"],
@@ -145,7 +155,9 @@ def make_judge_single(judge_model, judge_prompts):
     judges = {}
     judges["default"] = Judge(judge_model, judge_prompts["single-v1"])
     judges["math"] = Judge(judge_model, judge_prompts["single-math-v1"], ref_based=True)
-    judges["default-mt"] = Judge(judge_model, judge_prompts["single-v1-multi-turn"], multi_turn=True)
+    judges["default-mt"] = Judge(
+        judge_model, judge_prompts["single-v1-multi-turn"], multi_turn=True
+    )
     judges["math-mt"] = Judge(
         judge_model,
         judge_prompts["single-math-v1-multi-turn"],
@@ -191,13 +203,17 @@ def judge_mt_bench(
     if mode == "single":
         judges = make_judge_single(judge_model, judge_prompts)
         play_a_match_func = play_a_match_single
-        output_file = f"{mtpath}/model_judgment/{'+'.join(models)}_{judge_model}_single.jsonl"
+        output_file = (
+            f"{mtpath}/model_judgment/{'+'.join(models)}_{judge_model}_single.jsonl"
+        )
         make_match_func = make_match_single
         baseline_model = None
     else:
         judges = make_judge_pairwise(judge_model, judge_prompts)
         play_a_match_func = play_a_match_pair
-        output_file = f"{mtpath}/model_judgment/{'+'.join(models)}_{judge_model}_pair.jsonl"
+        output_file = (
+            f"{mtpath}/model_judgment/{'+'.join(models)}_{judge_model}_pair.jsonl"
+        )
         if mode == "pairwise-all":
             make_match_func = make_match_all_pairs
             baseline_model = None
@@ -212,7 +228,9 @@ def judge_mt_bench(
 
     # Make matches
     matches = []
-    matches += make_match_func(question_default, models, model_answers, judges["default"], baseline_model)
+    matches += make_match_func(
+        question_default, models, model_answers, judges["default"], baseline_model
+    )
     matches += make_match_func(
         question_math,
         models,
@@ -267,7 +285,9 @@ def judge_mt_bench(
         np.random.shuffle(matches)
 
         with ThreadPoolExecutor(parallel) as executor:
-            for match in tqdm(executor.map(play_a_match_wrapper, matches), total=len(matches)):
+            for match in tqdm(
+                executor.map(play_a_match_wrapper, matches), total=len(matches)
+            ):
                 pass
 
 
@@ -311,10 +331,14 @@ if __name__ == "__main__":
         type=str,
         default="data/eval/mt-bench",
     )
-    parser.add_argument("--parallel", type=int, default=1, help="The number of concurrent API calls.")
-    parser.add_argument("--first-n", type=int, help="A debug option. Only run the first `n` judgments.")
+    parser.add_argument(
+        "--parallel", type=int, default=1, help="The number of concurrent API calls."
+    )
+    parser.add_argument(
+        "--first-n", type=int, help="A debug option. Only run the first `n` judgments."
+    )
     args = parser.parse_args()
-    
+
     question_file = f"{args.mt_path}/question.jsonl"
     answer_dir = f"{args.mt_path}/model_answer"
     ref_answer_dir = f"{args.mt_path}/reference_answer"
@@ -418,5 +442,7 @@ if __name__ == "__main__":
         np.random.shuffle(matches)
 
         with ThreadPoolExecutor(args.parallel) as executor:
-            for match in tqdm(executor.map(play_a_match_wrapper, matches), total=len(matches)):
+            for match in tqdm(
+                executor.map(play_a_match_wrapper, matches), total=len(matches)
+            ):
                 pass

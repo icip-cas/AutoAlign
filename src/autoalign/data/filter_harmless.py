@@ -9,6 +9,7 @@ from autoalign.prompts.harmful import unwanted_words
 
 print(unwanted_words)
 
+
 def detect_language(text):
     try:
         detected_langs = detect_langs(text)
@@ -25,15 +26,16 @@ def contains_unwanted_words(text):
             return True
     return False
 
+
 def skip(conv, args):
-    
+
     if args.lang != "all" or args.skip_lang is not None:
         text = "\n".join([x["value"] for x in conv["conversations"]])
 
         # Check percentage of non-English Unicode characters
         non_eng_chars = sum(1 for c in text if not c.isascii())
         total_chars = len(text)
-        if non_eng_chars / total_chars > .05:
+        if non_eng_chars / total_chars > 0.05:
             return True
 
         lang_code = detect_language(text)
@@ -62,8 +64,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--in-file", type=str, required=True)
     parser.add_argument("--out-file", type=str, default="")
-    parser.add_argument("--lang", type=str, default="all",
-                        choices=["all", "en"])
+    parser.add_argument("--lang", type=str, default="all", choices=["all", "en"])
     parser.add_argument("--skip-lang", type=str)
     parser.add_argument("--reduce-rep", action="store_true")
     args = parser.parse_args()
@@ -73,7 +74,7 @@ if __name__ == "__main__":
     lang = args.lang
     skip_lang = args.skip_lang
     reduce_rep = args.reduce_rep
-    assert (lang == "all" or skip_lang is None)
+    assert lang == "all" or skip_lang is None
 
     if out_file == "":
         out_file = "sharegpt_clean"

@@ -9,7 +9,6 @@ from transformers.trainer_pt_utils import LabelSmoother
 import json
 from datasets import Dataset
 
-from datasets import load_dataset
 from functools import partial
 
 from trl import DPOTrainer, DPOConfig
@@ -28,8 +27,12 @@ class ModelArguments:
 
 @dataclass
 class DataArguments:
-    data_path: str = field(default=None, metadata={"help": "Path to the training data."})
-    conv_template_name: str = field(default="qwen-7b-chat", metadata={"help": "name of conversation template"})
+    data_path: str = field(
+        default=None, metadata={"help": "Path to the training data."}
+    )
+    conv_template_name: str = field(
+        default="qwen-7b-chat", metadata={"help": "name of conversation template"}
+    )
 
 
 def preprocess(sample, conv_template_name):
@@ -63,11 +66,15 @@ def run_dpo():
 
     # load model and tokenizer
     model = transformers.AutoModelForCausalLM.from_pretrained(
-        model_args.model_name_or_path, attn_implementation="flash_attention_2", torch_dtype=torch.bfloat16
+        model_args.model_name_or_path,
+        attn_implementation="flash_attention_2",
+        torch_dtype=torch.bfloat16,
     )
 
     model_refer = transformers.AutoModelForCausalLM.from_pretrained(
-        model_args.model_name_or_path, attn_implementation="flash_attention_2", torch_dtype=torch.bfloat16
+        model_args.model_name_or_path,
+        attn_implementation="flash_attention_2",
+        torch_dtype=torch.bfloat16,
     )
 
     tokenizer = transformers.AutoTokenizer.from_pretrained(
@@ -90,7 +97,11 @@ def run_dpo():
         dataset = dataset.map(
             partial(preprocess, conv_template_name=data_args.conv_template_name),
             num_proc=8,
-            remove_columns=[col for col in dataset.features if col not in ["prompt", "chosen", "rejected"]],
+            remove_columns=[
+                col
+                for col in dataset.features
+                if col not in ["prompt", "chosen", "rejected"]
+            ],
         )
 
     # create trainer
@@ -108,6 +119,7 @@ def run_dpo():
         trainer.train(resume_from_checkpoint=True)
     else:
         trainer.train()
+
 
 if __name__ == "__main__":
     run_dpo()

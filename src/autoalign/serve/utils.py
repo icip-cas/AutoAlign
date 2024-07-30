@@ -7,10 +7,14 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStream
 
 def _chat_stream(model, tokenizer, conversation, max_length):
     # 适配autoalign
-    inputs = conversation.get_tokenized_conversation(tokenizer=tokenizer, model_max_length=max_length, add_generation_prompt=True)
+    inputs = conversation.get_tokenized_conversation(
+        tokenizer=tokenizer, model_max_length=max_length, add_generation_prompt=True
+    )
     inputs.data = {k: torch.tensor(v).unsqueeze(0) for k, v in inputs.items()}
     inputs = inputs.to(model.device)
-    streamer = TextIteratorStreamer(tokenizer=tokenizer, skip_prompt=True, timeout=60.0, skip_special_tokens=True)
+    streamer = TextIteratorStreamer(
+        tokenizer=tokenizer, skip_prompt=True, timeout=60.0, skip_special_tokens=True
+    )
     generation_kwargs = dict(
         inputs,
         streamer=streamer,
@@ -47,14 +51,30 @@ def chat_loop(
         ).eval()
 
         model.config.pad_token_id = model.config.eos_token_id
-        model.generation_config.pad_token_id = tokenizer.pad_token_id = tokenizer.eos_token_id
+        model.generation_config.pad_token_id = (
+            tokenizer.pad_token_id
+        ) = tokenizer.eos_token_id
         # TODO: refine the style
-        model.generation_config.max_new_tokens = args.max_new_tokens if args.max_new_tokens else model.generation_config.max_new_tokens
-        model.generation_config.temperature = args.temperature if args.temperature else model.generation_config.temperature
-        model.generation_config.do_sample = args.do_sample if args.do_sample else model.generation_config.do_sample
-        model.generation_config.top_p = args.top_p if args.top_p else model.generation_config.top_p
+        model.generation_config.max_new_tokens = (
+            args.max_new_tokens
+            if args.max_new_tokens
+            else model.generation_config.max_new_tokens
+        )
+        model.generation_config.temperature = (
+            args.temperature
+            if args.temperature
+            else model.generation_config.temperature
+        )
+        model.generation_config.do_sample = (
+            args.do_sample if args.do_sample else model.generation_config.do_sample
+        )
+        model.generation_config.top_p = (
+            args.top_p if args.top_p else model.generation_config.top_p
+        )
         model.generation_config.repetition_penalty = (
-            args.repetition_penalty if args.repetition_penalty else model.generation_config.repetition_penalty
+            args.repetition_penalty
+            if args.repetition_penalty
+            else model.generation_config.repetition_penalty
         )
         return model, tokenizer
 
@@ -62,7 +82,9 @@ def chat_loop(
 
     # Chat
     def new_chat(args) -> Conversation:
-        conv = Conversation.from_template(template_name=args.template if args.template is not None else "chatml")
+        conv = Conversation.from_template(
+            template_name=args.template if args.template is not None else "chatml"
+        )
         return conv
 
     def reload_conv(conv, chatio):
@@ -110,7 +132,10 @@ def chat_loop(
                 if conv.messages[-1][0] == Role.ASSISTANT:
                     conv.pop_message(-1)
                 # User
-                if conv.messages[-1][0] == Role.HUMAN and len(conv.messages) > conv.template.offset:
+                if (
+                    conv.messages[-1][0] == Role.HUMAN
+                    and len(conv.messages) > conv.template.offset
+                ):
                     reload_conv(conv, chatio)
                     # Set inp to previous message
                     inp = conv.pop_message(-1)[1]
