@@ -9,7 +9,6 @@ repos:
       - id: check-yaml
       - id: check-added-large-files
         args: ['--maxkb=2048']
-      - id: check-executables-have-shebangs
 
   - repo: https://github.com/charliermarsh/ruff-pre-commit
     rev: v0.0.230
@@ -22,7 +21,7 @@ repos:
     rev: 22.12.0
     hooks:
       - id: black
-        args: [--line-length=140]
+        args: [--line-length=100]
 
   - repo: https://github.com/kynan/nbstripout.git
     rev: 0.6.0
