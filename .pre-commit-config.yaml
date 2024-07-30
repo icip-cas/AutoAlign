@@ -10,18 +10,18 @@ repos:
       - id: check-added-large-files
         args: ['--maxkb=2048']
 
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.0.230
-    hooks:
-      - id: ruff
-        args: [--line-length=140,--fix,--extend-ignore=E402]
-
-
   - repo: https://github.com/psf/black
     rev: 22.12.0
     hooks:
       - id: black
-        args: [--line-length=100]
+        args: [--line-length=88]
+        pass_filenames: false
+
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: v0.0.230
+    hooks:
+      - id: ruff
+        args: [--fix, --extend-ignore=E402,E501]
 
   - repo: https://github.com/kynan/nbstripout.git
     rev: 0.6.0
