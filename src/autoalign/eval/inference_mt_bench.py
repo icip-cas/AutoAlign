@@ -9,10 +9,10 @@ from tqdm import tqdm
 
 from .utils import load_questions, temperature_config
 from autoalign.conversation import Conversation, Role
-from autoalign.inference.inferencer import MultiProcessVllmInferencer
+from autoalign.inference.inferencer import HFInferencer
 
 
-def _run_mt_bench_eval(
+def inference_mt_bench(
     model_path,
     model_id,
     template_name,
@@ -22,15 +22,12 @@ def _run_mt_bench_eval(
     answer_file,
     max_new_token,
     num_choices,
-    num_gpus_per_model,
 ):
     questions = load_questions(question_file, question_begin, question_end)
     # random shuffle the questions to balance the loading
     random.shuffle(questions)
 
-    inferencer = MultiProcessVllmInferencer(
-        model_path, max_new_tokens=max_new_token, num_gpus_per_model=num_gpus_per_model
-    )
+    inferencer = HFInferencer(model_path)
 
     get_answers_func = get_model_answers
 
@@ -79,9 +76,6 @@ def get_model_answers(
             conv.append_message(Role.HUMAN, qs)
             prompt = conv.get_conversation_str(add_generation_prompt=True)
 
-            if template_name.startswith("llama-2"):
-                prompt += " "
-
             if temperature < 1e-4:
                 do_sample = False
             else:
@@ -92,21 +86,29 @@ def get_model_answers(
             # some models may error out when generating long outputs
             try:
                 if not do_sample:
-                    output = inferencer.inference(prompt, do_sample=do_sample)
+                    output = inferencer.inference(
+                        prompt, do_sample=do_sample, max_new_tokens=max_new_token
+                    )
                 else:
-                    output = inferencer.inference(prompt, temperature=temperature, do_sample=do_sample)
+                    output = inferencer.inference(
+                        prompt,
+                        temperature=temperature,
+                        do_sample=do_sample,
+                        max_new_tokens=max_new_token,
+                    )
 
-                if conv.name.startswith("qwen"):
-                    output = output[: output.find(conv.sep)]
-                else:
-                    if conv.stop_str and isinstance(conv.stop_str, list):
-                        stop_str_indices = sorted(
-                            [output.find(stop_str) for stop_str in conv.stop_str if output.find(stop_str) > 0]
-                        )
-                        if len(stop_str_indices) > 0:
-                            output = output[: stop_str_indices[0]]
-                    elif conv.stop_str and output.find(conv.stop_str) > 0:
-                        output = output[: output.find(conv.stop_str)]
+                if conv.template.stop_str and isinstance(conv.template.stop_str, list):
+                    stop_str_indices = sorted(
+                        [
+                            output.find(stop_str)
+                            for stop_str in conv.template.stop_str
+                            if output.find(stop_str) > 0
+                        ]
+                    )
+                    if len(stop_str_indices) > 0:
+                        output = output[: stop_str_indices[0]]
+                elif conv.template.stop_str and output.find(conv.template.stop_str) > 0:
+                    output = output[: output.find(conv.template.stop_str)]
 
                 for special_token in tokenizer.special_tokens_map.values():
                     if isinstance(special_token, list):
@@ -116,16 +118,14 @@ def get_model_answers(
                         output = output.replace(special_token, "")
                 output = output.strip()
 
-                if conv.name == "xgen" and output.startswith("Assistant:"):
-                    output = output.replace("Assistant:", "", 1).strip()
             except RuntimeError as e:
                 print(e)
                 print("ERROR question ID: ", question["question_id"])
                 output = "ERROR"
 
-            # print("Output:", output)
+            print("Output:", output)
 
-            # print("======================")
+            print("======================")
 
             conv.update_last_message(output)
             turns.append(output)
@@ -167,13 +167,17 @@ if __name__ == "__main__":
         required=True,
         help="The path to the weights. This can be a local folder or a Hugging Face repo ID.",
     )
-    parser.add_argument("--model-id", type=str, required=True, help="A custom name for the model.")
+    parser.add_argument(
+        "--model-id", type=str, required=True, help="A custom name for the model."
+    )
     parser.add_argument(
         "--question-begin",
         type=int,
         help="A debug option. The begin index of questions.",
     )
-    parser.add_argument("--question-end", type=int, help="A debug option. The end index of questions.")
+    parser.add_argument(
+        "--question-end", type=int, help="A debug option. The end index of questions."
+    )
     parser.add_argument("--answer-file", type=str, help="The output answer file.")
     parser.add_argument(
         "--max-new-token",
@@ -190,15 +194,15 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    question_file = "data/eval/mtbench/question.jsonl"
+    question_file = "data/eval/mt-bench/question.jsonl"
     if args.answer_file:
         answer_file = args.answer_file
     else:
-        answer_file = f"data/eval/mtbench/model_answer/{args.model_id}.jsonl"
+        answer_file = f"data/eval/mt-bench/model_answer/{args.model_id}.jsonl"
 
     print(f"Output to {answer_file}")
 
-    _run_mt_bench_eval(
+    inference_mt_bench(
         model_path=args.model_path,
         model_id=args.model_id,
         question_file=question_file,

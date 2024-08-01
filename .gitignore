@@ -4,6 +4,13 @@
 /*log
 /thirdparty
 
+# configs
+configs/*.py
+
+# data
+data/*
+!data/dummy_*
+
 .lock
 # mac
 .DS_Store
@@ -36,8 +43,10 @@ flagged/
 # others
 **/*.log
 /wandb
+/.cache
 /caches
 /outputs
 /build
+/results
 
 /opencompass
