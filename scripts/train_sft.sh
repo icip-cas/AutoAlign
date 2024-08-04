@@ -20,4 +20,5 @@ autoalign-cli sft \
     --logging_steps 1 \
     --model_max_length ${MAX_LENGTH:-"4096"} \
     --gradient_checkpointing True \
-    --deepspeed ${DS_CONFIG:-"configs/zero3.json"}
+    --deepspeed ${DS_CONFIG:-"configs/zero3.json"} \
+    --ddp_timeout 18000
