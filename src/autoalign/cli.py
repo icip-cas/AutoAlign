@@ -17,6 +17,7 @@ class Command(str, Enum):
     DATA = "data"
     EVAL = "eval"
     INFER = "infer"
+    SERVE = "serve"
 
 
 def run_distributed_task(file, args):
@@ -47,11 +48,24 @@ def run_inference(file, args, remaining_args):
     sys.exit(process.returncode)
 
 
+def run_serve(cli_file, webui_file, args, remaining_args):
+    assert args.mode is not None, "Please specify the mode for serve"
+    mode = args.mode
+    if mode == "cli":
+        command = f"accelerate launch {cli_file} {' '.join(remaining_args)}"
+    elif mode == "browser":
+        command = f"python {webui_file} {' '.join(remaining_args)}"
+
+    process = subprocess.run(command, shell=True)
+    sys.exit(process.returncode)
+
+
 def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("command", type=str, choices=[c.value for c in Command])
     parser.add_argument("--backend", type=str, choices=["hf", "vllm"])
+    parser.add_argument("--mode", type=str, choices=["cli", "browser"])
     args, remaining_args = parser.parse_known_args()
 
     if args.command == Command.SFT:
@@ -70,5 +84,9 @@ def main():
         from .inference import inference
 
         run_inference(inference.__file__, args, remaining_args)
+    elif args.command == Command.SERVE:
+        from .serve import serve_cli, serve_webui
+
+        run_serve(serve_cli.__file__, serve_webui.__file__, args, remaining_args)
     else:
         raise ValueError(f"Unknown command: {args.command}")
