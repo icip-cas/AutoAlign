@@ -120,6 +120,21 @@ bash scripts/train_dpo.sh
 ```
 
 
+## Reward Model
+### Data
+
+We use same data format with [DPO](#direct-preference-optimization)
+
+### Reward Model Training
+
+```bash
+export MODEL_PATH=meta-llama/Meta-Llama-3-8B
+export DATA_PATH=data/dummy_dpo.json
+export OUTPUT_DIR=models/llama3-rm
+
+bash scripts/train_rm.sh
+```
+
 ## Test
 
 ### Test Conversation Template
