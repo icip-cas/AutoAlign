@@ -15,4 +15,4 @@ cd ./data
 # find . -name "*.zip" -exec unzip "{}" \;
 
 # Download IFEval to data/ folder
-git clone github.com/google-research/google-research/tree/master/instruction_following_eval
+git clone https://huggingface.co/datasets/HuggingFaceH4/ifeval
