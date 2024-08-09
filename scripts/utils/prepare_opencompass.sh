@@ -8,3 +8,6 @@ wget --no-check-certificate https://github.com/open-compass/opencompass/releases
 unzip OpenCompassData-complete-20240207.zip
 cd ./data
 find . -name "*.zip" -exec unzip "{}" \;
+
+# Download IFEval to data/ folder
+git clone github.com/google-research/google-research/tree/master/instruction_following_eval
