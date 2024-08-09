@@ -1,6 +1,8 @@
 import json
 import subprocess
 import datasets
+import torch
+from vllm import LLM, SamplingParams
 import yaml
 import os
 from transformers import AutoTokenizer
@@ -9,7 +11,6 @@ import pandas as pd
 import signal
 from argparse import ArgumentParser
 
-from autoalign.inference.inferencer import MultiProcessVllmInferencer
 from autoalign.utils import get_logger, remove_file_if_user_confirms
 from .inference_mt_bench import inference_mt_bench, reorg_answer_file
 from .gen_judgmen_mt_bench import judge_mt_bench
@@ -223,9 +224,15 @@ def warn_duplicate(model_name, position):
             print("Invalid input, tap your keyboard again.")
 
 
-def build_data(
-    datas, batch_size, tokenizer, inferencer: MultiProcessVllmInferencer
-) -> list:
+def build_data(datas, batch_size, tokenizer, model_path) -> list:
+    llm = LLM(
+        model=model_path,
+        enforce_eager=True,
+        tensor_parallel_size=torch.cuda.device_count(),
+    )
+    sampling_params = SamplingParams(
+        temperature=0, top_p=1, skip_special_tokens=True, max_tokens=2048
+    )
     sorted_datas = sorted(datas, key=lambda x: len(x["instruction"]))
     dealdatas = []
     batch_num = (len(sorted_datas) - 1) // batch_size + 1
@@ -239,10 +246,10 @@ def build_data(
                     messages, tokenize=False, add_generation_prompt=True
                 )
             )
-        outputs = inferencer.inference(prompts)
+        outputs = llm.generate(prompts, sampling_params, use_tqdm=False)
         for j, data in enumerate(batch_datas):
             data["prompt"] = data["instruction"]
-            data["output"] = outputs[j]
+            data["output"] = outputs[j].outputs[0].text.strip()
             dealdatas.append(data.copy())
     return dealdatas
 
@@ -251,8 +258,8 @@ def run_alpaca_eval(
     model_name: str,
     model_path: str,
     batch_size: int,
-    inferencer: MultiProcessVllmInferencer,
 ) -> None:
+    print("run_alpaca_eval")
     eval_set = datasets.load_dataset(
         "tatsu-lab/alpaca_eval", "alpaca_eval", trust_remote_code=True
     )["eval"]
@@ -263,7 +270,7 @@ def run_alpaca_eval(
     logger.info("starting to generate outputs")
     try:
         datas = build_data(
-            eval_set, batch_size=batch_size, tokenizer=tokenizer, inferencer=inferencer
+            eval_set, batch_size=batch_size, tokenizer=tokenizer, model_path=model_path
         )
     except Exception as e:
         logger.error(f"error when generating alpaca outputs: {e}")
@@ -462,17 +469,14 @@ def run_eval(args) -> None:
             opencompass_backend,
         )
     elif eval_type == "subjective":
-        # 测试是否已设置OPENAI_BASE_URL和OPENAI_API_KEY
-        # if not os.environ.get("OPENAI_BASE_URL") or not os.environ.get(
-        #         "OPENAI_API_KEY"):
-        #     logger.error("OPENAI_BASE_URL or OPENAI_API_KEY not set")
+        if not os.environ.get("OPENAI_BASE_URL") or not os.environ.get(
+            "OPENAI_API_KEY"
+        ):
+            logger.error("OPENAI_BASE_URL or OPENAI_API_KEY not set")
         run_mt_bench_eval(
             model_path, model_name, batch_size, mtpath, per_model_gpu, template_name
         )
-        inferencer = MultiProcessVllmInferencer(
-            model_path=model_path, num_gpus_per_model=per_model_gpu
-        )
-        run_alpaca_eval(model_name, model_path, batch_size, inferencer)
+        run_alpaca_eval(model_name, model_path, batch_size)
     else:
         logger.error(f"eval_type {eval_type} not supported")
         return
