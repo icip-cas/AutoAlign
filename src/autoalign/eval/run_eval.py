@@ -1,6 +1,8 @@
 import json
 import subprocess
 import datasets
+import torch
+from vllm import LLM, SamplingParams
 import yaml
 import os
 from transformers import AutoTokenizer
@@ -75,9 +77,7 @@ def generate_config(
         else:
             raise ValueError("Error backend. Acceptable backend value: [hf, vllm]")
     else:
-        raise ValueError(
-            "Error eval_type. Acceptable eval_type value: [objective_core, objective_all]"
-        )
+        raise ValueError("Error eval_type. Acceptable eval_type value: [objective_core, objective_all]")
     if not os.path.isdir("configs"):
         os.makedirs("configs")
     config_path = "configs/{model_name}.py".format(model_name=model_name)
@@ -197,10 +197,7 @@ def handle_result(model_name, work_dir):
                     for dataset in objective_datasets:
                         for row in df.iterrows():
                             row = row[1]
-                            if (
-                                row["dataset"] == dataset["dataset"]
-                                and row["metric"] == dataset["metric"]
-                            ):
+                            if row["dataset"] == dataset["dataset"] and row["metric"] == dataset["metric"]:
                                 new_row[dataset["title"]] = row[model_name]
     ordered_df.loc[len(ordered_df)] = new_row
     return ordered_df
@@ -223,9 +220,9 @@ def warn_duplicate(model_name, position):
             print("Invalid input, tap your keyboard again.")
 
 
-def build_data(
-    datas, batch_size, tokenizer, inferencer: MultiProcessVllmInferencer
-) -> list:
+def build_data(datas, batch_size, tokenizer, model_path) -> list:
+    llm = LLM(model=model_path, enforce_eager=True, tensor_parallel_size=torch.cuda.device_count())
+    sampling_params = SamplingParams(temperature=0, top_p=1, skip_special_tokens=True, max_tokens=2048)
     sorted_datas = sorted(datas, key=lambda x: len(x["instruction"]))
     dealdatas = []
     batch_num = (len(sorted_datas) - 1) // batch_size + 1
@@ -234,15 +231,11 @@ def build_data(
         prompts = []
         for data in batch_datas:
             messages = [{"role": "user", "content": data["instruction"]}]
-            prompts.append(
-                tokenizer.apply_chat_template(
-                    messages, tokenize=False, add_generation_prompt=True
-                )
-            )
-        outputs = inferencer.inference(prompts)
+            prompts.append(tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True))
+        outputs = llm.generate(prompts, sampling_params, use_tqdm=False)
         for j, data in enumerate(batch_datas):
             data["prompt"] = data["instruction"]
-            data["output"] = outputs[j]
+            data["output"] = outputs[j].outputs[0].text.strip()
             dealdatas.append(data.copy())
     return dealdatas
 
@@ -251,20 +244,14 @@ def run_alpaca_eval(
     model_name: str,
     model_path: str,
     batch_size: int,
-    inferencer: MultiProcessVllmInferencer,
 ) -> None:
-    eval_set = datasets.load_dataset(
-        "tatsu-lab/alpaca_eval", "alpaca_eval", trust_remote_code=True
-    )["eval"]
-    logger.info(
-        f"Running ALPaCA evaluation for model: {model_name}, model_path: {model_path}"
-    )
+    print("run_alpaca_eval")
+    eval_set = datasets.load_dataset("tatsu-lab/alpaca_eval", "alpaca_eval", trust_remote_code=True)["eval"]
+    logger.info(f"Running ALPaCA evaluation for model: {model_name}, model_path: {model_path}")
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     logger.info("starting to generate outputs")
     try:
-        datas = build_data(
-            eval_set, batch_size=batch_size, tokenizer=tokenizer, inferencer=inferencer
-        )
+        datas = build_data(eval_set, batch_size=batch_size, tokenizer=tokenizer, model_path=model_path)
     except Exception as e:
         logger.error(f"error when generating alpaca outputs: {e}")
         return
@@ -281,17 +268,13 @@ def run_alpaca_eval(
     --is_overwrite_leaderboard"""
     process = subprocess.run(command, shell=True)
     if process.returncode != 0:
-        logger.error(
-            "alpaca evaluation failed, we will continue to run the next evaluation"
-        )
+        logger.error("alpaca evaluation failed, we will continue to run the next evaluation")
     else:
         logger.info("alpaca evaluation finished")
     return
 
 
-def display_result_single(
-    bench_name: str, input_file: str, judge_model: str, model_list: list
-) -> None:
+def display_result_single(bench_name: str, input_file: str, judge_model: str, model_list: list) -> None:
 
     print(f"Input file: {input_file}")
     df_all = pd.read_json(input_file, lines=True)
@@ -324,9 +307,7 @@ def run_mt_bench_eval(
     template_name: str,
 ) -> None:
     batch_size = max(8, batch_size)
-    logger.info(
-        f"Running MT-Bench evaluation for model: {model_name}, model_path: {model_path}"
-    )
+    logger.info(f"Running MT-Bench evaluation for model: {model_name}, model_path: {model_path}")
 
     question_file = f"{mtpath}/question.jsonl"
     answer_file = f"{mtpath}/model_answer/{model_name}.jsonl"
@@ -368,8 +349,7 @@ def transpose_and_format_dataframe(input_dataframe, output_txt_path):
     with open(output_txt_path, "w", encoding="utf-8") as txt_file:
         for row in transposed_df.itertuples(index=True, name=None):
             formatted_row = "\t\t".join(
-                str(val if not pd.isna(row[idx]) else "-").ljust(max_widths[idx])
-                for idx, val in enumerate(list(row))
+                str(val if not pd.isna(row[idx]) else "-").ljust(max_widths[idx]) for idx, val in enumerate(list(row))
             )
             txt_file.write(formatted_row + "\n")
 
@@ -386,9 +366,7 @@ def run_objective_eval(
     # check duplicate model_name
     if os.path.exists("configs/{model_name}.py".format(model_name=model_name)):
         warn_duplicate(model_name, "configs")
-    if os.path.exists(
-        "outputs/{model_name}/ordered_res.csv".format(model_name=model_name)
-    ) or os.path.exists(
+    if os.path.exists("outputs/{model_name}/ordered_res.csv".format(model_name=model_name)) or os.path.exists(
         "outputs/{model_name}/ordered_res.txt".format(model_name=model_name)
     ):
         warn_duplicate(model_name, "ordered_results")
@@ -429,9 +407,7 @@ def run_objective_eval(
         "outputs/{model_name}/ordered_res.csv".format(model_name=model_name),
         index=False,
     )
-    transpose_and_format_dataframe(
-        ordered_df, "outputs/{model_name}/ordered_res.txt".format(model_name=model_name)
-    )
+    transpose_and_format_dataframe(ordered_df, "outputs/{model_name}/ordered_res.txt".format(model_name=model_name))
 
 
 def run_eval(args) -> None:
@@ -466,13 +442,10 @@ def run_eval(args) -> None:
         # if not os.environ.get("OPENAI_BASE_URL") or not os.environ.get(
         #         "OPENAI_API_KEY"):
         #     logger.error("OPENAI_BASE_URL or OPENAI_API_KEY not set")
-        run_mt_bench_eval(
-            model_path, model_name, batch_size, mtpath, per_model_gpu, template_name
-        )
-        inferencer = MultiProcessVllmInferencer(
-            model_path=model_path, num_gpus_per_model=per_model_gpu
-        )
-        run_alpaca_eval(model_name, model_path, batch_size, inferencer)
+        # run_mt_bench_eval(
+        #     model_path, model_name, batch_size, mtpath, per_model_gpu, template_name
+        # )
+        run_alpaca_eval(model_name, model_path, batch_size)
     else:
         logger.error(f"eval_type {eval_type} not supported")
         return

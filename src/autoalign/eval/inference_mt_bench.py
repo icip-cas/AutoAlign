@@ -123,7 +123,7 @@ def get_model_answers(
                 print("ERROR question ID: ", question["question_id"])
                 output = "ERROR"
 
-            print("Output:", output)
+            # print("Output:", output)
 
             print("======================")
 

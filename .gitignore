@@ -6,10 +6,12 @@
 
 # configs
 configs/*.py
+configs/eval_dev.yaml
 
 # data
 data/*
 !data/dummy_*
+!data/eval
 
 .lock
 # mac

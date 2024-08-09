@@ -1,1 +1,3 @@
 /train/
+eval/mt-bench/model_answer/*
+eval/mt-bench/model_judgement/*
