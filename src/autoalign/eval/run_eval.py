@@ -11,7 +11,6 @@ import pandas as pd
 import signal
 from argparse import ArgumentParser
 
-from autoalign.inference.inferencer import MultiProcessVllmInferencer
 from autoalign.utils import get_logger, remove_file_if_user_confirms
 from .inference_mt_bench import inference_mt_bench, reorg_answer_file
 from .gen_judgmen_mt_bench import judge_mt_bench
@@ -221,8 +220,14 @@ def warn_duplicate(model_name, position):
 
 
 def build_data(datas, batch_size, tokenizer, model_path) -> list:
-    llm = LLM(model=model_path, enforce_eager=True, tensor_parallel_size=torch.cuda.device_count())
-    sampling_params = SamplingParams(temperature=0, top_p=1, skip_special_tokens=True, max_tokens=2048)
+    llm = LLM(
+        model=model_path,
+        enforce_eager=True,
+        tensor_parallel_size=torch.cuda.device_count(),
+    )
+    sampling_params = SamplingParams(
+        temperature=0, top_p=1, skip_special_tokens=True, max_tokens=2048
+    )
     sorted_datas = sorted(datas, key=lambda x: len(x["instruction"]))
     dealdatas = []
     batch_num = (len(sorted_datas) - 1) // batch_size + 1
@@ -231,7 +236,11 @@ def build_data(datas, batch_size, tokenizer, model_path) -> list:
         prompts = []
         for data in batch_datas:
             messages = [{"role": "user", "content": data["instruction"]}]
-            prompts.append(tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True))
+            prompts.append(
+                tokenizer.apply_chat_template(
+                    messages, tokenize=False, add_generation_prompt=True
+                )
+            )
         outputs = llm.generate(prompts, sampling_params, use_tqdm=False)
         for j, data in enumerate(batch_datas):
             data["prompt"] = data["instruction"]
@@ -246,12 +255,18 @@ def run_alpaca_eval(
     batch_size: int,
 ) -> None:
     print("run_alpaca_eval")
-    eval_set = datasets.load_dataset("tatsu-lab/alpaca_eval", "alpaca_eval", trust_remote_code=True)["eval"]
-    logger.info(f"Running ALPaCA evaluation for model: {model_name}, model_path: {model_path}")
+    eval_set = datasets.load_dataset(
+        "tatsu-lab/alpaca_eval", "alpaca_eval", trust_remote_code=True
+    )["eval"]
+    logger.info(
+        f"Running ALPaCA evaluation for model: {model_name}, model_path: {model_path}"
+    )
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     logger.info("starting to generate outputs")
     try:
-        datas = build_data(eval_set, batch_size=batch_size, tokenizer=tokenizer, model_path=model_path)
+        datas = build_data(
+            eval_set, batch_size=batch_size, tokenizer=tokenizer, model_path=model_path
+        )
     except Exception as e:
         logger.error(f"error when generating alpaca outputs: {e}")
         return
@@ -438,13 +453,13 @@ def run_eval(args) -> None:
             opencompass_backend,
         )
     elif eval_type == "subjective":
-        # 测试是否已设置OPENAI_BASE_URL和OPENAI_API_KEY
-        # if not os.environ.get("OPENAI_BASE_URL") or not os.environ.get(
-        #         "OPENAI_API_KEY"):
-        #     logger.error("OPENAI_BASE_URL or OPENAI_API_KEY not set")
-        # run_mt_bench_eval(
-        #     model_path, model_name, batch_size, mtpath, per_model_gpu, template_name
-        # )
+        if not os.environ.get("OPENAI_BASE_URL") or not os.environ.get(
+            "OPENAI_API_KEY"
+        ):
+            logger.error("OPENAI_BASE_URL or OPENAI_API_KEY not set")
+        run_mt_bench_eval(
+            model_path, model_name, batch_size, mtpath, per_model_gpu, template_name
+        )
         run_alpaca_eval(model_name, model_path, batch_size)
     else:
         logger.error(f"eval_type {eval_type} not supported")
