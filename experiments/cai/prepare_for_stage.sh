@@ -30,5 +30,3 @@ else
                 --template ${TEMPLATE_NAME} \
                 --source ${SOURCE_TAG}
 fi
-
-
