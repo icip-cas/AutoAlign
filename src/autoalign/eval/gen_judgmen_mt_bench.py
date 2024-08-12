@@ -2,6 +2,7 @@
 Usage:
 python gen_judgment.py --model-list [LIST-OF-MODEL-ID] --parallel [num-concurrent-api-call] --mode [single|pairwise-baseline|pairwise-all]
 """
+
 import argparse
 from concurrent.futures import ThreadPoolExecutor
 import json
@@ -165,19 +166,21 @@ def make_judge_single(judge_model, judge_prompts):
     )
     return judges
 
-def judge(
-            bench_name="mt_bench", 
-            judge_file="data/judge_prompts.jsonl",
-            judge_model="gpt-4",
-            baseline_model="gpt-3.5-turbo",
-            mode="single",
-            model_list=None,
-            parallel=2,
-            first_n=None
-        ):
-    question_file = f"data/mtbench/question.jsonl"
-    answer_dir = f"data/mtbench/model_answer"
-    ref_answer_dir = f"data/mtbench/reference_answer"
+
+def judge_mt_bench(
+    bench_name="mt_bench",
+    judge_file="data/eval/mt-bench/judge_prompts.jsonl",
+    judge_model="gpt-4",
+    baseline_model="gpt-3.5-turbo",
+    mode="single",
+    model_list=None,
+    parallel=2,
+    first_n=None,
+    mtpath="data/eval/mt-bench",
+):
+    question_file = f"{mtpath}/question.jsonl"
+    answer_dir = f"{mtpath}/model_answer"
+    ref_answer_dir = f"{mtpath}/reference_answer"
 
     # Load questions
     questions = load_questions(question_file, None, None)
@@ -190,7 +193,7 @@ def judge(
     judge_prompts = load_judge_prompts(judge_file)
 
     if first_n:
-        questions = questions[: first_n]
+        questions = questions[:first_n]
 
     if model_list is None:
         models = get_model_list(answer_dir)
@@ -201,7 +204,7 @@ def judge(
         judges = make_judge_single(judge_model, judge_prompts)
         play_a_match_func = play_a_match_single
         output_file = (
-            f"data/mtbench/model_judgment/{judge_model}_single.jsonl"
+            f"{mtpath}/model_judgment/{'+'.join(models)}_{judge_model}_single.jsonl"
         )
         make_match_func = make_match_single
         baseline_model = None
@@ -209,7 +212,7 @@ def judge(
         judges = make_judge_pairwise(judge_model, judge_prompts)
         play_a_match_func = play_a_match_pair
         output_file = (
-            f"data/mtbench/model_judgment/{judge_model}_pair.jsonl"
+            f"{mtpath}/model_judgment/{'+'.join(models)}_{judge_model}_pair.jsonl"
         )
         if mode == "pairwise-all":
             make_match_func = make_match_all_pairs
@@ -299,7 +302,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--judge-file",
         type=str,
-        default="data/judge_prompts.jsonl",
+        default="data/mt_bench/judge_prompts.jsonl",
         help="The file of judge prompts.",
     )
     parser.add_argument("--judge-model", type=str, default="gpt-4")
@@ -324,6 +327,11 @@ if __name__ == "__main__":
         help="A list of models to be evaluated",
     )
     parser.add_argument(
+        "--mt-path",
+        type=str,
+        default="data/eval/mt-bench",
+    )
+    parser.add_argument(
         "--parallel", type=int, default=1, help="The number of concurrent API calls."
     )
     parser.add_argument(
@@ -331,9 +339,9 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    question_file = f"data/mtbench/question.jsonl"
-    answer_dir = f"data/mtbench/model_answer"
-    ref_answer_dir = f"data/mtbench/reference_answer"
+    question_file = f"{args.mt_path}/question.jsonl"
+    answer_dir = f"{args.mt_path}/model_answer"
+    ref_answer_dir = f"{args.mt_path}/reference_answer"
 
     # Load questions
     questions = load_questions(question_file, None, None)
@@ -356,17 +364,13 @@ if __name__ == "__main__":
     if args.mode == "single":
         judges = make_judge_single(args.judge_model, judge_prompts)
         play_a_match_func = play_a_match_single
-        output_file = (
-            f"data/mtbench/model_judgment/{args.judge_model}_single.jsonl"
-        )
+        output_file = f"{args.mt_path}/model_judgment/{'+'.join(models)}_{args.judge_model}_single.jsonl"
         make_match_func = make_match_single
         baseline_model = None
     else:
         judges = make_judge_pairwise(args.judge_model, judge_prompts)
         play_a_match_func = play_a_match_pair
-        output_file = (
-            f"data/mtbench/model_judgment/{args.judge_model}_pair.jsonl"
-        )
+        output_file = f"{args.mt_path}/model_judgment/{'+'.join(models)}_{args.judge_model}_pair.jsonl"
         if args.mode == "pairwise-all":
             make_match_func = make_match_all_pairs
             baseline_model = None

@@ -11,9 +11,9 @@ import re
 import time
 from typing import Optional
 
-import openai
+from openai import OpenAI
 
-# from ..conversation import from_template
+from autoalign.conversation import Conversation, Role
 
 OPENAI_MODEL_LIST = (
     "gpt-3.5-turbo",
@@ -173,10 +173,10 @@ def run_judge_single(question, answer, judge, ref_answer, multi_turn=False):
     rating = -1
 
     system_prompt = judge.prompt_template["system_prompt"]
-    conv = from_template(model)
-    conv.set_system_message(system_prompt)
-    conv.append_message(conv.roles[0], user_prompt)
-    conv.append_message(conv.roles[1], None)
+    conv = Conversation.from_template(model)
+    conv.system_message = system_prompt
+    conv.append_message(Role.HUMAN, user_prompt)
+    conv.append_message(Role.ASSISTANT, None)
 
     if model in OPENAI_MODEL_LIST:
         judgment = chat_completion_openai(model, conv, temperature=0, max_tokens=2048)
@@ -273,12 +273,12 @@ def run_judge_pair(question, answer_a, answer_b, judge, ref_answer, multi_turn=F
 
     winner = "error"
 
-    conv = from_template(model)
-    conv.append_message(conv.roles[0], user_prompt)
-    conv.append_message(conv.roles[1], None)
+    conv = Conversation.from_template(model)
+    conv.append_message(Role.HUMAN, user_prompt)
+    conv.append_message(Role.ASSISTANT, None)
 
     if model in OPENAI_MODEL_LIST:
-        conv.set_system_message(system_prompt)
+        conv.system_message = system_prompt
         judgment = chat_completion_openai(model, conv, temperature=0, max_tokens=2048)
     else:
         raise ValueError(f"Invalid judge model name: {model}")
@@ -409,14 +409,20 @@ def play_a_match_pair(match: MatchPair, output_file: str):
 
 
 def chat_completion_openai(model, conv, temperature, max_tokens, api_dict=None):
-    if api_dict is not None:
-        openai.api_base = api_dict["api_base"]
-        openai.api_key = api_dict["api_key"]
     output = API_ERROR_OUTPUT
     for _ in range(API_MAX_RETRY):
         try:
+            client = OpenAI(
+                # This is the default and can be omitted
+                base_url=api_dict["api_base"]
+                if api_dict is not None and api_dict["api_base"] is not None
+                else os.environ.get("OPENAI_API_BASE"),
+                api_key=api_dict["api_key"]
+                if api_dict is not None and api_dict["api_key"] is not None
+                else os.environ.get("OPENAI_API_KEY"),
+            )
             messages = conv.to_openai_api_messages()
-            response = openai.ChatCompletion.create(
+            response = client.chat.completions.create(
                 model=model,
                 messages=messages,
                 n=1,
@@ -425,7 +431,10 @@ def chat_completion_openai(model, conv, temperature, max_tokens, api_dict=None):
             )
             output = response["choices"][0]["message"]["content"]
             break
-        except openai.error.OpenAIError as e:
+        except Exception as e:
+            import traceback
+
+            traceback.print_exc()
             print(type(e), e)
             time.sleep(API_RETRY_SLEEP)
 
@@ -433,42 +442,7 @@ def chat_completion_openai(model, conv, temperature, max_tokens, api_dict=None):
 
 
 def chat_completion_openai_azure(model, conv, temperature, max_tokens, api_dict=None):
-    openai.api_type = "azure"
-    openai.api_version = "2023-07-01-preview"
-    if api_dict is not None:
-        openai.api_base = api_dict["api_base"]
-        openai.api_key = api_dict["api_key"]
-    else:
-        openai.api_base = os.environ["AZURE_OPENAI_ENDPOINT"]
-        openai.api_key = os.environ["AZURE_OPENAI_KEY"]
-
-    if "azure-" in model:
-        model = model[6:]
-
-    output = API_ERROR_OUTPUT
-    for _ in range(API_MAX_RETRY):
-        try:
-            messages = conv.to_openai_api_messages()
-            response = openai.ChatCompletion.create(
-                engine=model,
-                messages=messages,
-                n=1,
-                temperature=temperature,
-                max_tokens=max_tokens,
-            )
-            output = response["choices"][0]["message"]["content"]
-            break
-        except openai.error.OpenAIError as e:
-            print(type(e), e)
-            time.sleep(API_RETRY_SLEEP)
-        except openai.error.InvalidRequestError as e:
-            print(type(e), e)
-            break
-        except KeyError:
-            print(response)
-            break
-
-    return output
+    NotImplementedError()
 
 
 def normalize_game_key_single(gamekey, result):
@@ -610,7 +584,7 @@ def get_pairwise_judge_explanation(gamekey, judgment_dict):
         return (
             f"**Game 1**. **A**: {model_1}, **B**: {model_2}\n\n"
             f"**Judgment**: {g1_judgment}"
-            + f"\n\n`--------------------------`\n\n"
+            + "\n\n`--------------------------`\n\n"
             + f"**Game 2**. **A**: {model_2}, **B**: {model_1}\n\n"
             f"**Judgment**: {g2_judgment}"
         )

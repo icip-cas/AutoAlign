@@ -6,26 +6,27 @@ Auto-Alignment 是一个基于自动对齐技术的训练、部署和评测的�
 - 常见模型对齐的基础算法实现
 - 多种模型自动对齐的基础算法实现
 - 高效多样的模型采样
-- 全面模型评测
+- 自动化模型评测
 
 # Install
 
 Default
 
 ```
-pip install -e .[train]
+pip install .[train]
 ```
 
 Evaluation (Optional)
 
 ```
-pip install -e .[eval]
+pip install .[eval]
 ```
 
 Install for Develop
 
 ```
 pip install -e .[dev]
+pre-commit install
 ```
 
 
@@ -67,7 +68,7 @@ We use sharegpt format data for supervised fine-tuning. The format are as follow
 ]
 ```
 
-### Fine-tuning Llama-3-8B with Local GPUs
+## TODO
 
 ```bash
 export MODEL_PATH=meta-llama/Meta-Llama-3-8B
@@ -132,6 +133,19 @@ python tests/test_conversation.py test_get_tokenized_conversation \
     --model_max_length 4096 \
     --data_path data/dummy_sft.json
 ```
+## Evaluation
+### Objective evaluation
+Objective evaluation involves assessing datasets with standard answers, where processed responses can be directly compared to these standard answers according to established rules and model performances are mesured with quantitative metrics. This project utilizes the OpenCompass platform to conduct these evaluations.
+
+Usage:
+``` bash
+autoalign-cli eval --config eval.yaml
+```
+In `eval.yaml`, the `model_path` is the absolute path to the evaluated model or the relative path from the root directory of this repository.
+
+After running the above command, `autoalign-cli` will call the interface in OpenCompass to conduct an objective dataset evaluation. We format the timestamp and append it to the model_name as a directory name(`{model_id} = {model_name + timestamp}`), storing the evaluation results in the `outputs/{model_id}` directory. The raw result will be stored at `outputs/{model_id}/opencompass_log/{opencompass_timestamp}`, in which `{opencompass_timestamp}` is the default name of opencompass output directory of an evaluation. We will summarize and display each evaluation in `outputs/{model_id}/ordered_res.csv` and `outputs/{model_id}/ordered_res.txt`(formed output, easy to read).
+
+Before starting opencompass, we will check whether new file paths exist, including the config file: `configs/{model_id}.py`, result files: `outputs/{model_id}/ordered_res.csv` and  `outputs/{model_id}/ordered_res.txt`, opencompass logs: `outputs/{model_id}/opencompass_log/`. If one of them exists, you need to choose to continue evaluating or to exit. Continuing may cause overwriting.
 
 
 ## Contributing

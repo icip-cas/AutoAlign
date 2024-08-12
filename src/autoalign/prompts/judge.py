@@ -1,18 +1,18 @@
 META_JUDGE_EN = """\
-Review the user's question and the corresponding response using the additive 5-point scoring system described below. Points are accumulated based on the satisfaction of each criterion: 
-- Add 1 point if the response is relevant and provides some information related to the user's inquiry, even if it is incomplete or contains some irrelevant content. 
-- Add another point if the response addresses a substantial portion of the user's question, but does not completely resolve the query or provide a direct answer. 
-- Award a third point if the response answers the basic elements of the user's question in a useful way, regardless of whether it seems to have been written by an AI Assistant or if it has elements typically found in blogs or search results. 
-- Grant a fourth point if the response is clearly written from an AI Assistant's perspective, addressing the user's question directly and comprehensively, and is well-organized and helpful, even if there is slight room for improvement in clarity, conciseness or focus. 
-- Bestow a fifth point for a response that is impeccably tailored to the user's question by an AI Assistant, without extraneous information, reflecting expert knowledge, and demonstrating a high-quality, engaging, and insightful answer. 
+Review the user's question and the corresponding response using the additive 5-point scoring system described below. Points are accumulated based on the satisfaction of each criterion:
+- Add 1 point if the response is relevant and provides some information related to the user's inquiry, even if it is incomplete or contains some irrelevant content.
+- Add another point if the response addresses a substantial portion of the user's question, but does not completely resolve the query or provide a direct answer.
+- Award a third point if the response answers the basic elements of the user's question in a useful way, regardless of whether it seems to have been written by an AI Assistant or if it has elements typically found in blogs or search results.
+- Grant a fourth point if the response is clearly written from an AI Assistant's perspective, addressing the user's question directly and comprehensively, and is well-organized and helpful, even if there is slight room for improvement in clarity, conciseness or focus.
+- Bestow a fifth point for a response that is impeccably tailored to the user's question by an AI Assistant, without extraneous information, reflecting expert knowledge, and demonstrating a high-quality, engaging, and insightful answer.
 
-User: {instruction} 
+User: {instruction}
 
-<response>{response}</response> 
+<response>{response}</response>
 
-After examining the user's instruction and the response: 
+After examining the user's instruction and the response:
 
-- Briefly justify your total score, up to 100 words. 
+- Briefly justify your total score, up to 100 words.
 - Conclude with the score using the format: “Score: <total points>”
 
 Remember to assess from the AI Assistant perspective and give a score between 0 and 5. To evaluate the response in alignment with this additive scoring model, we'll systematically attribute points based on the outlined criteria.
@@ -27,7 +27,7 @@ META_JUDGE_ZH = """
 - 如果回答由人工智能助手量身定制并完美回答了用户的问题,没有多余信息,体现了专业知识,提供了高质量、富有洞识力的精彩答复,满分5分。
 
 用户问题：{instruction}
-<回答>{response}</回答> 
+<回答>{response}</回答>
 
 在检查了用户的指令和回答后:
 
@@ -38,20 +38,20 @@ META_JUDGE_ZH = """
 """
 
 META_JUDGE_EN_WEB = """\
-Review the user's question and the corresponding response using the additive 5-point scoring system described below. Points are accumulated based on the satisfaction of each criterion: 
-- Add 1 point if the response is relevant and provides some information related to the user's inquiry, even if it is incomplete or contains some irrelevant content. 
-- Add another point if the response addresses a substantial portion of the user's question, but does not completely resolve the query or provide a direct answer. 
-- Award a third point if the response answers the basic elements of the user's question in a useful way, regardless of whether it seems to have been written by an AI Assistant or if it has elements typically found in blogs or search results. 
-- Grant a fourth point if the response is clearly written from an AI Assistant's perspective, addressing the user's question directly and comprehensively, and is well-organized and helpful, even if there is slight room for improvement in clarity, conciseness or focus. 
-- Bestow a fifth point for a response that is impeccably tailored to the user's question by an AI Assistant, without extraneous information, reflecting expert knowledge, and demonstrating a high-quality, engaging, and insightful answer. 
+Review the user's question and the corresponding response using the additive 5-point scoring system described below. Points are accumulated based on the satisfaction of each criterion:
+- Add 1 point if the response is relevant and provides some information related to the user's inquiry, even if it is incomplete or contains some irrelevant content.
+- Add another point if the response addresses a substantial portion of the user's question, but does not completely resolve the query or provide a direct answer.
+- Award a third point if the response answers the basic elements of the user's question in a useful way, regardless of whether it seems to have been written by an AI Assistant or if it has elements typically found in blogs or search results.
+- Grant a fourth point if the response is clearly written from an AI Assistant's perspective, addressing the user's question directly and comprehensively, and is well-organized and helpful, even if there is slight room for improvement in clarity, conciseness or focus.
+- Bestow a fifth point for a response that is impeccably tailored to the user's question by an AI Assistant, without extraneous information, reflecting expert knowledge, and demonstrating a high-quality, engaging, and insightful answer.
 
-User: {instruction} 
+User: {instruction}
 
-<response>{response}</response> 
+<response>{response}</response>
 
-After examining the user's instruction and the response: 
+After examining the user's instruction and the response:
 
-- Briefly justify your total score, up to 100 words. 
+- Briefly justify your total score, up to 100 words.
 - Conclude with the score using the format: “Score: <total points>”
 
 Remember to assess from the AI Assistant perspective, utilizing web search knowledge as necessary. To evaluate the response in alignment with this additive scoring model, we'll systematically attribute points based on the outlined criteria.
@@ -66,7 +66,7 @@ META_JUDGE_ZH_WEB = """
 - 如果回答由人工智能助手量身定制并完美回答了用户的问题,没有多余信息,体现了专业知识,提供了高质量、富有洞识力的精彩答复,满分5分。
 
 用户问题：{instruction}
-<回答>{response}</回答> 
+<回答>{response}</回答>
 
 在检查了用户的指令和回答后:
 

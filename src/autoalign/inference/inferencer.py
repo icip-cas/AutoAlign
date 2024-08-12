@@ -1,43 +1,64 @@
+import os
 import torch
 from tqdm import tqdm
-from transformers import (
-    AutoTokenizer,
-    AutoModelForCausalLM,
-    pipeline
-)
-import multiprocessing as mp
+from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
 from typing import List, Dict
 from accelerate import Accelerator
 from accelerate.utils import gather_object
 import math
-import openai
+from openai import OpenAI
 from multiprocessing.pool import ThreadPool
-from tenacity import (
-    retry,
-    stop_after_attempt,
-    wait_chain,
-    wait_fixed
-)
-
+from tenacity import retry, wait_chain, wait_fixed
+import tiktoken
 from datetime import timedelta
-from accelerate import Accelerator
 from accelerate.utils import InitProcessGroupKwargs
 import ray
-import multiprocessing as mp
 from vllm import LLM, SamplingParams
 
-class MultiProcessHFInferencer:
 
-    def __init__(self, 
-                model_path:str, 
-                do_sample:bool=False,
-                num_beams:int=1,
-                max_new_tokens:int=512,
-                temperature:float=0,
-                top_p:float=1,
-                nccl_timeout:int=64000
-                ):
-        
+class HFInferencer:
+    def __init__(self, model_name_or_path: str):
+
+        self.model = AutoModelForCausalLM.from_pretrained(
+            model_name_or_path,
+        ).to("cuda")
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
+
+    def inference(self, prompt: str, **kwargs):
+
+        print(
+            self.tokenizer.convert_ids_to_tokens(self.tokenizer([prompt]).input_ids[0])
+        )
+
+        device = self.model.device
+        inputs = self.tokenizer([prompt], return_tensors="pt").to(device)
+
+        output_ids = self.model.generate(**inputs, **kwargs)
+        if self.model.config.is_encoder_decoder:
+            output_ids = output_ids[0]
+        else:
+            output_ids = output_ids[0][len(inputs["input_ids"][0]) :]
+        generated_text = self.tokenizer.decode(output_ids)
+
+        return generated_text
+
+    def get_tokenizer(self):
+
+        return self.tokenizer
+
+
+class MultiProcessHFInferencer:
+    def __init__(
+        self,
+        model_path: str,
+        do_sample: bool = False,
+        num_beams: int = 1,
+        max_new_tokens: int = 512,
+        temperature: float = 0,
+        top_p: float = 1,
+        nccl_timeout: int = 64000,
+    ):
+
         self.max_new_tokens = max_new_tokens
         self.num_beams = num_beams
         self.temperature = temperature
@@ -49,7 +70,9 @@ class MultiProcessHFInferencer:
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
         # get tokenizer
-        self.tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            model_path, trust_remote_code=True
+        )
 
         # get model
         self.model = AutoModelForCausalLM.from_pretrained(
@@ -59,20 +82,23 @@ class MultiProcessHFInferencer:
             device_map={"": self.accelerator.process_index},
         )
 
-    def inference(self,
-                data,
-                do_sample=None, 
-                top_p=None, 
-                temperature=None,
-                num_beams=None,
-                max_new_tokens=None,
-                ):
-        
+    def inference(
+        self,
+        data,
+        do_sample=None,
+        top_p=None,
+        temperature=None,
+        num_beams=None,
+        max_new_tokens=None,
+    ):
+
         self.do_sample = do_sample if do_sample is not None else self.do_sample
         self.top_p = top_p if top_p is not None else self.top_p
         self.temperature = temperature if temperature is not None else self.temperature
         self.num_beams = num_beams if num_beams is not None else self.num_beams
-        self.max_new_tokens = max_new_tokens if max_new_tokens is not None else self.max_new_tokens
+        self.max_new_tokens = (
+            max_new_tokens if max_new_tokens is not None else self.max_new_tokens
+        )
 
         # for each process
         with self.accelerator.split_between_processes(data) as data_on_process:
@@ -90,14 +116,12 @@ class MultiProcessHFInferencer:
                     num_beams=self.num_beams,
                     max_new_tokens=self.max_new_tokens,
                     eos_token_id=self.tokenizer.eos_token_id,
-                    pad_token_id=self.tokenizer.pad_token_id
+                    pad_token_id=self.tokenizer.pad_token_id,
                 )
 
-                outputs = outputs[:, len(inputs["input_ids"][0]):]
+                outputs = outputs[:, len(inputs["input_ids"][0]) :]
 
-                responses.extend(self.tokenizer.batch_decode(
-                    outputs
-                ))
+                responses.extend(self.tokenizer.batch_decode(outputs))
 
         # gather responses
         gathered_responses = gather_object(responses)
@@ -106,22 +130,25 @@ class MultiProcessHFInferencer:
 
     def get_tokenizer(self):
         return self.tokenizer
-    
-class HFPipelineInferencer:
 
-    def __init__(self, 
-                model_path:str, 
-                num_gpus:int, 
-                do_sample:bool=False,
-                num_beams:int=1,
-                max_new_tokens:int=512,
-                temperature:float=0,
-                top_p:float=1,
-                ):
-        
-        self.tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+
+class HFPipelineInferencer:
+    def __init__(
+        self,
+        model_path: str,
+        num_gpus: int,
+        do_sample: bool = False,
+        num_beams: int = 1,
+        max_new_tokens: int = 512,
+        temperature: float = 0,
+        top_p: float = 1,
+    ):
+
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            model_path, trust_remote_code=True
+        )
         self.model = AutoModelForCausalLM.from_pretrained(
-            model_path, 
+            model_path,
             trust_remote_code=True,
             device_map="auto",
         )
@@ -130,39 +157,43 @@ class HFPipelineInferencer:
         self.temperature = temperature
         self.do_sample = do_sample
         self.top_p = top_p
-        
+
         self.pipe = pipeline(
             task="text-generation",
-            model=self.model, 
-            tokenizer=self.tokenizer, 
+            model=self.model,
+            tokenizer=self.tokenizer,
             do_sample=self.do_sample,
             num_beams=self.num_beams,
             temperature=self.temperature,
             top_p=self.top_p,
-            max_new_tokens=self.max_new_tokens
+            max_new_tokens=self.max_new_tokens,
         )
 
-    def inference(self, 
-                prompt:str,
-                do_sample=None, 
-                top_p=None, 
-                temperature=None,
-                num_beams=None,
-                max_new_tokens=None):
-        
+    def inference(
+        self,
+        prompt: str,
+        do_sample=None,
+        top_p=None,
+        temperature=None,
+        num_beams=None,
+        max_new_tokens=None,
+    ):
+
         self.do_sample = do_sample if do_sample is not None else self.do_sample
         self.top_p = top_p if top_p is not None else self.top_p
         self.temperature = temperature if temperature is not None else self.temperature
         self.num_beams = num_beams if num_beams is not None else self.num_beams
-        self.max_new_tokens = max_new_tokens if max_new_tokens is not None else self.max_new_tokens
-        
+        self.max_new_tokens = (
+            max_new_tokens if max_new_tokens is not None else self.max_new_tokens
+        )
+
         outputs = self.pipe(
             prompt,
             do_sample=self.do_sample,
             num_beams=self.num_beams,
             temperature=self.temperature,
             top_p=self.top_p,
-            max_new_tokens=self.max_new_tokens
+            max_new_tokens=self.max_new_tokens,
         )
         generated_text = outputs[0]["generated_text"]
         generated_text = generated_text.split(prompt)[-1]
@@ -170,91 +201,86 @@ class HFPipelineInferencer:
 
     def get_tokenizer(self):
         return self.tokenizer
-    
-class OpenAIInferencer:
 
+
+class OpenAIInferencer:
     def __init__(
         self,
-        model:str,
-        api_key:str,
-        api_base:str=None,
-        temperature:float=0,
-        max_tokens:int=1024,
+        model: str,
+        api_key: str,
+        api_base: str = None,
+        temperature: float = 0,
+        max_tokens: int = 1024,
         request_timeout=120,
     ) -> None:
         self.model = model
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.request_timeout = request_timeout
-        openai.api_key = api_key
-        if api_base is not None:
-            openai.api_base = api_base
 
-    @retry(wait=wait_chain(*[wait_fixed(3) for i in range(3)] +
-                        [wait_fixed(5) for i in range(2)] +
-                        [wait_fixed(10)]))
-    def inference(self, prompt, stop=None):
-        response = openai.Completion.create(
-            model=self.model,
-            prompt=prompt,
-            temperature=self.temperature,
-            max_tokens=self.max_tokens,
-            stop=stop
+        self.client = OpenAI(
+            # This is the default and can be omitted
+            base_url=os.environ.get("OPENAI_API_BASE")
+            if api_base is None
+            else api_base,
+            api_key=os.environ.get("OPENAI_API_KEY") if api_key is None else api_key,
         )
-        return response['choices'][0]['text'].strip()
 
-    @retry(wait=wait_chain(*[wait_fixed(3) for i in range(3)] +
-                        [wait_fixed(5) for i in range(2)] +
-                        [wait_fixed(10)]))
+    @retry(
+        wait=wait_chain(
+            *[wait_fixed(3) for i in range(3)]
+            + [wait_fixed(5) for i in range(2)]
+            + [wait_fixed(10)]
+        )
+    )
     def chat_inference(self, messages: List[Dict]):
         try:
-            response = openai.ChatCompletion.create(
+            response = self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
                 temperature=self.temperature,
                 request_timeout=self.request_timeout,
             )
         except Exception as e:
-            if str(e).startswith("Detected an error in the prompt. Please try again with a different prompt.") or \
-                str(e).startswith("Sorry! We've encountered an issue with repetitive patterns in your prompt. Please try again with a different prompt."):
-                print(e)
-                return "Prompt Error"
             print(e)
-        return response['choices'][0]['message']['content'].strip()
-    
-    def multiprocess_chat_inference(self, 
-                                    batch_of_messages: List[List[Dict]], 
-                                    num_workers:int=8):
+        return response["choices"][0]["message"]["content"].strip()
+
+    def multiprocess_chat_inference(
+        self, batch_of_messages: List[List[Dict]], num_workers: int = 8
+    ):
 
         pool = ThreadPool(num_workers)
         all_completions = list(
-            tqdm(pool.imap(self.chat_inference, batch_of_messages), 
-                 total=len(batch_of_messages))
+            tqdm(
+                pool.imap(self.chat_inference, batch_of_messages),
+                total=len(batch_of_messages),
+            )
         )
 
         return all_completions
 
-    def encode(self, prompt:str) -> List:
+    def encode(self, prompt: str) -> List:
         enc = tiktoken.encoding_for_model(self.model)
         return enc.encode(prompt)
-    
-    def decode(self, tokens:List) -> str:
+
+    def decode(self, tokens: List) -> str:
         enc = tiktoken.encoding_for_model(self.model)
         return enc.decode(tokens)
 
-class MultiProcessVllmInferencer:
 
-    def __init__(self, 
-                model_path:str,
-                num_gpus_per_model:int=1,
-                do_sample:bool=False,
-                num_beams:int=1,
-                max_new_tokens:int=1024,
-                temperature:float=0,
-                top_p:float=1.0,
-                top_k:int=-1,
-                frequency_penalty=0.0,
-                ):
+class MultiProcessVllmInferencer:
+    def __init__(
+        self,
+        model_path: str,
+        num_gpus_per_model: int = 1,
+        do_sample: bool = False,
+        num_beams: int = 1,
+        max_new_tokens: int = 1024,
+        temperature: float = 0,
+        top_p: float = 1.0,
+        top_k: int = -1,
+        frequency_penalty=0.0,
+    ):
 
         self.num_gpus_total = torch.cuda.device_count()
         self.num_gpus_per_model = num_gpus_per_model
@@ -263,7 +289,7 @@ class MultiProcessVllmInferencer:
 
         self.sampling_params = SamplingParams(
             max_tokens=max_new_tokens,
-            use_beam_search=(not do_sample) and (not num_beams==1),
+            use_beam_search=(not do_sample) and (not num_beams == 1),
             best_of=num_beams,
             temperature=temperature,
             top_p=top_p,
@@ -278,11 +304,10 @@ class MultiProcessVllmInferencer:
 
         if self.num_gpus_total // num_gpus_per_model > 1:
             self.use_ray = True
-            ray.init()
+            ray.init(ignore_reinit_error=True)
 
     @staticmethod
-    def single_process_inference(model_path, num_gpus_per_model,
-                                *args, **kwargs):
+    def single_process_inference(model_path, num_gpus_per_model, *args, **kwargs):
 
         model = LLM(
             model=model_path,
@@ -291,8 +316,7 @@ class MultiProcessVllmInferencer:
 
         return model.generate(*args, **kwargs)
 
-    def inference(self, data:List[str]):
-
+    def inference(self, data: List[str]):
         if self.use_ray:
             get_answers_func = ray.remote(num_gpus=self.num_gpus_per_model)(
                 MultiProcessVllmInferencer.single_process_inference
@@ -302,25 +326,29 @@ class MultiProcessVllmInferencer:
 
         num_processes = max(1, self.num_gpus_total // self.num_gpus_per_model)
         chunk_size = math.ceil(len(data) / num_processes)
-        
+
         gathered_responses = []
         for i in range(0, len(data), chunk_size):
             gathered_responses.append(
                 get_answers_func(
                     self.model_path,
                     self.num_gpus_per_model,
-                    data[i:i+chunk_size],
-                    self.sampling_params
+                    data[i : i + chunk_size],
+                    self.sampling_params,
                 )
             )
         if self.use_ray:
             gathered_responses = ray.get(gathered_responses)
 
-        gathered_responses = [item for sublist in gathered_responses for item in sublist]
-        gathered_responses = [response.outputs[0].text for response in gathered_responses]
+        gathered_responses = [
+            item for sublist in gathered_responses for item in sublist
+        ]
+        gathered_responses = [
+            response.outputs[0].text for response in gathered_responses
+        ]
 
         return gathered_responses
-    
+
     def get_tokenizer(self):
 
         return self.tokenizer

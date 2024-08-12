@@ -8,13 +8,14 @@ import torch
 from tqdm import tqdm
 
 from .utils import load_questions, temperature_config
+from autoalign.conversation import Conversation, Role
+from autoalign.inference.inferencer import HFInferencer
 
-from autoalign.conversation import Conversation
-from autoalign.inference.inferencer import HFPipelineInferencer, MultiProcessVllmInferencer
 
-def _run_mt_bench_eval(
+def inference_mt_bench(
     model_path,
     model_id,
+    template_name,
     question_file,
     question_begin,
     question_end,
@@ -26,11 +27,7 @@ def _run_mt_bench_eval(
     # random shuffle the questions to balance the loading
     random.shuffle(questions)
 
-    inferencer = MultiProcessVllmInferencer(
-        model_path,
-        max_new_tokens=max_new_token,
-        num_gpus=1,
-    )
+    inferencer = HFInferencer(model_path)
 
     get_answers_func = get_model_answers
 
@@ -40,6 +37,7 @@ def _run_mt_bench_eval(
             get_answers_func(
                 inferencer,
                 model_id,
+                template_name,
                 questions[i],
                 answer_file,
                 max_new_token,
@@ -47,10 +45,12 @@ def _run_mt_bench_eval(
             )
         )
 
+
 @torch.inference_mode()
 def get_model_answers(
     inferencer,
     model_id,
+    template_name,
     question,
     answer_file,
     max_new_token,
@@ -64,58 +64,51 @@ def get_model_answers(
     else:
         temperature = 0.7
 
-    print("temperature: ", temperature)
+    # print("temperature: ", temperature)
 
     choices = []
     for i in range(num_choices):
         torch.manual_seed(i)
-        conv = from_template(model_id)
+        conv = Conversation.from_template(template_name)
         turns = []
         for j in range(len(question["turns"])):
             qs = question["turns"][j]
-            conv.append_message(conv.roles[0], qs)
-            conv.append_message(conv.roles[1], None)
-            prompt = conv.get_prompt()
-
-            if conv.name.startswith("llama-2"):
-                prompt += " "
+            conv.append_message(Role.HUMAN, qs)
+            prompt = conv.get_conversation_str(add_generation_prompt=True)
 
             if temperature < 1e-4:
                 do_sample = False
             else:
                 do_sample = True
 
-            print("Input:", prompt)
+            # print("Input:", prompt)
 
             # some models may error out when generating long outputs
             try:
-                if do_sample==False:
+                if not do_sample:
                     output = inferencer.inference(
-                        prompt,
-                        do_sample=do_sample
+                        prompt, do_sample=do_sample, max_new_tokens=max_new_token
                     )
                 else:
                     output = inferencer.inference(
                         prompt,
                         temperature=temperature,
-                        do_sample=do_sample
+                        do_sample=do_sample,
+                        max_new_tokens=max_new_token,
                     )
 
-                if conv.name.startswith("qwen"):
-                    output = output[: output.find(conv.sep)]
-                else:
-                    if conv.stop_str and isinstance(conv.stop_str, list):
-                        stop_str_indices = sorted(
-                            [
-                                output.find(stop_str)
-                                for stop_str in conv.stop_str
-                                if output.find(stop_str) > 0
-                            ]
-                        )
-                        if len(stop_str_indices) > 0:
-                            output = output[: stop_str_indices[0]]
-                    elif conv.stop_str and output.find(conv.stop_str) > 0:
-                        output = output[: output.find(conv.stop_str)]
+                if conv.template.stop_str and isinstance(conv.template.stop_str, list):
+                    stop_str_indices = sorted(
+                        [
+                            output.find(stop_str)
+                            for stop_str in conv.template.stop_str
+                            if output.find(stop_str) > 0
+                        ]
+                    )
+                    if len(stop_str_indices) > 0:
+                        output = output[: stop_str_indices[0]]
+                elif conv.template.stop_str and output.find(conv.template.stop_str) > 0:
+                    output = output[: output.find(conv.template.stop_str)]
 
                 for special_token in tokenizer.special_tokens_map.values():
                     if isinstance(special_token, list):
@@ -125,9 +118,8 @@ def get_model_answers(
                         output = output.replace(special_token, "")
                 output = output.strip()
 
-                if conv.name == "xgen" and output.startswith("Assistant:"):
-                    output = output.replace("Assistant:", "", 1).strip()
             except RuntimeError as e:
+                print(e)
                 print("ERROR question ID: ", question["question_id"])
                 output = "ERROR"
 
@@ -157,9 +149,9 @@ def reorg_answer_file(answer_file):
     """Sort by question id and de-duplication"""
     answers = {}
     with open(answer_file, "r") as fin:
-        for l in fin:
-            qid = json.loads(l)["question_id"]
-            answers[qid] = l
+        for ll in fin:
+            qid = json.loads(ll)["question_id"]
+            answers[qid] = ll
 
     qids = sorted(list(answers.keys()))
     with open(answer_file, "w") as fout:
@@ -202,15 +194,15 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    question_file = f"data/mtbench/question.jsonl"
+    question_file = "data/eval/mt-bench/question.jsonl"
     if args.answer_file:
         answer_file = args.answer_file
     else:
-        answer_file = f"data/mtbench/model_answer/{args.model_id}.jsonl"
+        answer_file = f"data/eval/mt-bench/model_answer/{args.model_id}.jsonl"
 
     print(f"Output to {answer_file}")
 
-    run_eval(
+    inference_mt_bench(
         model_path=args.model_path,
         model_id=args.model_id,
         question_file=question_file,
@@ -218,7 +210,7 @@ if __name__ == "__main__":
         question_end=args.question_end,
         answer_file=answer_file,
         max_new_token=args.max_new_token,
-        num_choices=args.num_choices
+        num_choices=args.num_choices,
     )
 
     reorg_answer_file(answer_file)

@@ -4,7 +4,11 @@ import json
 import os
 import random
 
-from autoalign.inference.inferencer import MultiProcessHFInferencer, MultiProcessVllmInferencer
+from autoalign.inference.inferencer import (
+    MultiProcessHFInferencer,
+    MultiProcessVllmInferencer,
+)
+
 
 def parse_args():
 
@@ -24,6 +28,7 @@ def parse_args():
 
     return args
 
+
 def inference():
 
     args = parse_args()
@@ -41,7 +46,7 @@ def inference():
             num_beams=1,
             top_p=1,
             temperature=0,
-            do_sample=False
+            do_sample=False,
         )
 
     elif args.backend == "vllm":
@@ -50,7 +55,7 @@ def inference():
             max_new_tokens=args.max_new_tokens_per_utterance,
             num_beams=1,
             top_p=1,
-            temperature=0
+            temperature=0,
         )
 
     test_file_name = args.test_file.split("/")[-1]
@@ -60,33 +65,33 @@ def inference():
     print(output_file_path)
 
     all_convs = []
-        
+
     for d in all_test_points:
-        conv = Conversation.from_template(
-            args.template,
-            overwrite_system_message=args.system_message if args.system_message else None
-        )
+        conv = Conversation.from_template(args.template)
+        conv.system_message = args.system_message if args.system_message else None
         # clean the last message if it is from gpt
         if d["conversations"][-1]["from"] == "gpt":
             d["conversations"] = d["conversations"][:-1]
         conv.fill_in_messages(d)
         all_convs.append(conv)
 
-    turn_inputs = [conv.get_conversation_str(add_generation_prompt=True) for conv in all_convs]
+    turn_inputs = [
+        conv.get_conversation_str(add_generation_prompt=True) for conv in all_convs
+    ]
 
     idx = random.choice(range(len(all_test_points)))
 
     print("===============")
     print(f"Rendered Sample[{idx}]: {turn_inputs[idx]}")
     print("===============")
-        
+
     all_responses = inferencer.inference(turn_inputs)
 
     assert len(all_test_points) == len(all_responses)
 
     all_responses = [r.lstrip() for r in all_responses]
     print(f"Sample Response[{idx}]: {all_responses[idx]}")
-    
+
     for conv, res in zip(all_convs, all_responses):
         res = res.rstrip(inferencer.get_tokenizer().eos_token)
         conv.append_message("gpt", res)
@@ -95,21 +100,17 @@ def inference():
         all_outputs = []
         for idx, (conv, d) in enumerate(zip(all_convs, all_test_points)):
             messages = conv.get_messages()
-            d["conversations"].append(
-                {
-                    "from": "gpt",
-                    "value": messages[-1][1]
-                }
-            )
+            d["conversations"].append({"from": "gpt", "value": messages[-1][1]})
             all_outputs.append(
                 {
                     "id": d["id"] if "id" in d else f"{test_file_name}_{idx}",
                     "conversations": d["conversations"],
-                    "source": args.source 
+                    "source": args.source,
                 }
             )
-        
-        f.write(json.dumps(all_outputs, ensure_ascii=False))
+
+        f.write(json.dumps(all_outputs, indent=4, ensure_ascii=False))
+
 
 if __name__ == "__main__":
     inference()

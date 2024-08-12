@@ -1,55 +1,33 @@
+#!/bin/bash
+
 export NCCL_CUMEM_ENABLE=0
 export HF_ENDPOINT="https://hf-mirror.com"
-
 export HF_DATASETS_CACHE="./caches/hf_cache/datasets"
 
-MODEL_NAME="qwen2-7b_ultrachat"
-MODEL_PATH="saved_models/qwen2-7b_ultrachat"
+declare -A MODELS
 
-accelerate launch -m lm_eval --model hf \
-    --model_args pretrained="${MODEL_PATH}" \
-    --tasks "arc_challenge" \
-    --batch_size auto \
-    --num_fewshot 25 \
-    --output_path "./outputs/${MODEL_NAME}/arc_challenge.json" \
-    --trust_remote_code
+MODELS["mistral-01-7b_ultrachat"]="saved_models/mistral-01-7b_ultrachat"
+# Place more models here
 
-accelerate launch -m lm_eval --model hf \
-    --model_args pretrained="${MODEL_PATH}" \
-    --tasks "hellaswag" \
-    --batch_size auto \
-    --num_fewshot 10 \
-    --output_path "./outputs/${MODEL_NAME}/hellaswag.json" \
-    --trust_remote_code
+TASKS=("arc_challenge" "hellaswag" "truthfulqa" "gsm8k" "mmlu" "winogrande")
+FEWSHOTS=("25" "10" "0" "5" "5" "5")
 
-accelerate launch -m lm_eval --model hf \
-    --model_args pretrained="${MODEL_PATH}" \
-    --tasks "truthfulqa" \
-    --batch_size auto \
-    --num_fewshot 0 \
-    --output_path "./outputs/${MODEL_NAME}/truthfulqa_mc.json" \
-    --trust_remote_code
+for MODEL_NAME in "${!MODELS[@]}"; do
+  MODEL_PATH="${MODELS[$MODEL_NAME]}"
+  for i in "${!TASKS[@]}"; do
+    TASK="${TASKS[$i]}"
+    NUM_FEWSHOT="${FEWSHOTS[$i]}"
+    OUTPUT_PATH="./outputs/${MODEL_NAME}/${TASK}.json"
 
-accelerate launch -m lm_eval --model hf \
-    --model_args pretrained="${MODEL_PATH}" \
-    --tasks "gsm8k" \
-    --batch_size auto \
-    --num_fewshot 5 \
-    --output_path "./outputs/${MODEL_NAME}/gsm8k.json" \
-    --trust_remote_code
+    echo "Evaluating model: ${MODEL_NAME} at path: ${MODEL_PATH}"
 
-accelerate launch -m lm_eval --model hf \
-    --model_args pretrained="${MODEL_PATH}" \
-    --tasks "mmlu" \
-    --batch_size auto \
-    --num_fewshot 5 \
-    --output_path "./outputs/${MODEL_NAME}/mmlu.json" \
-    --trust_remote_code
+    accelerate launch -m lm_eval --model hf \
+        --model_args pretrained="${MODEL_PATH}" \
+        --tasks "${TASK}" \
+        --batch_size auto \
+        --num_fewshot "${NUM_FEWSHOT}" \
+        --output_path "${OUTPUT_PATH}" \
+        --trust_remote_code
 
-accelerate launch -m lm_eval --model hf \
-    --model_args pretrained="${MODEL_PATH}" \
-    --tasks "winogrande" \
-    --batch_size auto \
-    --num_fewshot 5 \
-    --output_path "./outputs/${MODEL_NAME}/winogrande.json" \
-    --trust_remote_code
+  done
+done

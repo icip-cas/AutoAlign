@@ -13,11 +13,12 @@ autoalign-cli sft \
     --save_strategy ${SAVE_STRATEGY:-"epoch"} \
     --learning_rate ${LR:-"2e-5"} \
     --weight_decay 0. \
-    --warmup_ratio 0.04 \
+    --warmup_ratio ${WARMUP_RATIO:-0.04} \
     --lr_scheduler_type ${LR_SCHEDULE:-"cosine"} \
     --report_to ${REPORT_TO:-"tensorboard"} \
     --logging_dir ${OUTPUT_DIR:-"models/qwen2-7b"} \
     --logging_steps 1 \
     --model_max_length ${MAX_LENGTH:-"4096"} \
     --gradient_checkpointing True \
-    --deepspeed ${DS_CONFIG:-"configs/zero3.json"}
+    --deepspeed ${DS_CONFIG:-"configs/zero3.json"} \
+    --ddp_timeout 18000

@@ -1,9 +1,11 @@
 """finetune"""
 import json
 from functools import partial
+from itertools import groupby
 from dataclasses import dataclass, field
 import pathlib
 import random
+from accelerate.state import PartialState
 
 import torch
 from datasets import Dataset
@@ -22,9 +24,12 @@ import transformers
 from autoalign.train.utils import configure_model
 
 local_rank = None
+
+
 def rank0_print(*args):
     if local_rank == 0:
         print(*args)
+
 
 # model related args
 @dataclass
@@ -38,7 +43,10 @@ class ModelArguments:
 class DataArguments:
     data_path: str
     conv_template_name: str = field(metadata={"help": "name of conversation template"})
-    num_workers: str = field(default=8, metadata={"help": "number of workers for tokenization"})
+    num_workers: str = field(
+        default=8, metadata={"help": "number of workers for tokenization"}
+    )
+
 
 def trainer_save_model_safe(trainer: transformers.Trainer):
     from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
@@ -49,6 +57,7 @@ def trainer_save_model_safe(trainer: transformers.Trainer):
         trainer.model, StateDictType.FULL_STATE_DICT, save_policy
     ):
         trainer.save_model()
+
 
 def tokenize_conversation(
     conv,
@@ -73,11 +82,12 @@ def tokenize_conversation(
 
     return tokenized_conversation
 
+
 def run_sft():
     # parse arguments
     parser = HfArgumentParser((ModelArguments, DataArguments, TrainingArguments))
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
-    
+
     global local_rank
     local_rank = training_args.local_rank
     rank0_print(f"{model_args = }")
@@ -109,19 +119,18 @@ def run_sft():
     # get dataset
     dataset = Dataset.from_list(data)
 
-    dataset = dataset.select(range(100))
-
     # tokenize dataset
-    dataset = dataset.map(
-        partial(
-            tokenize_conversation,
-            conv_template_name=data_args.conv_template_name,
-            tokenizer=tokenizer,
-            model_max_length=model_args.model_max_length,
-        ),
-        remove_columns=list(dataset.features),
-        num_proc=data_args.num_workers,
-    )
+    with PartialState().local_main_process_first():
+        dataset = dataset.map(
+            partial(
+                tokenize_conversation,
+                conv_template_name=data_args.conv_template_name,
+                tokenizer=tokenizer,
+                model_max_length=model_args.model_max_length,
+            ),
+            remove_columns=list(dataset.features),
+            num_proc=data_args.num_workers,
+        )
 
     random_idx = random.randint(0, len(dataset))
     input_ids = dataset[random_idx]["input_ids"]
@@ -130,10 +139,9 @@ def run_sft():
     rank0_print(input_text)
     rank0_print("-----------Train on Text-----------")
     labels = dataset[random_idx]["labels"]
-    mask = [label != -100 for label in labels]
-    train_ids = [idx for idx, m in zip(input_ids, mask) if m]
-    train_text = tokenizer.decode(train_ids)
-    rank0_print(train_text)
+    target_ids = [list(y) for x, y in groupby(labels, lambda x: x != -100) if x]
+    target_texts = list(map(tokenizer.decode, target_ids))
+    rank0_print("\n>>>>>>>>>>>>>>>>>\n".join(target_texts))
 
     # get data collator
     data_collator = DataCollatorForSeq2Seq(
@@ -168,6 +176,7 @@ def run_sft():
         trainer.save_model()
     else:
         trainer_save_model_safe(trainer)
-    
+
+
 if __name__ == "__main__":
     run_sft()
