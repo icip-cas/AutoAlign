@@ -2,8 +2,6 @@ import argparse
 
 from autoalign.serve.utils import chat_loop
 
-DEFAULT_CKPT_PATH = "Qwen/Qwen1.5-7B-Chat"
-
 
 class SimpleChatIO:
     def __init__(self, multiline: bool = False):
@@ -58,8 +56,7 @@ if __name__ == "__main__":
         "-c",
         "--checkpoint-path",
         type=str,
-        default=DEFAULT_CKPT_PATH,
-        help="Checkpoint name or path, default to %(default)r",
+        help="Checkpoint name or path",
     )
     parser.add_argument(
         "--cpu-only", action="store_true", help="Run demo with CPU only"

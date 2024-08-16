@@ -6,7 +6,7 @@ model_name: qwen2-7b_rlcd_sys_ultrafeedback
 template_name: chatml
 # 评测的模型路径
 # The path of the model to evaluate
-model_path: experiments/rlcd_sys/saved_models/qwen2-7b_rlcd_sys_ultrafeedback
+model_path: experiments/rlcd_sys/saved_models/qwen2-7b_rlcd_sys_ultrafeedback/checkpoint-396
 
 # 评测的类型
 # The type of evaluation
@@ -14,7 +14,7 @@ model_path: experiments/rlcd_sys/saved_models/qwen2-7b_rlcd_sys_ultrafeedback
 # objective_core: 评测模型的核心客观指标。(evaluating the core objective metrics of the model)
 # objective_all: 评测模型的所有客观指标。(evaluating all the objective metrics of the model)
 # subjective: 评测模型的主观指标。(evaluating the subjective metrics of the model)
-eval_type: subjective
+eval_type: objective_all
 # 单个模型 worker 所占用的GPU数量
 # The number of GPUs occupied by a single model worker
 per_model_gpu: 1

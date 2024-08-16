@@ -9,7 +9,7 @@ autoalign-cli dpo --model_name_or_path "./pretrained_models/Qwen2-7B"  \
     --gradient_accumulation_steps "4" \
     --eval_strategy "no" \
     --save_strategy "epoch" \
-    --learning_rate "2e-5" \
+    --learning_rate "5e-7" \
     --max_prompt_length 1024 \
     --max_length 2048 \
     --weight_decay 0. \
