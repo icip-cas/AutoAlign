@@ -1,3 +1,7 @@
 /train/
 eval/mt-bench/model_answer/*
 eval/mt-bench/model_judgement/*
+eval/anthropic_helpful.jsonl
+eval/rewardbench.jsonl
+eval/shp.jsonl
+eval/summarize.jsonl
