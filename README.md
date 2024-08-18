@@ -1,12 +1,13 @@
 # Auto-Alignment
 
-Auto-Alignment 是一个基于自动对齐技术的训练、部署和评测的大模型对齐工具包，通过提供基础和自动化的对齐算法，帮助用户使用基础模型快速对齐高质量模型
+Auto-Alignment is a package focusing on scalable and automated post-training methods. We aim to provide the academic community with a series of classic alignment baselines and ready-to-use automatic alignment algorithms. This toolkit is designed to facilitate research in the field of LLM alignment.
 
-工具包的核心功能包括：
-- 常见模型对齐的基础算法实现
-- 多种模型自动对齐的基础算法实现
-- 高效多样的模型采样
-- 自动化模型评测
+The core functionalities of the toolkit include:
+
+- Implementation of common model alignment algorithms (e.g., SFT, RS, DPO, Representation Engineering, etc.)
+- Implementation of various automatic model alignment algorithms (e.g., CAI, SPIN, RLCD, etc.)
+- Efficient model sampling
+- Automated model evaluation
 
 # Install
 
