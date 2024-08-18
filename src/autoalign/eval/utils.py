@@ -176,7 +176,7 @@ def run_judge_single(question, answer, judge, ref_answer, multi_turn=False):
     conv = Conversation.from_template(model)
     conv.system_message = system_prompt
     conv.append_message(Role.HUMAN, user_prompt)
-    conv.append_message(Role.ASSISTANT, None)
+    # conv.append_message(Role.ASSISTANT, None)
 
     if model in OPENAI_MODEL_LIST:
         judgment = chat_completion_openai(model, conv, temperature=0, max_tokens=2048)
@@ -275,7 +275,7 @@ def run_judge_pair(question, answer_a, answer_b, judge, ref_answer, multi_turn=F
 
     conv = Conversation.from_template(model)
     conv.append_message(Role.HUMAN, user_prompt)
-    conv.append_message(Role.ASSISTANT, None)
+    # conv.append_message(Role.ASSISTANT, None)
 
     if model in OPENAI_MODEL_LIST:
         conv.system_message = system_prompt
@@ -429,7 +429,8 @@ def chat_completion_openai(model, conv, temperature, max_tokens, api_dict=None):
                 temperature=temperature,
                 max_tokens=max_tokens,
             )
-            output = response["choices"][0]["message"]["content"]
+            # output = response["choices"][0]["message"]["content"]
+            output = response.choices[0].message.content
             break
         except Exception as e:
             import traceback
