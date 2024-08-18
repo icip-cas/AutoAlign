@@ -35,7 +35,7 @@ dependencies = [
     "wandb",
     "fire",
     "trl>=0.9.3",
-    "openai",
+    "openai>=1.0.0",
     "tenacity",
     "vllm==0.4.3",
     "langdetect",
