@@ -68,11 +68,15 @@ def inference():
 
     for d in all_test_points:
         conv = Conversation.from_template(args.template)
-        conv.system_message = args.system_message if args.system_message else None
-        # clean the last message if it is from gpt
         if d["conversations"][-1]["from"] == "gpt":
             d["conversations"] = d["conversations"][:-1]
-        conv.fill_in_messages(d)
+        # override the all system message if provided
+        if args.system_message:
+            conv.system_message = args.system_message
+            # clean the last message if it is from gpt
+            conv.fill_in_messages(d, replace_conv_system_message=False)
+        else:
+            conv.fill_in_messages(d)
         all_convs.append(conv)
 
     turn_inputs = [

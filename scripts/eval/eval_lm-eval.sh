@@ -6,7 +6,7 @@ export HF_DATASETS_CACHE="./caches/hf_cache/datasets"
 
 declare -A MODELS
 
-MODELS["mistral-01-7b_ultrachat"]="saved_models/mistral-01-7b_ultrachat"
+MODELS["gemma-2-9b_ultrachat"]="saved_models/gemma-2-9b_ultrachat"
 # Place more models here
 
 TASKS=("arc_challenge" "hellaswag" "truthfulqa" "gsm8k" "mmlu" "winogrande")

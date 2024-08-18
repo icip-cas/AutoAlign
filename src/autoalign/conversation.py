@@ -394,6 +394,21 @@ TEMPLATES = {
         offset=0,
         stop_str="</s>",
     ),
+    "gemma": ConversationTemplate(
+        name="gemma",
+        role_starts={
+            Role.SYSTEM: "",
+            Role.HUMAN: "<start_of_turn>user\n",
+            Role.ASSISTANT: "<start_of_turn>model\n",
+        },
+        role_ends={
+            Role.SYSTEM: "",
+            Role.HUMAN: "<end_of_turn>\n",
+            Role.ASSISTANT: "<end_of_turn>\n",
+        },
+        offset=0,
+        stop_str="<end_of_turn>",
+    ),
     "zephyr": ConversationTemplate(
         name="zephyr",
         role_starts={
