@@ -1,4 +1,9 @@
-from autoalign.prompts.constitutions import constitutions, history_stage1, history_stage2, history_stage3
+from autoalign.prompts.constitutions import (
+    constitutions,
+    history_stage1,
+    history_stage2,
+    history_stage3,
+)
 import argparse
 import random
 import json
@@ -27,7 +32,9 @@ if __name__ == "__main__":
     if last_stage_output is not None and stage > 1:
         with open(last_stage_output, "r", encoding="utf-8") as f:
             last_stage_data = json.loads(f.read())
-        last_stage_dict = {d["id"]: d["conversation"][-(2 * stage - 3):] for d in last_stage_data}
+        last_stage_dict = {
+            d["id"]: d["conversation"][-(2 * stage - 3) :] for d in last_stage_data
+        }
         for d in all_data:
             if d["id"] in last_stage_dict:
                 d["conversations"] = d["conversations"] + last_stage_dict[d["id"]]
@@ -49,14 +56,22 @@ if __name__ == "__main__":
 
             if all_data[idx]["conversations"][0]["from"] == "system":
                 all_data[idx]["conversations"] = (
-                    all_data[idx]["conversations"][0] + deepcopy(histories[stage]) + all_data[idx]["conversations"][1:]
+                    all_data[idx]["conversations"][0]
+                    + deepcopy(histories[stage])
+                    + all_data[idx]["conversations"][1:]
                 )
             else:
-                all_data[idx]["conversation"] = deepcopy(histories[stage]) + all_data[idx]["conversation"]
+                all_data[idx]["conversation"] = (
+                    deepcopy(histories[stage]) + all_data[idx]["conversation"]
+                )
 
             if stage == 2:
-                all_data[idx]["conversations"].append({"from": "human", "value": constitution["critic"]})
+                all_data[idx]["conversations"].append(
+                    {"from": "human", "value": constitution["critic"]}
+                )
             elif stage == 3:
-                all_data[idx]["conversations"].append({"from": "human", "value": constitution["revision"]})
+                all_data[idx]["conversations"].append(
+                    {"from": "human", "value": constitution["revision"]}
+                )
         with open(output_file, "w", encoding="utf-8") as f:
             f.write(json.dumps(all_data, indent=4, ensure_ascii=False))

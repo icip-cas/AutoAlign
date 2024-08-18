@@ -35,3 +35,10 @@ backend: vllm
 # ==============MTbench 设置================
 # mtbench文件夹的路径
 mt_path: data/eval/mt-bench
+
+# ==============AlpacaEval 设置================
+# see https://github.com/tatsu-lab/alpaca_eval/blob/main/src/alpaca_eval/evaluators_configs/README.md
+# Recommend using: chatgpt_fn or weighted_alpaca_eval_gpt4_turbo
+# use weighted_alpaca_eval_gpt4_turbo if you want the high agreement with humans.
+# use chatgpt_fn if you are on a tight budget.
+judge_model: chatgpt_fn

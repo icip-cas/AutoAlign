@@ -28,6 +28,8 @@ if __name__ == "__main__":
     for d in raw_data:
         if d["id"] in all_data_dict:
             d["conversation"].append(all_data_dict[d["id"]])
-            outputs.append({"id": d["id"], "conversation": d["conversation"], "source": source_tag})
+            outputs.append(
+                {"id": d["id"], "conversation": d["conversation"], "source": source_tag}
+            )
     with open(output_file, "w", encoding="utf-8") as f:
         f.write(json.dumps(outputs, indent=4, ensure_ascii=False))
