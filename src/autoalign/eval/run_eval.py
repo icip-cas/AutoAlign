@@ -18,7 +18,7 @@ from .gen_judgmen_mt_bench import judge_mt_bench
 from .default_configs import CONFIG_CORE, CONFIG_ALL, CONFIG_HF, CONFIG_VLLM
 
 
-def parse_args(args: str):
+def parse_args(args: list):
 
     parser = ArgumentParser()
     parser.add_argument("--config_path", type=str, default=None, required=True)

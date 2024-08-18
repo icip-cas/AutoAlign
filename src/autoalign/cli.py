@@ -18,6 +18,7 @@ class Command(str, Enum):
     EVAL = "eval"
     INFER = "infer"
     SERVE = "serve"
+    MERGE = "merge"
 
 
 def run_distributed_task(file, args):
@@ -88,5 +89,9 @@ def main():
         from .serve import serve_cli, serve_webui
 
         run_serve(serve_cli.__file__, serve_webui.__file__, args, remaining_args)
+    elif args.command == Command.MERGE:
+        from .model_merging.merge_models import run_merge
+
+        run_merge(remaining_args)
     else:
         raise ValueError(f"Unknown command: {args.command}")
