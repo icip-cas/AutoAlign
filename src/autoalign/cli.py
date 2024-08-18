@@ -53,7 +53,7 @@ def run_serve(cli_file, webui_file, args, remaining_args):
     assert args.mode is not None, "Please specify the mode for serve"
     mode = args.mode
     if mode == "cli":
-        command = f"accelerate launch {cli_file} {' '.join(remaining_args)}"
+        command = f"python {cli_file} {' '.join(remaining_args)}"
     elif mode == "browser":
         command = f"python {webui_file} {' '.join(remaining_args)}"
 

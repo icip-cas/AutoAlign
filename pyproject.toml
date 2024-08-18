@@ -39,6 +39,7 @@ dependencies = [
     "tenacity",
     "vllm==0.4.3",
     "langdetect",
+    "gradio",
 ]
 
 [project.optional-dependencies]

@@ -8,7 +8,7 @@ autoalign-cli sft \
     --per_device_train_batch_size ${TRAIN_BATCH_SIZE:-"4"} \
     --per_device_eval_batch_size ${EVAL_BATCH_SIZE:-"4"} \
     --gradient_accumulation_steps ${GA:-"1"} \
-    --eval_strategy ${EVAL_STRATEGY:-"no"} \
+    --eval_strategy ${EVAL_STRATEGY:-"steps"} \
     --eval_steps ${EVAL_STEPS:-"1500"} \
     --save_strategy ${SAVE_STRATEGY:-"epoch"} \
     --learning_rate ${LR:-"2e-5"} \

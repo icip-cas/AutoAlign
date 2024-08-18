@@ -1,12 +1,13 @@
 # Auto-Alignment
 
-Auto-Alignment 是一个基于自动对齐技术的训练、部署和评测的大模型对齐工具包，通过提供基础和自动化的对齐算法，帮助用户使用基础模型快速对齐高质量模型
+Auto-Alignment is a package focusing on scalable and automated post-training methods. We aim to provide the academic community with a series of classic alignment baselines and ready-to-use automatic alignment algorithms. This toolkit is designed to facilitate research in the field of LLM alignment.
 
-工具包的核心功能包括：
-- 常见模型对齐的基础算法实现
-- 多种模型自动对齐的基础算法实现
-- 高效多样的模型采样
-- 自动化模型评测
+The core functionalities of the toolkit include:
+
+- Implementation of common model alignment algorithms (e.g., SFT, RS, DPO, Representation Engineering, etc.)
+- Implementation of various automatic model alignment algorithms (e.g., CAI, SPIN, RLCD, etc.)
+- Efficient model sampling
+- Automated model evaluation
 
 # Install
 
@@ -161,7 +162,6 @@ In `eval.yaml`, the `model_path` is the absolute path to the evaluated model or 
 After running the above command, `autoalign-cli` will call the interface in OpenCompass to conduct an objective dataset evaluation. We format the timestamp and append it to the model_name as a directory name(`{model_id} = {model_name + timestamp}`), storing the evaluation results in the `outputs/{model_id}` directory. The raw result will be stored at `outputs/{model_id}/opencompass_log/{opencompass_timestamp}`, in which `{opencompass_timestamp}` is the default name of opencompass output directory of an evaluation. We will summarize and display each evaluation in `outputs/{model_id}/ordered_res.csv` and `outputs/{model_id}/ordered_res.txt`(formed output, easy to read).
 
 Before starting opencompass, we will check whether new file paths exist, including the config file: `configs/{model_id}.py`, result files: `outputs/{model_id}/ordered_res.csv` and  `outputs/{model_id}/ordered_res.txt`, opencompass logs: `outputs/{model_id}/opencompass_log/`. If one of them exists, you need to choose to continue evaluating or to exit. Continuing may cause overwriting.
-If
 
 
 ## Contributing

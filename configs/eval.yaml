@@ -1,12 +1,12 @@
 # 评测的模型标识名称
 # Identifying name of the model to evaluate
-model_name: Meta-Llama-3-8B
+model_name: qwen2-7b_rlcd_sys_ultrafeedback
 
 # 评测时使用的上下文模板，可见src/autoalign/conversation.py中的TEMPLATES
-template_name: llama-3-instruct
+template_name: chatml
 # 评测的模型路径
 # The path of the model to evaluate
-model_path: pretrained_models/Meta-Llama-3-8B
+model_path: experiments/rlcd_sys/saved_models/qwen2-7b_rlcd_sys_ultrafeedback/checkpoint-396
 
 # 评测的类型
 # The type of evaluation
@@ -15,7 +15,6 @@ model_path: pretrained_models/Meta-Llama-3-8B
 # objective_all: 评测模型的所有客观指标。(evaluating all the objective metrics of the model)
 # subjective: 评测模型的主观指标。(evaluating the subjective metrics of the model)
 eval_type: objective_all
-
 # 单个模型 worker 所占用的GPU数量
 # The number of GPUs occupied by a single model worker
 per_model_gpu: 1
@@ -36,3 +35,10 @@ backend: vllm
 # ==============MTbench 设置================
 # mtbench文件夹的路径
 mt_path: data/eval/mt-bench
+
+# ==============AlpacaEval 设置================
+# see https://github.com/tatsu-lab/alpaca_eval/blob/main/src/alpaca_eval/evaluators_configs/README.md
+# Recommend using: chatgpt_fn or weighted_alpaca_eval_gpt4_turbo
+# use weighted_alpaca_eval_gpt4_turbo if you want the high agreement with humans.
+# use chatgpt_fn if you are on a tight budget.
+judge_model: chatgpt_fn

@@ -97,12 +97,18 @@ def run_sft():
     with open(data_args.data_path, "r") as f:
         data = json.load(f)
 
+    config = transformers.AutoConfig.from_pretrained(model_args.model_name_or_path)
+    if config.model_type == "gemma2":
+        attn_implementation = "eager"
+    else:
+        attn_implementation = "flash_attention_2"
+
     # load model and tokenizer
     model = AutoModelForCausalLM.from_pretrained(
         model_args.model_name_or_path,
         # FIXME: currently use bfloat16 regardless of training script
         torch_dtype=torch.bfloat16,
-        attn_implementation="flash_attention_2",
+        attn_implementation=attn_implementation,
     )
     tokenizer = AutoTokenizer.from_pretrained(
         model_args.model_name_or_path,
