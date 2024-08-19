@@ -1,29 +1,31 @@
 # Auto-Alignment
 
-Auto-Alignment is a package focusing on scalable and automated post-training methods. We aim to provide the academic community with a series of classic alignment baselines and ready-to-use automatic alignment algorithms. This toolkit is designed to facilitate research in the field of LLM alignment.
+Auto-Alignment is a package focusing on scalable and automated post-training methods. We aim to provide the academic community with a series of classic alignment baselines and ready-to-use automated alignment algorithms. This toolkit is designed to facilitate research in the field of LLM alignment.
 
 The core functionalities of the toolkit include:
 
-- Implementation of common model alignment algorithms (e.g., SFT, RS, DPO, Representation Engineering, etc.)
+- Implementation of common model alignment algorithms (e.g., SFT, RS, RM, DPO, etc.)
 - Implementation of various automatic model alignment algorithms (e.g., CAI, SPIN, RLCD, etc.)
 - Efficient model sampling
 - Automated model evaluation
+- After training intervertion methods (e.g., Represenatation Engineering, Model Averaging, etc.)
 
 # Install
 
-Default
+*Default*
 
 ```
 pip install .[train]
 ```
 
-Evaluation (Optional)
+*Evaluation (Optional)*
 
 ```
 pip install .[eval]
+bash ./scripts/post_install.sh
 ```
 
-Install for Develop
+*Install for Develop*
 
 ```
 pip install -e .[dev]
@@ -40,103 +42,13 @@ autoalign-cli infer
 autoalign-cli eval --backend "vllm"
 ```
 
-## Fine-tuning
-### Data
+## Data Formatting
 
-We use sharegpt format data for supervised fine-tuning. The format are as follows:
-```json
-[
-    {
-        "id": "0",
-        "conversations": [
-            {
-                "from": "system",
-                "value": "You are a helpful artificial assistant who gives friendly responses."
-            },
-            {
-                "from": "human",
-                "value": "Tell me about Beethoven."
-            },
-            {
-                "from": "gpt",
-                "value": "Beethoven is a great composer."
-            }
-        ]
-    },
-    {
-        ...
-    }
-]
-```
+Currently, we use the format in ```data/dummy_sft.json``` for supervised finetuning and the format in ```data/dummy_dpo.json``` for RL process.
 
-## TODO
-
-```bash
-export MODEL_PATH=meta-llama/Meta-Llama-3-8B
-export DATA_PATH=data/dummy_sft.json
-export OUTPUT_DIR=models/llama3-sft
-
-bash scripts/train_sft.sh
-```
-
-## Direct Preference Optimization
-### Data
-
-We use data format similar to SFT for direct preference optimization. The format are as follows:
-```json
-{
-    "prompt": "Tell me about Beethoven." ,
-    "chosen":[
-        {
-            "value":"Tell me about Beethoven.",
-            "from": "human"
-        },
-        {
-            "value":"Beethoven is a great composer.",
-            "from": "gpt"
-        }
-    ],
-    "rejected":[
-        {
-            "value":"Tell me about Beethoven.",
-            "from": "human"
-        },
-        {
-            "value":"Sorry, there is no information about Beethoven.",
-            "from": "gpt"
-        }
-    ]
-}
-```
-
-
-### DPO Llama-3-8B with Local GPUs
-
-```bash
-export MODEL_PATH=meta-llama/Meta-Llama-3-8B
-export DATA_PATH=data/dummy_dpo.json
-export OUTPUT_DIR=models/llama3-sft
-
-bash scripts/train_dpo.sh
-```
-
-
-## Test
-
-### Test Conversation Template
-
-You can use the following script to test the newly added conversation template:
-
-```bash
-python tests/test_conversation.py test_get_tokenized_conversation \
-    --template_name vicuna_v1.1 \
-    --tokenizer_name_or_path meta-llama/Llama-3-8B \
-    --model_max_length 4096 \
-    --data_path data/dummy_sft.json
-```
 ## Evaluation
 ### Objective evaluation
-Objective evaluation involves assessing datasets with standard answers, where processed responses can be directly compared to these standard answers according to established rules and model performances are mesured with quantitative metrics. This project utilizes the OpenCompass platform to conduct these evaluations.
+Objective evaluation involves assessing datasets with standard answers, where processed responses can be directly compared to these standard answers according to established rules and model performances are mesured with quantitative metrics. We utilize the OpenCompass platform to conduct these evaluations.
 
 Usage:
 ``` bash
