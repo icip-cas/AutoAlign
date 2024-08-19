@@ -14,7 +14,7 @@ logger = get_logger(__name__)
 class Command(str, Enum):
     SFT = "sft"
     DPO = "dpo"
-    REWARD = "reward"
+    REWARD = "rm"
     DATA = "data"
     EVAL = "eval"
     INFER = "infer"
@@ -78,9 +78,9 @@ def main():
 
         run_distributed_task(dpo.__file__, remaining_args)
     elif args.command == Command.REWARD:
-        from .train import reward
+        from .train import rm
 
-        run_distributed_task(reward.__file__, remaining_args)
+        run_distributed_task(rm.__file__, remaining_args)
     elif args.command == Command.EVAL:
         from .eval.run_eval import run_eval
 
