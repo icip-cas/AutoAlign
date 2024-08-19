@@ -17,8 +17,12 @@ def configure_model(conv_template_name, tokenizer, model):
     model.config.bos_token_id = tokenizer.bos_token_id
     model.config.eos_token_id = tokenizer.eos_token_id
 
-    model.generation_config.bos_token_id = tokenizer.bos_token_id
-    model.generation_config.eos_token_id = tokenizer.eos_token_id
+    if model.config.pad_token_id is None:
+        model.config.pad_token_id = tokenizer.pad_token_id
+
+    if hasattr(model, "generation_config") and model.generation_config is not None:
+        model.generation_config.bos_token_id = tokenizer.bos_token_id
+        model.generation_config.eos_token_id = tokenizer.eos_token_id
 
     model.config.use_cache = False  # disable cache for training
 
