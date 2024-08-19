@@ -268,28 +268,34 @@ def run_alpaca_eval(
     )
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     logger.info("starting to generate outputs")
-    try:
-        datas = build_data(
-            eval_set,
-            batch_size=batch_size,
-            tokenizer=tokenizer,
-            model_path=model_path,
-            template_name=template_name,
-        )
-    except Exception as e:
-        logger.error(f"error when generating alpaca outputs: {e}")
-        return
-    for data in datas:
-        data["generator"] = model_name
-    if not os.path.exists(f"data/alpaca/{model_name}"):
-        os.makedirs(f"data/alpaca/{model_name}")
-    with open(f"data/alpaca/{model_name}/{model_name}_outputs.json", "w") as f:
-        json.dump(datas, f, indent=4)
+    answer_file = f"data/alpaca/{model_name}/{model_name}_outputs.json"
+    if os.path.exists(answer_file) and not remove_file_if_user_confirms(answer_file):
+        logger.info(f"Using existing answer file at {answer_file}")
+    else:
+        try:
+            datas = build_data(
+                eval_set,
+                batch_size=batch_size,
+                tokenizer=tokenizer,
+                model_path=model_path,
+                template_name=template_name,
+            )
+        except Exception as e:
+            logger.error(f"error when generating alpaca outputs: {e}")
+            return
+        for data in datas:
+            data["generator"] = model_name
+        if not os.path.exists(f"data/alpaca/{model_name}"):
+            os.makedirs(f"data/alpaca/{model_name}")
+        with open(f"data/alpaca/{model_name}/{model_name}_outputs.json", "w") as f:
+            json.dump(datas, f, indent=4)
     logger.info("outputs generated, starting to evaluate")
+    
     command = f"""alpaca_eval --model_outputs data/alpaca/{model_name}/{model_name}_outputs.json \
     --output_path data/alpaca/{model_name}/ \
     --annotators_config {judge_model} \
     --is_overwrite_leaderboard"""
+    logger.info(f"Start Runing alpacal eval\n {command=}")
     process = subprocess.run(command, shell=True)
     if process.returncode != 0:
         logger.error(
@@ -341,6 +347,7 @@ def run_mt_bench_eval(
 
     question_file = f"{mtpath}/question.jsonl"
     answer_file = f"{mtpath}/model_answer/{model_name}.jsonl"
+    judge_file = f"{mtpath}/model_judgment/{model_name}_gpt-4_single.jsonl"
 
     if os.path.exists(answer_file) and not remove_file_if_user_confirms(answer_file):
 
@@ -364,10 +371,16 @@ def run_mt_bench_eval(
 
     logger.info("mt-bench generation finished")
     logger.info("starting to evaluate")
-    judge_mt_bench(model_list=[model_name], parallel=4, mtpath=mtpath)
+    
+    if os.path.exists(judge_file) and not remove_file_if_user_confirms(judge_file):
+        logger.info(f"Using existing judge file at {judge_file}")
+
+    else:
+        judge_mt_bench(model_list=[model_name], parallel=4, mtpath=mtpath)
+        
     logger.info("mt-bench evaluation finished")
 
-    display_result_single("mt_bench", None, "gpt-4", [model_name])
+    display_result_single("mt_bench", judge_file, "gpt-4", [model_name])
 
 
 def transpose_and_format_dataframe(input_dataframe, output_txt_path):
