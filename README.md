@@ -1,6 +1,6 @@
 # Auto-Alignment
 
-Auto-Alignment is a package focusing on scalable and automated post-training methods. We aim to provide the academic community with a series of classic alignment baselines and ready-to-use automated alignment algorithms. This toolkit is designed to facilitate research in the field of LLM alignment.
+Auto-Alignment is a package focusing on scalable and automated alignment methods. We aim to provide the academic community with a series of classic alignment baselines and ready-to-use automated alignment algorithms. This toolkit is designed to facilitate research in the field of LLM alignment.
 
 The core functionalities of the toolkit include:
 
@@ -8,7 +8,7 @@ The core functionalities of the toolkit include:
 - Implementation of various automatic model alignment algorithms (e.g., CAI, SPIN, RLCD, etc.)
 - Efficient model sampling
 - Automated model evaluation
-- After training intervertion methods (e.g., Represenatation Engineering, Model Averaging, etc.)
+- Post-training intervertion methods (e.g., Represenatation Engineering, Model Averaging, etc.)
 
 # Install
 
@@ -33,21 +33,59 @@ pre-commit install
 ```
 
 
-## Usage
+## Quick Start
+
+We recommand to use huggingface mirror for Chinese users via:
+```bash
+export HF_ENDPOINT=https://hf-mirror.com
+```
+
+### SFT
 
 ``` bash
 autoalign-cli sft
+```
+
+### Reward Modeling
+
+```bash
+autoalign-cli rm
+```
+
+### DPO
+
+```bash
 autoalign-cli dpo
-autoalign-cli infer
-autoalign-cli eval --backend "vllm"
+```
+
+### Inference
+
+```bash
+autoalign-cli infer --backend "vllm" \
+            --model-name "Qwen2-0.5B-Instruct" \
+            --model-path "Qwen/Qwen2-0.5B-Instruct" \
+            --test-file "data/dummy_sft.json" \
+            --template "chatml" \
+            --source "qwen2_0_5b_instruct_dummy"
+```
+
+### Serve
+
+```bash
+autoalign-cli serve
 ```
 
 ## Data Formatting
 
 Currently, we use the format in ```data/dummy_sft.json``` for supervised finetuning and the format in ```data/dummy_dpo.json``` for RL process.
 
+## Documents
+
+Documents of this toolkit is stored at ```./docs/```.
+
 ## Evaluation
 ### Objective evaluation
+
 Objective evaluation involves assessing datasets with standard answers, where processed responses can be directly compared to these standard answers according to established rules and model performances are mesured with quantitative metrics. We utilize the OpenCompass platform to conduct these evaluations.
 
 Usage:
