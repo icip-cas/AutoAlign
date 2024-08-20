@@ -4,7 +4,7 @@ One simple weak supervision signal is that treat the response from bigger model 
 
 These perference pairs can be collected by running the following scripts:
 
-```
+```bash
 export WEAK_MODEL_NAME=qwen2-0_5b
 export WEAK_MODEL_PATH="./pretrained_models/Qwen2-0.5B"
 export STRONG_MODEL_NAME=qwen2-7b
@@ -18,6 +18,18 @@ bash prepare_for_dpo.sh
 
 Then start training!
 
-```
+```bash
 bash train_dpo.sh
+```
+
+## Evaluation Results
+
+| Model  | MT-Bench | Alpaca-Eval 2.0 |
+|--------|------|----------|
+|        |      |          |
+
+## Citation
+
+```
+
 ```
