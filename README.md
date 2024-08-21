@@ -2,7 +2,8 @@
 
 <p align="center">
     <a href="#-quick-start">🔥Quick Start</a> •
-    <a href="#-quick-start">📪Features</a> •
+    <a href="#-features">📪Features</a> •
+    <a href="#-reference-results">📈Results</a> •
     <a href="#-issues">🐛Issues</a> •
     <a href="#-citation">📜Citation</a>
 </p>
@@ -108,6 +109,8 @@ Before starting opencompass, we will check whether new file paths exist, includi
 ## 📪 Features
 
 这里可以给一个表列出现在Support的模型、数据、benchmark、算法等等。
+
+## 📈 Reference Results
 
 ## 📅 TODO
 
