@@ -129,7 +129,7 @@ You can configure inference parameters in the file `eval.yaml`. For objective ev
 ```bash
 autoalign-cli merge --model_paths "psmathur/orca_mini_v3_13b" "WizardLM/WizardLM-13B-V1.2" "garage-bAInd/Platypus2-13B" \
                     --merged_model_path "merged_model" \
-                    --merging_method
+                    --merging_method "average"
 ```
 
 The models in `model_paths` should share the same structure.
