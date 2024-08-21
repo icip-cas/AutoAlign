@@ -24,7 +24,7 @@ The core functionalities of the toolkit include:
 
 ## 🚀 News
 
-* [2024.8.23] We released the first version of AutoAlign, which supports XXX and XXXX. More XXX are comming soon🔥🔥🔥.
+**[2024.8.23]** We released the first version of AutoAlign, which supports CAI, PCON and a varient of RLCD. More algorithms are comming soon🔥🔥🔥.
 
 ## 🔥 Quick Start
 
@@ -61,7 +61,7 @@ We also prepared two examples to facilitate your usage. [data/dummy_sft.json](da
 
 ### 📚 Basic Alignment Toolkit
 
-* SFT
+### SFT
 
 这里给每个部分写一个简短的running example，包含最基本的数据和模型信息
 然后说明怎么获取详细的可配置参数
