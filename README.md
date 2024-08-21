@@ -24,7 +24,7 @@ The core functionalities of the toolkit include:
 
 ## 🚀 News
 
-**[2024.8.23]** We released the first version of AutoAlign, which supports CAI, PCON and a varient of RLCD. More algorithms are comming soon🔥🔥🔥.
+**[2024.8.23]** We released the first version (v0.0.1) of AutoAlign, which supports CAI, PCON and a varient of RLCD. More algorithms are comming soon🔥🔥🔥.
 
 ## 🔥 Quick Start
 
@@ -41,13 +41,6 @@ pip install .[train]
 ```
 pip install .[eval]
 bash ./scripts/post_install.sh
-```
-
-*Install for Develop*
-
-```
-pip install -e .[dev]
-pre-commit install
 ```
 
 ### 📂 Data Preparation
@@ -80,7 +73,12 @@ autoalign-cli rm
 ### DPO
 
 ```bash
-autoalign-cli dpo
+autoalign-cli dpo --model_name_or_path "Qwen2/Qwen2-7B-Instruct"  \
+            --data_path "data/dummy_dpo.json" \
+            --bf16 True \
+            --output_dir "models/qwen2-7b-dpo" \
+            --conv_template_name chatml \
+            --deepspeed "configs/zero3.json"
 ```
 
 ### Inference
@@ -102,7 +100,7 @@ autoalign-cli serve
 
 ### 🛠 Automated Alignment Toolkit
 
-The introduction and scripts for each automated alignment algorithm are stored in the [experiments](experiments) folder. （这个文件夹建议换个名字，和automated alignment相关的）
+The introduction and scripts for each automated alignment algorithm are stored in the [algorithms](./algorithms) folder.
 
 Currently, we implemented the following algorithms for automated alignment
 
@@ -173,6 +171,13 @@ If you would like to contribute to this project, please follow these guidelines:
 2. Create a new branch.
 3. Make your changes.
 4. Submit a pull request.
+
+*Install for Develop*
+
+```
+pip install -e .[dev]
+pre-commit install
+```
 
 ## 💳 License
 
