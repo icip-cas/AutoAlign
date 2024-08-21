@@ -10,7 +10,7 @@
 
 ## 📣 About
 
-Auto-Alignment is a package focusing on scalable and automated post-training methods. We aim to provide the academic community with a series of classic alignment baselines and ready-to-use automated alignment algorithms. This toolkit is designed to facilitate research in the field of LLM alignment.
+Auto-Alignment is a package focusing on scalable and automated alignment methods. We aim to provide the academic community with a series of classic alignment baselines and ready-to-use automated alignment algorithms. This toolkit is designed to facilitate research in the field of LLM alignment.
 
 The core functionalities of the toolkit include:
 
@@ -18,7 +18,7 @@ The core functionalities of the toolkit include:
 - Implementation of various automatic model alignment algorithms (e.g., CAI, SPIN, RLCD, etc.)
 - Efficient model sampling
 - Automated model evaluation
-- After training intervertion methods (e.g., Represenatation Engineering, Model Averaging, etc.)
+- Post-training intervertion methods (e.g., Represenatation Engineering, Model Averaging, etc.)
 
 *这里最好有张图，整体介绍一下这个仓库有哪些功能/组织方式*
 
@@ -69,9 +69,35 @@ DPO和inference也类似
 
 ``` bash
 autoalign-cli sft
+```
+
+### Reward Modeling
+
+```bash
+autoalign-cli rm
+```
+
+### DPO
+
+```bash
 autoalign-cli dpo
-autoalign-cli infer
-autoalign-cli eval --backend "vllm"
+```
+
+### Inference
+
+```bash
+autoalign-cli infer --backend "vllm" \
+            --model-name "Qwen2-0.5B-Instruct" \
+            --model-path "Qwen/Qwen2-0.5B-Instruct" \
+            --test-file "data/dummy_sft.json" \
+            --template "chatml" \
+            --source "qwen2_0_5b_instruct_dummy"
+```
+
+### Serve
+
+```bash
+autoalign-cli serve
 ```
 
 ### 🛠 Automated Alignment Toolkit
@@ -93,6 +119,13 @@ Currently, we implemented the following algorithms for automated alignment
 quick start不建议写的这么复杂，可以单独在evaluation的文件夹下介绍具体的，这里只需要简单的running example，怎么配置，在哪里看结果即可
 
 #### Objective evaluation
+
+## Documents
+
+Documents of this toolkit is stored at ```./docs/```.
+
+## Evaluation
+### Objective evaluation
 
 Objective evaluation involves assessing datasets with standard answers, where processed responses can be directly compared to these standard answers according to established rules and model performances are mesured with quantitative metrics. We utilize the OpenCompass platform to conduct these evaluations.
 
