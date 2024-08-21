@@ -83,6 +83,12 @@ Currently, we use the format in ```data/dummy_sft.json``` for supervised finetun
 
 Documents of this toolkit is stored at ```./docs/```.
 
+## Algorithms
+
+Currently, the algorithms are stored in ```./experiments/```.
+
+In the near future, we plan to integrate the representative methods into the code base.
+
 ## Evaluation
 ### Objective evaluation
 
