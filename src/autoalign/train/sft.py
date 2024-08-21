@@ -6,9 +6,11 @@ from dataclasses import dataclass, field
 import pathlib
 import random
 from accelerate.state import PartialState
+from typing import Dict
 
 import torch
 from datasets import Dataset
+from torch.utils.data import Dataset as TorchDataset
 from transformers import (
     AutoTokenizer,
     AutoModelForCausalLM,
@@ -43,9 +45,10 @@ class ModelArguments:
 class DataArguments:
     data_path: str
     conv_template_name: str = field(metadata={"help": "name of conversation template"})
-    num_workers: str = field(
+    num_workers: int = field(
         default=8, metadata={"help": "number of workers for tokenization"}
     )
+    lazy_preprocess: bool = False
 
 
 def trainer_save_model_safe(trainer: transformers.Trainer):
@@ -81,6 +84,38 @@ def tokenize_conversation(
     # print(tokenized_conversation)
 
     return tokenized_conversation
+
+
+
+class LazySupervisedDataset(TorchDataset):
+    """Dataset for supervised fine-tuning."""
+    def __init__(self, raw_data, tokenizer: transformers.PreTrainedTokenizer, conv_template_name: str, model_max_length: int):
+        super(LazySupervisedDataset, self).__init__()
+        self.tokenizer = tokenizer
+        self.conv_template_name = conv_template_name
+        self.model_max_length = model_max_length
+
+        rank0_print("Formatting inputs...Skip in lazy mode")
+        self.raw_data = raw_data
+        self.cached_data_dict = {}
+
+    def __len__(self):
+        return len(self.raw_data)
+
+    def __getitem__(self, i) -> Dict[str, torch.Tensor]:
+        if i in self.cached_data_dict:
+            return self.cached_data_dict[i]
+        ret = tokenize_conversation(
+            self.raw_data[i],
+            self.conv_template_name,
+            self.tokenizer,
+            self.model_max_length
+        )
+        
+        self.cached_data_dict[i] = ret
+
+        return ret
+
 
 
 def run_sft():
@@ -123,22 +158,29 @@ def run_sft():
         tokenizer.bos_token_id = tokenizer.convert_tokens_to_ids(tokenizer.bos_token)
 
     # get dataset
-    dataset = Dataset.from_list(data)
+    if data_args.lazy_preprocess:
+        dataset = LazySupervisedDataset(data,
+                    tokenizer=tokenizer,
+                    conv_template_name=data_args.conv_template_name,
+                    model_max_length=model_args.model_max_length)
+        rank0_print("Loading data...")
 
-    # tokenize dataset
-    with PartialState().local_main_process_first():
-        dataset = dataset.map(
-            partial(
-                tokenize_conversation,
-                conv_template_name=data_args.conv_template_name,
-                tokenizer=tokenizer,
-                model_max_length=model_args.model_max_length,
-            ),
-            remove_columns=list(dataset.features),
-            num_proc=data_args.num_workers,
-        )
+    else:
+        dataset = Dataset.from_list(data)
+        # tokenize dataset
+        with PartialState().local_main_process_first():
+            dataset = dataset.map(
+                partial(
+                    tokenize_conversation,
+                    conv_template_name=data_args.conv_template_name,
+                    tokenizer=tokenizer,
+                    model_max_length=model_args.model_max_length,
+                ),
+                remove_columns=list(dataset.features),
+                num_proc=data_args.num_workers,
+            )
 
-    random_idx = random.randint(0, len(dataset))
+    random_idx = random.randint(0, len(dataset)-1)
     input_ids = dataset[random_idx]["input_ids"]
     input_text = tokenizer.decode(input_ids)
     rank0_print("-----------Full Text-----------")
