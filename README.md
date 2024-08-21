@@ -107,7 +107,7 @@ autoalign-cli serve --checkpoint-path "Qwen2/Qwen2-7B-Instruct" \
 ```bash
 autoalign-cli merge --model_paths "psmathur/orca_mini_v3_13b" "WizardLM/WizardLM-13B-V1.2" "garage-bAInd/Platypus2-13B" \
                     --merged_model_path "merged_model" \
-                    --merging_method
+                    --merging_method "average"
 ```
 
 ### 🛠 Automated Alignment Algorithms
@@ -130,16 +130,6 @@ autoalign-cli eval --config eval.yaml
 ```
 
 You can configure inference parameters in the file `eval.yaml`. For objective evaluation, the results will be displayed in `outputs/{model_id}/ordered_res.txt` at the root directory of the repository. For more information, please read `docs/eval.md`.
-
-### Model Merging
-
-```bash
-autoalign-cli merge --model_paths "psmathur/orca_mini_v3_13b" "WizardLM/WizardLM-13B-V1.2" "garage-bAInd/Platypus2-13B" \
-                    --merged_model_path "merged_model" \
-                    --merging_method "average"
-```
-
-The models in `model_paths` should share the same structure.
 
 ## Documents
 
