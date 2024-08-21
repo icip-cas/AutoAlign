@@ -95,7 +95,9 @@ autoalign-cli infer --backend "vllm" \
 ### Serve
 
 ```bash
-autoalign-cli serve
+autoalign-cli serve --checkpoint-path "Qwen2/Qwen2-7B-Instruct" \
+                    --mode "browser" \
+                    --template "chatml"
 ```
 
 ### 🛠 Automated Alignment Toolkit
@@ -116,7 +118,21 @@ Currently, we implemented the following algorithms for automated alignment
 
 quick start不建议写的这么复杂，可以单独在evaluation的文件夹下介绍具体的，这里只需要简单的running example，怎么配置，在哪里看结果即可
 
-#### Objective evaluation
+``` bash
+autoalign-cli eval --config eval.yaml
+```
+
+You can configure inference parameters in the file `eval.yaml`. For objective evaluation, the results will be displayed in `outputs/{model_id}/ordered_res.txt` at the root directory of the repository. For more information, please read `docs/eval.md`.
+
+### Model Merging
+
+```bash
+autoalign-cli merge --model_paths "psmathur/orca_mini_v3_13b" "WizardLM/WizardLM-13B-V1.2" "garage-bAInd/Platypus2-13B" \
+                    --merged_model_path "merged_model" \
+                    --merging_method
+```
+
+The models in `model_paths` should share the same structure.
 
 ## Documents
 
@@ -131,17 +147,6 @@ In the near future, we plan to integrate the representative methods into the cod
 ## Evaluation
 ### Objective evaluation
 
-Objective evaluation involves assessing datasets with standard answers, where processed responses can be directly compared to these standard answers according to established rules and model performances are mesured with quantitative metrics. We utilize the OpenCompass platform to conduct these evaluations.
-
-Usage:
-``` bash
-autoalign-cli eval --config eval.yaml
-```
-In `eval.yaml`, the `model_path` is the absolute path to the evaluated model or the relative path from the root directory of this repository.
-
-After running the above command, `autoalign-cli` will call the interface in OpenCompass to conduct an objective dataset evaluation. We format the timestamp and append it to the model_name as a directory name(`{model_id} = {model_name + timestamp}`), storing the evaluation results in the `outputs/{model_id}` directory. The raw result will be stored at `outputs/{model_id}/opencompass_log/{opencompass_timestamp}`, in which `{opencompass_timestamp}` is the default name of opencompass output directory of an evaluation. We will summarize and display each evaluation in `outputs/{model_id}/ordered_res.csv` and `outputs/{model_id}/ordered_res.txt`(formed output, easy to read).
-
-Before starting opencompass, we will check whether new file paths exist, including the config file: `configs/{model_id}.py`, result files: `outputs/{model_id}/ordered_res.csv` and  `outputs/{model_id}/ordered_res.txt`, opencompass logs: `outputs/{model_id}/opencompass_log/`. If one of them exists, you need to choose to continue evaluating or to exit. Continuing may cause overwriting.
 
 ## 📪 Features
 
