@@ -138,7 +138,7 @@ def run_sft():
             num_proc=data_args.num_workers,
         )
 
-    random_idx = random.randint(0, len(dataset))
+    random_idx = random.randint(0, len(dataset)-1)
     input_ids = dataset[random_idx]["input_ids"]
     input_text = tokenizer.decode(input_ids)
     rank0_print("-----------Full Text-----------")
