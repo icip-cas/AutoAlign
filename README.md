@@ -24,7 +24,7 @@ The core functionalities of the toolkit include:
 
 ## 🚀 News
 
-* [2024.8.23] We released the first version of AutoAlign, which supports XXX and XXXX. More XXX are comming soon🔥🔥🔥. 
+* [2024.8.23] We released the first version of AutoAlign, which supports XXX and XXXX. More XXX are comming soon🔥🔥🔥.
 
 ## 🔥 Quick Start
 
@@ -123,6 +123,12 @@ quick start不建议写的这么复杂，可以单独在evaluation的文件夹�
 ## Documents
 
 Documents of this toolkit is stored at ```./docs/```.
+
+## Algorithms
+
+Currently, the algorithms are stored in ```./experiments/```.
+
+In the near future, we plan to integrate the representative methods into the code base.
 
 ## Evaluation
 ### Objective evaluation

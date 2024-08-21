@@ -53,3 +53,5 @@ flagged/
 
 /opencompass
 ip.sh
+
+*.tar.gz
