@@ -22,7 +22,7 @@ IGNORE_TOKEN_ID = LabelSmoother.ignore_index
 
 @dataclass
 class ModelArguments:
-    model_name_or_path: Optional[str] = field(default="facebook/opt-125m")
+    model_name_or_path: Optional[str] = field(default="Qwen2/Qwen2-7B-Instruct")
 
 
 @dataclass
@@ -31,7 +31,7 @@ class DataArguments:
         default=None, metadata={"help": "Path to the training data."}
     )
     conv_template_name: str = field(
-        default="qwen-7b-chat", metadata={"help": "name of conversation template"}
+        default="chatml", metadata={"help": "name of conversation template"}
     )
 
 
