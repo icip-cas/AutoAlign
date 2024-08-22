@@ -14,7 +14,7 @@ Auto-Alignment is a package focusing on scalable and automated alignment methods
 
 The core functionalities of the toolkit include:
 
-- Implementation of common model alignment algorithms (e.g., SFT, RS, RM, DPO, etc.)
+- Implementation of common alignment operators (e.g., SFT, RM, DPO, etc.)
 - Implementation of various automatic model alignment algorithms (e.g., CAI, SPIN, RLCD, etc.)
 - Efficient model sampling
 - Automated model evaluation
@@ -24,7 +24,7 @@ The core functionalities of the toolkit include:
 
 ## 🚀 News
 
-**[2024.8.23]** We released the first version (v0.0.1) of AutoAlign, which supports CAI, PCON and a varient of RLCD. More algorithms are comming soon🔥🔥🔥.
+**[2024.8.23]** We are excited to announce the release of AutoAlign v0.0.1! In this first version, we have implemented a variety of alignment operators, including SFT, RM, and DPO, along with user-friendly evaluation systems and several auto-alignment algorithms(CAI, PCON, and a variant of RLCD), with more algorithms on the way. Stay tuned for future updates! 🔥🔥🔥
 
 ## 🔥 Quick Start
 
@@ -43,13 +43,9 @@ pip install .[eval]
 bash ./scripts/post_install.sh
 ```
 
-### 📂 Data Preparation
+### 📂 Data Format
 
-Covert your data to the following format and XXXX.
-
-We also prepared two examples to facilitate your usage. [data/dummy_sft.json](data/dummy_sft.json) is for supervised finetuning and [data/dummy_dpo.json](data/dummy_dpo.json) is for RL process.
-<!-- Currently, we use the format in ```data/dummy_sft.json``` for supervised finetuning and the format in ```data/dummy_dpo.json``` for RL process. -->
-
+We currently utilize the format in data/dummy_sft.json for supervised fine-tuning and the format in data/dummy_dpo.json for the reinforcement learning process. Please refer to these files for more details.
 
 ### 📚 Basic Training Operators
 

@@ -7,5 +7,6 @@ export DS_CONFIG=configs/zero2.json
 export LR=5e-6
 export TRAIN_BATCH_SIZE=4
 export WARMUP_RATIO=1e-5
+export EPOCH=1
 export LAZY="True"
 bash scripts/train_sft.sh
