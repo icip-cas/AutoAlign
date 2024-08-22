@@ -20,7 +20,7 @@ The core functionalities of the toolkit include:
 - Automated model evaluation
 - Post-training intervertion methods (e.g., Represenatation Engineering, Model Averaging, etc.)
 
-*这里最好有张图，整体介绍一下这个仓库有哪些功能/组织方式*
+![framework](./assets/framework.png)
 
 ## 🚀 News
 
@@ -122,8 +122,6 @@ Currently, we implemented the following automated alignment algorithms:
 | [pcon](algorithms/pcon) | Treat the response from larger models as postitive signals, and the response from small models from negative signals. |
 
 ### ✏️ Model Evaluation
-
-quick start不建议写的这么复杂，可以单独在evaluation的文件夹下介绍具体的，这里只需要简单的running example，怎么配置，在哪里看结果即可
 
 ``` bash
 autoalign-cli eval --config eval.yaml
