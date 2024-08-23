@@ -4,7 +4,7 @@
 pip install -e .[dev]
 ```
 
-## Test pypi upload process
+## Test PyPI upload process
 
 ```bash
 python -m build
