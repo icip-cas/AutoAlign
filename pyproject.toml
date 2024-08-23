@@ -58,7 +58,9 @@ eval = [
 
 dev = [
   "pytest",
-  "pre-commit"
+  "pre-commit",
+  "build",
+  "twine"
 ]
 
 [tool.pip]
