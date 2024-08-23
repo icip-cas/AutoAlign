@@ -43,9 +43,9 @@ pip install .[eval]
 bash ./scripts/post_install.sh
 ```
 
-### 📂 Data Format
+### 📂 Data
 
-We currently utilize the format in data/dummy_sft.json for supervised fine-tuning and the format in data/dummy_dpo.json for the reinforcement learning process. Please refer to these files for more details.
+We publicly release a collection of SFT data [here](). This toolkit currently utilizes the format in data/dummy_sft.json for supervised fine-tuning and the format in data/dummy_dpo.json for the reinforcement learning process. Please refer to these files for more details.
 
 ### 📚 Basic Training Operators
 
@@ -207,4 +207,4 @@ pre-commit install
 
 ## 💳 License
 
-This project is licensed under the [MIT License](LICENSE).
+This project is licensed under the [Apache-2.0 License](LICENSE).

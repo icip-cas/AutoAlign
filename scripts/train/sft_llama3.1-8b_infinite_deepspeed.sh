@@ -4,6 +4,7 @@ export OUTPUT_DIR=./saved_models/llama-31-8b_ultrachat_infinite
 export MODEL_PATH=pretrained_models/Meta-Llama-3.1-8B
 export GA=16
 export DS_CONFIG=configs/zero2.json
+export REPORT_TO="wandb"
 export LR=5e-6
 export TRAIN_BATCH_SIZE=4
 export WARMUP_RATIO=1e-5
