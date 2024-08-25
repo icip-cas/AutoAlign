@@ -24,7 +24,7 @@ The core functionalities of the toolkit include:
 
 ## 🚀 News
 
-**[2024.8.23]** We are excited to announce the release of AutoAlign v0.0.1! In this first version, we have implemented a variety of alignment operators, including SFT, RM, and DPO, along with user-friendly evaluation systems and several auto-alignment algorithms(CAI, PCON, and a variant of RLCD), with more algorithms on the way. Stay tuned for future updates! 🔥🔥🔥
+**[2024.8.23]** We are excited to announce the release of AutoAlign v0.0.1! In this first version, we have implemented a variety of alignment operators, including SFT, RM, and DPO, along with user-friendly evaluation systems and several auto-alignment algorithms (CAI, PCON, and a variant of RLCD), with more algorithms on the way. Stay tuned for future updates! 🔥🔥🔥
 
 ## 🔥 Quick Start
 
@@ -45,7 +45,7 @@ bash ./scripts/post_install.sh
 
 ### 📂 Data
 
-We publicly release a collection of SFT data [here](). This toolkit currently utilizes the format in data/dummy_sft.json for supervised fine-tuning and the format in data/dummy_dpo.json for the reinforcement learning process. Please refer to these files for more details.
+To facilite the community with out-of-box alignment data. We publicly release a collection of SFT data [here](). This toolkit currently utilizes the format in ```data/dummy_sft.json``` for supervised fine-tuning and the format in ```data/dummy_dpo.json``` for the reinforcement learning process. Please refer to these files for more details.
 
 ### 📚 Basic Training Operators
 
