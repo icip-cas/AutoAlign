@@ -64,8 +64,17 @@ autoalign-cli sft \
 
 ### Reward Modeling
 
+You can first generate demo dataset by `python src/autoalign/data/prepare_demo_rm.py`
+
+And then run
 ```bash
-autoalign-cli rm
+autoalign-cli rm --model_name_or_path meta-llama/Meta-Llama-3-8B-Instruct \
+    --data_path data/ultra_binary.jsonl \
+    --bf16 True \
+    --eval_path data/eval \
+    --conv_template_name llama-3-instruct \
+    --output_dir models/llama3_rm \
+    --deepspeed configs/zero3.json
 ```
 
 ### DPO
