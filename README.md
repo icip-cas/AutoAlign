@@ -47,7 +47,7 @@ bash ./scripts/post_install.sh
 
 To facilite the community with out-of-box alignment data. We publicly release a collection of SFT data [here](). This toolkit currently utilizes the format in ```data/dummy_sft.json``` for supervised fine-tuning and the format in ```data/dummy_dpo.json``` for the reinforcement learning process. Please refer to these files for more details.
 
-### 📚 Basic Training Operators
+### 📚 Basic Alignment Operators
 
 ### SFT
 
@@ -64,7 +64,7 @@ autoalign-cli sft \
 
 ### Reward Modeling
 
-You can first generate demo dataset by `python src/autoalign/data/prepare_demo_rm.py`
+You can first generate demo dataset by `python algorithms/rm/prepare_demo_rm.py`
 
 And then run the following command:
 ```bash
@@ -174,9 +174,9 @@ Documents of this toolkit is stored at ```./docs/```.
 | Qwen-2-7b | rlcd_sys | 7.29	|	20.76 | 52.31 |	35.98 | 36 | 29.88 | 35.4 | 52.89 | 21.21 | 68.98 | 71.35
 | Qwen-2-7b | pcon | 6.6 | 35.37 | 47.43 | 42.54 | 79.83 | 41.46 | 50.4	| 57.32 |	46.8 | 63.31 | 28.28 | 71.29 | 48.87
 
-"--" indicates data unavailable
+"--" indicates data unavailable;
 
-"x" indicates inability to obtain valid performance using OpenCompass default prompt
+"x" indicates inability to obtain valid performance using OpenCompass default prompt.
 
 ## 📅 Future Development Schedule
 
