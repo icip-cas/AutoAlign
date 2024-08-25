@@ -24,19 +24,19 @@ The core functionalities of the toolkit include:
 
 ## 🚀 News
 
-**[2024.8.23]** We are excited to announce the release of AutoAlign v0.0.1! In this first version, we have implemented a variety of alignment operators, including SFT, RM, and DPO, along with user-friendly evaluation systems and several auto-alignment algorithms(CAI, PCON, and a variant of RLCD), with more algorithms on the way. Stay tuned for future updates! 🔥🔥🔥
+**[2024.8.23]** We are excited to announce the release of AutoAlign v0.0.1! In this first version, we have implemented a variety of alignment operators, including SFT, RM, and DPO, along with user-friendly evaluation systems and several auto-alignment algorithms (CAI, PCON, and a variant of RLCD), with more algorithms on the way. Stay tuned for future updates! 🔥🔥🔥
 
 ## 🔥 Quick Start
 
 ### 🔨 Environment Setup
 
-*Default*
+**Default**
 
 ```
 pip install .[train]
 ```
 
-*Evaluation (Optional)*
+**Evaluation (Optional)**
 
 ```
 pip install .[eval]
@@ -45,7 +45,7 @@ bash ./scripts/post_install.sh
 
 ### 📂 Data
 
-We publicly release a collection of SFT data [here](). This toolkit currently utilizes the format in data/dummy_sft.json for supervised fine-tuning and the format in data/dummy_dpo.json for the reinforcement learning process. Please refer to these files for more details.
+To facilite the community with out-of-box alignment data. We publicly release a collection of SFT data [here](). This toolkit currently utilizes the format in ```data/dummy_sft.json``` for supervised fine-tuning and the format in ```data/dummy_dpo.json``` for the reinforcement learning process. Please refer to these files for more details.
 
 ### 📚 Basic Training Operators
 
@@ -66,7 +66,7 @@ autoalign-cli sft \
 
 You can first generate demo dataset by `python src/autoalign/data/prepare_demo_rm.py`
 
-And then run
+And then run the following command:
 ```bash
 autoalign-cli rm --model_name_or_path meta-llama/Meta-Llama-3-8B-Instruct \
     --data_path data/ultra_binary.jsonl \
@@ -132,14 +132,11 @@ Currently, we implemented the following automated alignment algorithms:
 autoalign-cli eval --config eval.yaml
 ```
 
-You can configure inference parameters in the file `eval.yaml`. For objective evaluation, the results will be displayed in `outputs/{model_id}/ordered_res.txt` at the root directory of the repository. For more information, please read `docs/eval.md`.
+You can configure evaluation options in the file `eval.yaml`. For objective evaluation, the results will be displayed in `outputs/{model_id}/ordered_res.txt` at the root directory of the repository. For more information, please read `docs/eval.md`.
 
 ## Documents
 
 Documents of this toolkit is stored at ```./docs/```.
-
-## Evaluation
-### Objective evaluation
 
 
 ## 📪 Features
@@ -177,32 +174,41 @@ Documents of this toolkit is stored at ```./docs/```.
 | Qwen-2-7b | rlcd_sys | 7.29	|	20.76 | 52.31 |	35.98 | 36 | 29.88 | 35.4 | 52.89 | 21.21 | 68.98 | 71.35
 | Qwen-2-7b | pcon | 6.6 | 35.37 | 47.43 | 42.54 | 79.83 | 41.46 | 50.4	| 57.32 |	46.8 | 63.31 | 28.28 | 71.29 | 48.87
 
--- means unavailable, x means can not get valid performance with the default prompt of opencompass.
+"--" indicates data unavailable
+
+"x" indicates inability to obtain valid performance using OpenCompass default prompt
 
 ## 📅 Future Development Schedule
+
+### Algorithms to be implemented at v0.1.x:
 
 - Self-Improve
 - Self-Rewarding
 - SPIN
 - CAI
+
+### Algorithms to be implemented at v0.2.x:
 - West-of-N
 - Iterative DPO
+
+### Features to be supported at v0.2.x:
+- Packing
 
 ## 🤝 Contributing
 
 If you would like to contribute to this project, please follow these guidelines:
 
 1. Fork the repository.
-2. Create a new branch.
-3. Make your changes.
-4. Submit a pull request.
+2. Install for Develop
 
-*Install for Develop*
+    ```
+    pip install -e .[dev]
+    pre-commit install
+    ```
 
-```
-pip install -e .[dev]
-pre-commit install
-```
+3. Create a new branch.
+4. Make your changes.
+5. Submit a pull request.
 
 ## 📜 Citation
 
