@@ -49,6 +49,12 @@ class DataArguments:
         default=8, metadata={"help": "number of workers for tokenization"}
     )
     lazy_preprocess: bool = False
+    eval_num: int = field(
+        default=0, metadata={"help": "number of data points for evaluation"}
+    )
+    # seed: int = field(
+    #     default=42, metadata={"help": "random seed"}
+    # )
 
 
 def trainer_save_model_safe(trainer: transformers.Trainer):
@@ -128,10 +134,27 @@ def run_sft():
     rank0_print(f"{model_args = }")
     rank0_print(f"{data_args = }")
 
+    # set random seed for reproducibility
+    random.seed(training_args.data_seed)
+
     # read data
     with open(data_args.data_path, "r") as f:
         data = json.load(f)
-
+    
+    # split data into train and dev datasets
+    if data_args.eval_num > 0:
+        random.shuffle(data)
+        train_data = data[:-data_args.eval_num]
+        dev_data = data[-data_args.eval_num:]
+    else:
+        train_data = data
+        dev_data = []
+        training_args.eval_strategy="no" 
+    
+    rank0_print(f"Train dataset size: {len(train_data)}")
+    rank0_print(f"Dev dataset size: {len(dev_data)}")
+    
+    
     config = transformers.AutoConfig.from_pretrained(model_args.model_name_or_path)
     if config.model_type == "gemma2":
         attn_implementation = "eager"
@@ -159,34 +182,51 @@ def run_sft():
 
     # get dataset
     if data_args.lazy_preprocess:
-        dataset = LazySupervisedDataset(data,
+        train_dataset = LazySupervisedDataset(train_data,
                     tokenizer=tokenizer,
                     conv_template_name=data_args.conv_template_name,
                     model_max_length=model_args.model_max_length)
+        
+        dev_dataset = LazySupervisedDataset(dev_data,
+            tokenizer=tokenizer,
+            conv_template_name=data_args.conv_template_name,
+            model_max_length=model_args.model_max_length)
+        
         rank0_print("Loading data...")
 
     else:
-        dataset = Dataset.from_list(data)
+        train_dataset = Dataset.from_list(train_data)
+        dev_dataset = Dataset.from_list(dev_data)
         # tokenize dataset
         with PartialState().local_main_process_first():
-            dataset = dataset.map(
+            train_dataset = train_dataset.map(
                 partial(
                     tokenize_conversation,
                     conv_template_name=data_args.conv_template_name,
                     tokenizer=tokenizer,
                     model_max_length=model_args.model_max_length,
                 ),
-                remove_columns=list(dataset.features),
+                remove_columns=list(train_dataset.features),
+                num_proc=data_args.num_workers,
+            )
+            dev_dataset = dev_dataset.map(
+                partial(
+                    tokenize_conversation,
+                    conv_template_name=data_args.conv_template_name,
+                    tokenizer=tokenizer,
+                    model_max_length=model_args.model_max_length,
+                ),
+                remove_columns=list(dev_dataset.features),
                 num_proc=data_args.num_workers,
             )
 
-    random_idx = random.randint(0, len(dataset)-1)
-    input_ids = dataset[random_idx]["input_ids"]
+    random_idx = random.randint(0, len(train_dataset)-1)
+    input_ids = train_dataset[random_idx]["input_ids"]
     input_text = tokenizer.decode(input_ids)
     rank0_print("-----------Full Text-----------")
     rank0_print(input_text)
     rank0_print("-----------Train on Text-----------")
-    labels = dataset[random_idx]["labels"]
+    labels = train_dataset[random_idx]["labels"]
     target_ids = [list(y) for x, y in groupby(labels, lambda x: x != -100) if x]
     target_texts = list(map(tokenizer.decode, target_ids))
     rank0_print("\n>>>>>>>>>>>>>>>>>\n".join(target_texts))
@@ -199,13 +239,14 @@ def run_sft():
     )
 
     configure_model(data_args.conv_template_name, tokenizer, model)
-
+    
     # create trainer
     trainer = Trainer(
         model=model,
         tokenizer=tokenizer,
         args=training_args,
-        train_dataset=dataset,
+        train_dataset=train_dataset,
+        eval_dataset=dev_dataset,
         data_collator=data_collator,
     )
 
