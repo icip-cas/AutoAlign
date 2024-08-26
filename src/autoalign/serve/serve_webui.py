@@ -141,7 +141,7 @@ def _launch_demo(args, model, tokenizer):
 
         print(f"History: {_task_history}")
         _task_history.append((_query, full_response))
-        print(f"Qwen1.5-Chat: {full_response}")
+        print(f"Auto-Alignment Chat Bot: {full_response}")
 
     def regenerate(_chatbot, _task_history):
         if not _task_history:
@@ -163,29 +163,17 @@ def _launch_demo(args, model, tokenizer):
     with gr.Blocks() as demo:
         gr.Markdown(
             """\
-<p align="center"><img src="https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/logo_qwen1.5.jpg" style="height: 80px"/><p>"""
+<p align="center"><img src="https://img1.baidu.com/it/u=1697928215,3074026294&fm=253&fmt=auto&app=120&f=PNG?w=453&h=345" style="height: 100px"/><p>"""
         )
-        gr.Markdown("""<center><font size=8>Qwen1.5-Chat Bot</center>""")
+        gr.Markdown("""<center><font size=8>Auto-Alignment Chat Bot Demo</center>""")
         gr.Markdown(
             """\
-<center><font size=3>This WebUI is based on Qwen1.5-Chat, developed by Alibaba Cloud. \
-(本WebUI基于Qwen1.5-Chat打造，实现聊天机器人功能。)</center>"""
+<center><font size=3>This WebUI is based on Auto-Alignment, developed by CIP. \
+(本WebUI基于Auto-Alignment打造，实现聊天机器人功能。)</center>"""
         )
-        gr.Markdown(
-            """\
-<center><font size=4>
-Qwen1.5-7B <a href="https://modelscope.cn/models/qwen/Qwen1.5-7B/summary">🤖 </a> |
-<a href="https://huggingface.co/Qwen/Qwen1.5-7B">🤗</a>&nbsp ｜
-Qwen1.5-7B-Chat <a href="https://modelscope.cn/models/qwen/Qwen1.5-7B-Chat/summary">🤖 </a> |
-<a href="https://huggingface.co/Qwen/Qwen1.5-7B-Chat">🤗</a>&nbsp ｜
-Qwen1.5-14B <a href="https://modelscope.cn/models/qwen/Qwen1.5-14B/summary">🤖 </a> |
-<a href="https://huggingface.co/Qwen/Qwen1.5-14B">🤗</a>&nbsp ｜
-Qwen1.5-14B-Chat <a href="https://modelscope.cn/models/qwen/Qwen1.5-14B-Chat/summary">🤖 </a> |
-<a href="https://huggingface.co/Qwen/Qwen1.5-14B-Chat">🤗</a>&nbsp ｜
-&nbsp<a href="https://github.com/QwenLM/Qwen1.5">Github</a></center>"""
+        chatbot = gr.Chatbot(
+            label="Auto-Alignment Chat Bot", elem_classes="control-height"
         )
-
-        chatbot = gr.Chatbot(label="Qwen1.5-Chat", elem_classes="control-height")
         query = gr.Textbox(lines=2, label="Input")
         task_history = gr.State([])
 
@@ -207,10 +195,10 @@ Qwen1.5-14B-Chat <a href="https://modelscope.cn/models/qwen/Qwen1.5-14B-Chat/sum
 
         gr.Markdown(
             """\
-<font size=2>Note: This demo is governed by the original license of Qwen1.5. \
+<font size=2>Note: This demo is governed by the original license of Auto-Alignment. \
 We strongly advise users not to knowingly generate or allow others to knowingly generate harmful content, \
 including hate speech, violence, pornography, deception, etc. \
-(注：本演示受Qwen1.5的许可协议限制。我们强烈建议，用户不应传播及不应允许他人传播以下内容，\
+(注：本演示受Auto-Alignment的许可协议限制。我们强烈建议，用户不应传播及不应允许他人传播以下内容，\
 包括但不限于仇恨言论、暴力、色情、欺诈相关的有害信息。)"""
         )
 

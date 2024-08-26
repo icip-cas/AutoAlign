@@ -14,10 +14,12 @@ logger = get_logger(__name__)
 class Command(str, Enum):
     SFT = "sft"
     DPO = "dpo"
+    REWARD = "rm"
     DATA = "data"
     EVAL = "eval"
     INFER = "infer"
     SERVE = "serve"
+    MERGE = "merge"
 
 
 def run_distributed_task(file, args):
@@ -76,6 +78,10 @@ def main():
         from .train import dpo
 
         run_distributed_task(dpo.__file__, remaining_args)
+    elif args.command == Command.REWARD:
+        from .train import rm
+
+        run_distributed_task(rm.__file__, remaining_args)
     elif args.command == Command.EVAL:
         from .eval.run_eval import run_eval
 
@@ -88,5 +94,9 @@ def main():
         from .serve import serve_cli, serve_webui
 
         run_serve(serve_cli.__file__, serve_webui.__file__, args, remaining_args)
+    elif args.command == Command.MERGE:
+        from .model_merging.merge_models import run_merge
+
+        run_merge(remaining_args)
     else:
         raise ValueError(f"Unknown command: {args.command}")

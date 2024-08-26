@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "autoalign"
 description = ""
-version = "0.1.0"
+version = "0.0.1"
 requires-python = ">=3.10"
 authors = [
     { name = "gxy-gxy", email = "guanxinyan23@mails.ucas.ac.cn" },
@@ -58,7 +58,9 @@ eval = [
 
 dev = [
   "pytest",
-  "pre-commit"
+  "pre-commit",
+  "build",
+  "twine"
 ]
 
 [tool.pip]

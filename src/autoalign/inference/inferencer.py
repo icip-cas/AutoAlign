@@ -324,7 +324,9 @@ class MultiProcessVllmInferencer:
         else:
             get_answers_func = MultiProcessVllmInferencer.single_process_inference
 
-        num_processes = max(1, self.num_gpus_total // self.num_gpus_per_model)
+        num_processes = min(
+            len(data), max(1, self.num_gpus_total // self.num_gpus_per_model)
+        )
         chunk_size = math.ceil(len(data) / num_processes)
 
         gathered_responses = []

@@ -1,163 +1,225 @@
-# Auto-Alignment
+![logo](/assets/auto_logo.png)
 
-Auto-Alignment is a package focusing on scalable and automated post-training methods. We aim to provide the academic community with a series of classic alignment baselines and ready-to-use automatic alignment algorithms. This toolkit is designed to facilitate research in the field of LLM alignment.
+<p align="center">
+    <a href="#-quick-start">🔥Quick Start</a> •
+    <a href="#-features">📪Features</a> •
+    <a href="#-reference-results">📈Results</a> •
+    <a href="#-issues">🐛Issues</a> •
+    <a href="#-citation">📜Citation</a>
+</p>
+
+## 📣 About
+
+Auto-Alignment is a package focusing on scalable and automated alignment methods. We aim to provide the academic community with a series of classic alignment baselines and ready-to-use automated alignment algorithms. This toolkit is designed to facilitate research in the field of LLM alignment.
 
 The core functionalities of the toolkit include:
 
-- Implementation of common model alignment algorithms (e.g., SFT, RS, DPO, Representation Engineering, etc.)
+- Implementation of common alignment operators (e.g., SFT, RM, DPO, etc.)
 - Implementation of various automatic model alignment algorithms (e.g., CAI, SPIN, RLCD, etc.)
 - Efficient model sampling
 - Automated model evaluation
+- Post-training intervertion methods (e.g., Represenatation Engineering, Model Averaging, etc.)
 
-# Install
+![framework](./assets/framework.png)
 
-Default
+## 🚀 News
+
+**[2024.8.23]** We are excited to announce the release of AutoAlign v0.0.1! In this first version, we have implemented a variety of alignment operators, including SFT, RM, and DPO, along with user-friendly evaluation systems and several auto-alignment algorithms (CAI, PCON, and a variant of RLCD), with more algorithms on the way. Stay tuned for future updates! 🔥🔥🔥
+
+## 🔥 Quick Start
+
+### 🔨 Environment Setup
+
+**Default**
 
 ```
 pip install .[train]
 ```
 
-Evaluation (Optional)
+**Evaluation (Optional)**
 
 ```
 pip install .[eval]
+bash ./scripts/post_install.sh
 ```
 
-Install for Develop
+### 📂 Data
 
-```
-pip install -e .[dev]
-pre-commit install
-```
+To facilite the community with out-of-box alignment data. We publicly release a collection of SFT data [here](). This toolkit currently utilizes the format in ```data/dummy_sft.json``` for supervised fine-tuning and the format in ```data/dummy_dpo.json``` for the reinforcement learning process. Please refer to these files for more details.
 
+### 📚 Basic Alignment Operators
 
-## Usage
+### SFT
 
 ``` bash
-autoalign-cli sft
-autoalign-cli dpo
-autoalign-cli infer
-autoalign-cli eval --backend "vllm"
+autoalign-cli sft \
+            --model_name_or_path "Qwen2/Qwen2-7B" \
+            --data_path "data/dummy_sft.json" \
+            --bf16 True \
+            --output_dir "models/qwen2-7b-sft" \
+            --model_max_length 4096 \
+            --conv_template_name chatml \
+            --deepspeed "configs/zero3.json"
 ```
 
-## Fine-tuning
-### Data
+### Reward Modeling
 
-We use sharegpt format data for supervised fine-tuning. The format are as follows:
-```json
-[
-    {
-        "id": "0",
-        "conversations": [
-            {
-                "from": "system",
-                "value": "You are a helpful artificial assistant who gives friendly responses."
-            },
-            {
-                "from": "human",
-                "value": "Tell me about Beethoven."
-            },
-            {
-                "from": "gpt",
-                "value": "Beethoven is a great composer."
-            }
-        ]
-    },
-    {
-        ...
-    }
-]
+You can first generate demo dataset by `python algorithms/rm/prepare_demo_rm.py`
+
+And then run the following command:
+```bash
+autoalign-cli rm --model_name_or_path meta-llama/Meta-Llama-3-8B-Instruct \
+    --data_path data/ultra_binary.jsonl \
+    --bf16 True \
+    --eval_path data/eval \
+    --conv_template_name llama-3-instruct \
+    --output_dir models/llama3_rm \
+    --deepspeed configs/zero3.json
 ```
 
-## TODO
+### DPO
 
 ```bash
-export MODEL_PATH=meta-llama/Meta-Llama-3-8B
-export DATA_PATH=data/dummy_sft.json
-export OUTPUT_DIR=models/llama3-sft
-
-bash scripts/train_sft.sh
+autoalign-cli dpo --model_name_or_path "Qwen2/Qwen2-7B-Instruct"  \
+            --data_path "data/dummy_dpo.json" \
+            --bf16 True \
+            --output_dir "models/qwen2-7b-dpo" \
+            --conv_template_name chatml \
+            --deepspeed "configs/zero3.json"
 ```
 
-## Direct Preference Optimization
-### Data
-
-We use data format similar to SFT for direct preference optimization. The format are as follows:
-```json
-{
-    "prompt": "Tell me about Beethoven." ,
-    "chosen":[
-        {
-            "value":"Tell me about Beethoven.",
-            "from": "human"
-        },
-        {
-            "value":"Beethoven is a great composer.",
-            "from": "gpt"
-        }
-    ],
-    "rejected":[
-        {
-            "value":"Tell me about Beethoven.",
-            "from": "human"
-        },
-        {
-            "value":"Sorry, there is no information about Beethoven.",
-            "from": "gpt"
-        }
-    ]
-}
-```
-
-
-### DPO Llama-3-8B with Local GPUs
+### Inference
 
 ```bash
-export MODEL_PATH=meta-llama/Meta-Llama-3-8B
-export DATA_PATH=data/dummy_dpo.json
-export OUTPUT_DIR=models/llama3-sft
-
-bash scripts/train_dpo.sh
+autoalign-cli infer --backend "vllm" \
+            --model-name "Qwen2-0.5B-Instruct" \
+            --model-path "Qwen/Qwen2-0.5B-Instruct" \
+            --test-file "data/dummy_sft.json" \
+            --template "chatml" \
+            --source "qwen2_0_5b_instruct_dummy"
 ```
 
-
-## Test
-
-### Test Conversation Template
-
-You can use the following script to test the newly added conversation template:
+### Serve
 
 ```bash
-python tests/test_conversation.py test_get_tokenized_conversation \
-    --template_name vicuna_v1.1 \
-    --tokenizer_name_or_path meta-llama/Llama-3-8B \
-    --model_max_length 4096 \
-    --data_path data/dummy_sft.json
+autoalign-cli serve --checkpoint-path "Qwen2/Qwen2-7B-Instruct" \
+                    --mode "browser" \
+                    --template "chatml"
 ```
-## Evaluation
-### Objective evaluation
-Objective evaluation involves assessing datasets with standard answers, where processed responses can be directly compared to these standard answers according to established rules and model performances are mesured with quantitative metrics. This project utilizes the OpenCompass platform to conduct these evaluations.
 
-Usage:
+### Merge
+
+```bash
+autoalign-cli merge --model_paths "psmathur/orca_mini_v3_13b" "WizardLM/WizardLM-13B-V1.2" "garage-bAInd/Platypus2-13B" \
+                    --merged_model_path "merged_model" \
+                    --merging_method "average"
+```
+
+### 🛠 Automated Alignment Algorithms
+
+The introduction and scripts for each automated alignment algorithm are stored in the [algorithms](./algorithms) folder.
+
+Currently, we implemented the following automated alignment algorithms:
+
+| Algorithm Name | Discription |
+| -- | -- |
+| [rlcd_sys](algorithms/rlcd_sys) | Context distilling the principles into the models using system prompts.  |
+| [pcon](algorithms/pcon) | Treat the response from larger models as postitive signals, and the response from small models from negative signals. |
+
+### ✏️ Model Evaluation
+
 ``` bash
 autoalign-cli eval --config eval.yaml
 ```
-In `eval.yaml`, the `model_path` is the absolute path to the evaluated model or the relative path from the root directory of this repository.
 
-After running the above command, `autoalign-cli` will call the interface in OpenCompass to conduct an objective dataset evaluation. We format the timestamp and append it to the model_name as a directory name(`{model_id} = {model_name + timestamp}`), storing the evaluation results in the `outputs/{model_id}` directory. The raw result will be stored at `outputs/{model_id}/opencompass_log/{opencompass_timestamp}`, in which `{opencompass_timestamp}` is the default name of opencompass output directory of an evaluation. We will summarize and display each evaluation in `outputs/{model_id}/ordered_res.csv` and `outputs/{model_id}/ordered_res.txt`(formed output, easy to read).
+You can configure evaluation options in the file `eval.yaml`. For objective evaluation, the results will be displayed in `outputs/{model_id}/ordered_res.txt` at the root directory of the repository. For more information, please read `docs/eval.md`.
 
-Before starting opencompass, we will check whether new file paths exist, including the config file: `configs/{model_id}.py`, result files: `outputs/{model_id}/ordered_res.csv` and  `outputs/{model_id}/ordered_res.txt`, opencompass logs: `outputs/{model_id}/opencompass_log/`. If one of them exists, you need to choose to continue evaluating or to exit. Continuing may cause overwriting.
+## Documents
+
+Documents of this toolkit is stored at ```./docs/```.
 
 
-## Contributing
+## 📪 Features
+
+### Supported Models
+
+| Model |	Template Name |
+| -- | -- |
+| Llama-2 | llama-2-chat |
+| Llama-3 | llama-3-instruct |
+| Llama-3.1 | llama-3-instruct |
+| Gemma 2 | gemma |
+| Qwen1.5 | chatml |
+| Qwen2 | chatml |
+| Mistral v0.1/0.2/0.3 | mistral-instruct / zepyhr |
+
+## 📈 Reference Results
+
+| Model | Dataset / Algorithm |	MT-Bench | MATH | GSM-8K | HumanEval | MBPP | HumanEval-CN | MBPP-CN | MMLU	| GPQA | CMMLU |C-Eval
+| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
+| Llama-2-7b | Base | -- | 3.32 | 16.91 | 14.63 |	17.4 | 9.76 |15.4 | 40.57 | 23.74 | 21.41 |	31.54
+| Llama-2-7b | Chat | -- | 5.85	| 4.2 | 29.04 |7.32 | 22 | 4.88 | 18 | 42.89 | 19.7 | 30.63 | 34.82
+| Llama-2-7b | Ultrachat | -- | 5.69 | 3.64 |21.91 | 19.51 | 16.4 | 15.85 | 14 | 42.65 | 25.25 |10.12 |	33.19
+| Mistral-v0.1-7b | Base | -- | 11.32 | 48.67 |	13.41 | 36.4 | 20.73 | 35.8 | 56 | 23.23 | 34.76 | 47.57
+| Mistral-v0.1-7b | Ultrachat | 5.28 | 5.7 | 30.02 | 19.51 | 19.4 | 17.68 | 16.8 | 49.04 | 21.72 | 12.01 | 32.96
+| Llama-3-8b | Base | --  | 13.28 |	55.5 | 26.83 | 44.2 | 20.12 | 41.2 | x | 10.61 | 40.49 | x
+| Llama-3-8b | Instruct | 7.95 | 25 | 78.62 | 52.44 |51.2 | 24.39 |	47.8 | 59.27 | 25.76 | 52.06 | 50.93
+| Llama-3.1-8b | Ultrachat | 6.47 | 10.88	| 52.08 |	29.27	| 33.6 | 16.46 | 30.2 |	55.37 | 26.77 |	47.19 |	43.81
+| Llama-3.1-8b | Base | --  | 15.24 | 56.41 | 27.44 | 42.8 | 23.78 | 41.8 | x |	12.63 | 45.43 |	x
+| Llama-3.1-8b | Instruct | 7.73 | 31.56 | 81.12 | 54.27 | 53 | 39.02 | 50.2 | 59.88 | 28.79 |49.64 | 48.3
+| Llama-3.1-8b | Ultrachat | 6.51	| 13.6 | 57.39 | 25.61 | 33.4 | 20.73 | 31.4 | 55.66 | 25.76 | 48.44 | 32.99 |
+| Qwen-2-7b | Base | 5.03 | 41.3 |	79.76 | 61.59 | 51 | 60.37 | 48.4 |	62.4 |	31.31 |	67.72 |	42.66
+| Qwen-2-7b | Instruct | 8.15	| 25.38 | 81.35	|51.22 | 48.6 | 61.59 | 24.2 | 64.1 | 31.82 | 62.24	| 46.04
+| Qwen-2-7b | Ultrachat | 7.34 | 37.98 | 77.41 |	20.73 |	34.6 | 11.59 | 32.8 | 61.35 | 31.31 | 72.23 | 63.18
+| Qwen-2-7b | rlcd_sys | 7.29	|	20.76 | 52.31 |	35.98 | 36 | 29.88 | 35.4 | 52.89 | 21.21 | 68.98 | 71.35
+| Qwen-2-7b | pcon | 6.6 | 35.37 | 47.43 | 42.54 | 79.83 | 41.46 | 50.4	| 57.32 |	46.8 | 63.31 | 28.28 | 71.29 | 48.87
+
+"--" indicates data unavailable;
+
+"x" indicates inability to obtain valid performance using OpenCompass default prompt.
+
+## 📅 Future Development Schedule
+
+### Algorithms to be implemented at v0.1.x:
+
+- Self-Improve
+- Self-Rewarding
+- SPIN
+- CAI
+
+### Algorithms to be implemented at v0.2.x:
+- West-of-N
+- Iterative DPO
+
+### Features to be supported at v0.2.x:
+- Packing
+
+## 🤝 Contributing
 
 If you would like to contribute to this project, please follow these guidelines:
 
 1. Fork the repository.
-2. Create a new branch.
-3. Make your changes.
-4. Submit a pull request.
+2. Install for Develop
 
-## License
+    ```
+    pip install -e .[dev]
+    pre-commit install
+    ```
 
-This project is licensed under the [MIT License](LICENSE).
+3. Create a new branch.
+4. Make your changes.
+5. Submit a pull request.
+
+## 📜 Citation
+
+```bibtex
+@software{AutoALign,
+  author = {},
+  version = {0.0.1},
+  year = {2024}
+}
+```
+
+## 💳 License
+
+This project is licensed under the [Apache-2.0 License](LICENSE).

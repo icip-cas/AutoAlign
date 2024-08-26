@@ -3,6 +3,7 @@
 /models
 /*log
 /thirdparty
+/dist
 
 # configs
 configs/*.py
@@ -52,3 +53,6 @@ flagged/
 /results
 
 /opencompass
+ip.sh
+
+*.tar.gz
