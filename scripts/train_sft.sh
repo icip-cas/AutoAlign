@@ -23,3 +23,4 @@ autoalign-cli sft \
     --deepspeed ${DS_CONFIG:-"configs/zero3.json"} \
     --ddp_timeout 18000 \
     --lazy_preprocess ${LAZY:-"False"} \
+    --eval_num ${EVAL_NUM:-"0"}
