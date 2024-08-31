@@ -1,13 +1,12 @@
 # 评测的模型标识名称
 # Identifying name of the model to evaluate
-model_name: qwen2-7b_rlcd_sys_ultrafeedback
+model_name: llama-3-8b_wildchat
 
 # 评测时使用的上下文模板，可见src/autoalign/conversation.py中的TEMPLATES
-template_name: chatml
+template_name: llama-3-instruct
 # 评测的模型路径
 # The path of the model to evaluate
-model_path: experiments/rlcd_sys/saved_models/qwen2-7b_rlcd_sys_ultrafeedback/checkpoint-396
-
+model_path: saved_models/llama-3-8b_wildchat
 # 评测的类型
 # The type of evaluation
 # 可选项：

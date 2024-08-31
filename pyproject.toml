@@ -26,7 +26,7 @@ dependencies = [
     "numpy",
     "pandas",
     "transformers>=4.41.2",
-    "deepspeed",
+    "deepspeed==0.11.2",
     "pydantic",
     "packaging",
     "accelerate",
