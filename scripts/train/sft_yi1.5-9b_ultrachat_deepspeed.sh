@@ -1,0 +1,10 @@
+export DATA_PATH=/ciphome/wenxueru2022/auto-alignment/data/ultrachat.json
+export CONV_TEMPLATE=chatml-keep-system
+export OUTPUT_DIR=./saved_models/yi-15-9b_ultrachat
+export MODEL_PATH=pretrained_models/Yi-1.5-9B
+export GA=8
+export DS_CONFIG=configs/zero2.json
+export REPORT_TO="wandb"
+export TRAIN_BATCH_SIZE=4
+export EPOCH=3
+bash scripts/train_sft.sh
