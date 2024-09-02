@@ -13,7 +13,6 @@ from argparse import ArgumentParser
 
 from autoalign.conversation import Conversation, Role, TEMPLATES
 from autoalign.utils import get_logger, remove_file_if_user_confirms
-from .inference_mt_bench import inference_mt_bench, reorg_answer_file
 from .gen_judgmen_mt_bench import judge_mt_bench
 from .default_configs import (
     CONFIG_CORE,
@@ -27,7 +26,7 @@ from .default_configs import (
 def parse_args(args: list):
 
     parser = ArgumentParser()
-    parser.add_argument("--config_path", type=str, default=None, required=True)
+    parser.add_argument("--config-path", type=str, default=None, required=True)
     args = parser.parse_args(args)
     return args
 
@@ -50,17 +49,29 @@ def generate_config(
         model_path = os.path.join("..", model_path)
     template = ""
     if template_name != "none" and template_name != "None":
-        temp_obj = TEMPLATES[template_name]
-        template = META_TEMPLATE.format(
-            human_begin="{!r}".format(temp_obj.role_starts[Role.HUMAN]).replace(
-                "'", '"'
-            ),
-            gpt_begin="{!r}".format(temp_obj.role_starts[Role.ASSISTANT]).replace(
-                "'", '"'
-            ),
-            human_end="{!r}".format(temp_obj.role_ends[Role.HUMAN]).replace("'", '"'),
-            gpt_end="{!r}".format(temp_obj.role_ends[Role.ASSISTANT]).replace("'", '"'),
-        )
+        if "llama-2" in template_name or "llama2" in template_name:
+            template = META_TEMPLATE.format(
+                human_begin="{!r}".format("<s>[INST] "),
+                gpt_begin="{!r}".format(" "),
+                human_end="{!r}".format(" [/INST]"),
+                gpt_end="{!r}".format(" </s>"),
+            )
+        else:
+            temp_obj = TEMPLATES[template_name]
+            template = META_TEMPLATE.format(
+                human_begin="{!r}".format(temp_obj.role_starts[Role.HUMAN]).replace(
+                    "'", '"'
+                ),
+                gpt_begin="{!r}".format(temp_obj.role_starts[Role.ASSISTANT]).replace(
+                    "'", '"'
+                ),
+                human_end="{!r}".format(temp_obj.role_ends[Role.HUMAN]).replace(
+                    "'", '"'
+                ),
+                gpt_end="{!r}".format(temp_obj.role_ends[Role.ASSISTANT]).replace(
+                    "'", '"'
+                ),
+            )
     if eval_type == "objective_core":
         if backend == "hf":
             config = CONFIG_CORE + CONFIG_HF.format(
@@ -361,7 +372,6 @@ def run_mt_bench_eval(
     batch_size: int,
     mtpath: str,
     num_gpus_per_model: int,
-    num_gpus_total: int,
     template_name: str,
 ) -> None:
     batch_size = max(8, batch_size)
@@ -373,42 +383,27 @@ def run_mt_bench_eval(
     answer_file = f"{mtpath}/model_answer/{model_name}.jsonl"
     judge_file = f"{mtpath}/model_judgment/{model_name}_gpt-4_single.jsonl"
 
-    # process_num = num_gpus_total // num_gpus_per_model
-
     if os.path.exists(answer_file) and not remove_file_if_user_confirms(answer_file):
 
         logger.info(f"Using existing answer file at {answer_file}")
 
     else:
-        # from . import inference_mt_bench
-        # command = f"""accelerate launch {inference_mt_bench.__file__} --model-path {model_path} \
-        # --model-id {model_name} \
-        # --template-name {template_name} \
-        # --question-file {question_file}
-        # --answer-file {answer_file}
-        # --template-name{template_name}"""
-        # logger.info(f"Start Runing alpacal eval\n {command=}")
-        # process = subprocess.run(command, shell=True)
-        # if process.returncode != 0:
-        #     logger.error(
-        #         "alpaca evaluation failed, we will continue to run the next evaluation"
-        #     )
-        # else:
-        #     logger.info("alpaca evaluation finished")
-        inference_mt_bench(
-            model_path=model_path,
-            model_id=model_name,
-            template_name=template_name,
-            question_file=question_file,
-            answer_file=answer_file,
-            question_begin=None,
-            question_end=None,
-            max_new_token=1024,
-            num_choices=1,
-            # process_num=process_num
-        )
+        from . import inference_mt_bench
 
-        reorg_answer_file(answer_file)
+        command = f"""python {inference_mt_bench.__file__} --model-path {model_path} \
+        --model-id {model_name} \
+        --template-name {template_name} \
+        --question-file {question_file} \
+        --answer-file {answer_file} \
+        --num-gpus-per-model {num_gpus_per_model}"""
+        logger.info(f"Start Runing alpacal eval\n {command=}")
+        process = subprocess.run(command, shell=True)
+        if process.returncode != 0:
+            logger.error(
+                "mt-bench evaluation failed, we will continue to run the next evaluation"
+            )
+        else:
+            logger.info("alpaca evaluation finished")
 
     logger.info("mt-bench generation finished")
     logger.info("starting to evaluate")
@@ -512,7 +507,7 @@ def run_eval(args) -> None:
     batch_size = config["batch_size"]
     eval_type = config["eval_type"]
     template_name = config["template_name"]
-    num_gpus = torch.cuda.device_count()
+    # num_gpus = torch.cuda.device_count()
     mtpath = config["mt_path"]
     per_model_gpu = config["per_model_gpu"]
     opencompass_path = config["opencompass_path"]
@@ -541,7 +536,6 @@ def run_eval(args) -> None:
             batch_size,
             mtpath,
             per_model_gpu,
-            num_gpus,
             template_name,
         )
         run_alpaca_eval(model_name, model_path, batch_size, template_name, judge_model)
