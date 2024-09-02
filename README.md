@@ -129,7 +129,7 @@ Currently, we implemented the following automated alignment algorithms:
 ### ✏️ Model Evaluation
 
 ``` bash
-autoalign-cli eval --config eval.yaml
+autoalign-cli eval --config-path configs/eval.yaml
 ```
 
 You can configure evaluation options in the file `eval.yaml`. For objective evaluation, the results will be displayed in `outputs/{model_id}/ordered_res.txt` at the root directory of the repository. For more information, please read `docs/eval.md`.
