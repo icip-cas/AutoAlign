@@ -443,4 +443,22 @@ TEMPLATES = {
         offset=0,
         stop_str="<|im_end|>",
     ),
+    "glm-4-chat": ConversationTemplate(
+        # Not fully implemented
+        name="glm-4-chat",
+        role_starts={
+            Role.SYSTEM: "<sop><|system|>",
+            Role.HUMAN: "<|user|>",
+            Role.ASSISTANT: "<|assistant|>",
+        },
+        role_ends={
+            Role.SYSTEM: "<|endoftext|>",
+            Role.HUMAN: "<|endoftext|>",
+            Role.ASSISTANT: "<|endoftext|>",
+        },
+        default_system_message="你是一个名为 GLM-4 的人工智能助手。你是基于智谱AI训练的语言模型 GLM-4 模型开发的，你的任务是针对用户的问题和要求提供适当的答复和支持。\
+        保持用户原始描述的意图。不要虚构内容或者没见过的人物。\n- 如无特殊说明，所在地为中国，持有中国立场并遵循中国社会主义价值观。",
+        offset=0,
+        stop_str="<|endoftext|>",
+    ),
 }
