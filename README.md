@@ -188,12 +188,19 @@ Documents of this toolkit is stored at ```./docs/```.
 - SPIN
 - CAI
 
+### Benchmarks to be implemented at v0.1.x:
+
+- Chat-Arena-Hard
+- AlignBench
+
 ### Algorithms to be implemented at v0.2.x:
+
 - SALMON
 - West-of-N
 - Iterative DPO
 
 ### Features to be supported at v0.2.x:
+
 - Packing
 - Representation Engineering
 
