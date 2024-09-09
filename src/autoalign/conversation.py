@@ -252,15 +252,17 @@ class Llama2Strategy(RenderStrategy):
     ) -> str:
         ret = ""
         first_user_message = True
+        system = False
         for role, message in messages:
             if role == Role.SYSTEM:
                 ret += f"[INST] <<SYS>>\n{message}\n<</SYS>>"
+                system = True
             elif role == Role.HUMAN:
-                if first_user_message:
+                if first_user_message and system:
                     ret += f"\n\n{message} "
-                    first_user_message = False
                 else:
                     ret += f"<s>[INST] {message} "
+                first_user_message = False
             elif role == Role.ASSISTANT:
                 ret += f"[/INST] {message} </s>"
         if add_generation_prompt:

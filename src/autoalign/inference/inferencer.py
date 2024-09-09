@@ -20,8 +20,8 @@ class HFInferencer:
     def __init__(self, model_name_or_path: str):
 
         self.model = AutoModelForCausalLM.from_pretrained(
-            model_name_or_path,
-        ).to("cuda")
+            model_name_or_path, device_map="auto"
+        )
         self.tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
 
     def inference(self, prompt: str, **kwargs):
