@@ -11,17 +11,22 @@ import pandas as pd
 import signal
 from argparse import ArgumentParser
 
-from autoalign.conversation import Conversation, Role
+from autoalign.conversation import Conversation, Role, TEMPLATES
 from autoalign.utils import get_logger, remove_file_if_user_confirms
-from .inference_mt_bench import inference_mt_bench, reorg_answer_file
 from .gen_judgmen_mt_bench import judge_mt_bench
-from .default_configs import CONFIG_CORE, CONFIG_ALL, CONFIG_HF, CONFIG_VLLM
+from .default_configs import (
+    CONFIG_CORE,
+    CONFIG_ALL,
+    CONFIG_HF,
+    CONFIG_VLLM,
+    META_TEMPLATE,
+)
 
 
 def parse_args(args: list):
 
     parser = ArgumentParser()
-    parser.add_argument("--config_path", type=str, default=None, required=True)
+    parser.add_argument("--config-path", type=str, default=None, required=True)
     args = parser.parse_args(args)
     return args
 
@@ -37,17 +42,43 @@ def generate_config(
     batch_size,
     opencompass_path,
     backend,
+    template_name,
 ):
     config = ""
     if not model_path.startswith("/"):
         model_path = os.path.join("..", model_path)
-
+    template = ""
+    if template_name != "none" and template_name != "None":
+        if "llama-2" in template_name or "llama2" in template_name:
+            template = META_TEMPLATE.format(
+                human_begin="{!r}".format("<s>[INST] "),
+                gpt_begin="{!r}".format(" "),
+                human_end="{!r}".format(" [/INST]"),
+                gpt_end="{!r}".format(" </s>"),
+            )
+        else:
+            temp_obj = TEMPLATES[template_name]
+            template = META_TEMPLATE.format(
+                human_begin="{!r}".format(temp_obj.role_starts[Role.HUMAN]).replace(
+                    "'", '"'
+                ),
+                gpt_begin="{!r}".format(temp_obj.role_starts[Role.ASSISTANT]).replace(
+                    "'", '"'
+                ),
+                human_end="{!r}".format(temp_obj.role_ends[Role.HUMAN]).replace(
+                    "'", '"'
+                ),
+                gpt_end="{!r}".format(temp_obj.role_ends[Role.ASSISTANT]).replace(
+                    "'", '"'
+                ),
+            )
     if eval_type == "objective_core":
         if backend == "hf":
             config = CONFIG_CORE + CONFIG_HF.format(
                 model_name=model_name,
                 model_path=model_path,
                 batch_size=batch_size,
+                meta_template=template,
                 num_gpus=per_model_gpu,
             )
         elif backend == "vllm":
@@ -55,6 +86,7 @@ def generate_config(
                 model_name=model_name,
                 model_path=model_path,
                 batch_size=batch_size,
+                meta_template=template,
                 num_gpus=per_model_gpu,
             )
         else:
@@ -65,6 +97,7 @@ def generate_config(
                 model_name=model_name,
                 model_path=model_path,
                 batch_size=batch_size,
+                meta_template=template,
                 num_gpus=per_model_gpu,
             )
         elif backend == "vllm":
@@ -72,6 +105,7 @@ def generate_config(
                 model_name=model_name,
                 model_path=model_path,
                 batch_size=batch_size,
+                meta_template=template,
                 num_gpus=per_model_gpu,
             )
         else:
@@ -290,7 +324,7 @@ def run_alpaca_eval(
         with open(f"data/alpaca/{model_name}/{model_name}_outputs.json", "w") as f:
             json.dump(datas, f, indent=4)
     logger.info("outputs generated, starting to evaluate")
-    
+
     command = f"""alpaca_eval --model_outputs data/alpaca/{model_name}/{model_name}_outputs.json \
     --output_path data/alpaca/{model_name}/ \
     --annotators_config {judge_model} \
@@ -354,30 +388,32 @@ def run_mt_bench_eval(
         logger.info(f"Using existing answer file at {answer_file}")
 
     else:
+        from . import inference_mt_bench
 
-        inference_mt_bench(
-            model_path=model_path,
-            model_id=model_name,
-            template_name=template_name,
-            question_file=question_file,
-            answer_file=answer_file,
-            question_begin=None,
-            question_end=None,
-            max_new_token=1024,
-            num_choices=1,
-        )
-
-        reorg_answer_file(answer_file)
+        command = f"""python {inference_mt_bench.__file__} --model-path {model_path} \
+        --model-id {model_name} \
+        --template-name {template_name} \
+        --question-file {question_file} \
+        --answer-file {answer_file} \
+        --num-gpus-per-model {num_gpus_per_model}"""
+        logger.info(f"Start Runing alpacal eval\n {command=}")
+        process = subprocess.run(command, shell=True)
+        if process.returncode != 0:
+            logger.error(
+                "mt-bench evaluation failed, we will continue to run the next evaluation"
+            )
+        else:
+            logger.info("alpaca evaluation finished")
 
     logger.info("mt-bench generation finished")
     logger.info("starting to evaluate")
-    
+
     if os.path.exists(judge_file) and not remove_file_if_user_confirms(judge_file):
         logger.info(f"Using existing judge file at {judge_file}")
 
     else:
         judge_mt_bench(model_list=[model_name], parallel=4, mtpath=mtpath)
-        
+
     logger.info("mt-bench evaluation finished")
 
     display_result_single("mt_bench", judge_file, "gpt-4", [model_name])
@@ -406,6 +442,7 @@ def run_objective_eval(
     batch_size,
     opencompass_path,
     backend,
+    template_name,
 ):
     # check duplicate model_name
     if os.path.exists("configs/{model_name}.py".format(model_name=model_name)):
@@ -442,6 +479,7 @@ def run_objective_eval(
         batch_size,
         opencompass_path,
         backend,
+        template_name,
     )
     # start_opencompass process
     start_opencompass(work_dir, config_path, opencompass_path)
@@ -485,6 +523,7 @@ def run_eval(args) -> None:
             batch_size,
             opencompass_path,
             opencompass_backend,
+            template_name,
         )
     elif eval_type == "subjective":
         if not os.environ.get("OPENAI_BASE_URL") or not os.environ.get(
@@ -492,7 +531,12 @@ def run_eval(args) -> None:
         ):
             logger.error("OPENAI_BASE_URL or OPENAI_API_KEY not set")
         run_mt_bench_eval(
-            model_path, model_name, batch_size, mtpath, per_model_gpu, template_name
+            model_path,
+            model_name,
+            batch_size,
+            mtpath,
+            per_model_gpu,
+            template_name,
         )
         run_alpaca_eval(model_name, model_path, batch_size, template_name, judge_model)
     else:
