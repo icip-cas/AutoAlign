@@ -463,4 +463,20 @@ TEMPLATES = {
         offset=0,
         stop_str="<|user|>",
     ),
+    "glm-4-chat-keep-system": ConversationTemplate(
+        # Not fully implemented
+        name="glm-4-chat",
+        role_starts={
+            Role.SYSTEM: "<|system|>",
+            Role.HUMAN: "<|user|>",
+            Role.ASSISTANT: "<|assistant|>",
+        },
+        role_ends={
+            Role.SYSTEM: "",
+            Role.HUMAN: "",
+            Role.ASSISTANT: "",
+        },
+        offset=0,
+        stop_str="<|user|>",
+    ),
 }

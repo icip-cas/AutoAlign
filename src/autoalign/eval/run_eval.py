@@ -26,7 +26,7 @@ from .default_configs import (
 def parse_args(args: list):
 
     parser = ArgumentParser()
-    parser.add_argument("--config-path", type=str, default=None, required=True)
+    parser.add_argument("--config_path", type=str, default=None, required=True)
     args = parser.parse_args(args)
     return args
 
@@ -396,7 +396,7 @@ def run_mt_bench_eval(
         --question-file {question_file} \
         --answer-file {answer_file} \
         --num-gpus-per-model {num_gpus_per_model}"""
-        logger.info(f"Start Runing alpacal eval\n {command=}")
+        logger.info(f"Start running mt-bench with \n {command=}")
         process = subprocess.run(command, shell=True)
         if process.returncode != 0:
             logger.error(
