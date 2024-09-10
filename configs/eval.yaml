@@ -3,7 +3,7 @@
 model_name: qwen2-7b_infinite
 
 # 评测时使用的上下文模板，可见src/autoalign/conversation.py中的TEMPLATES
-template_name: chatml-keep-system
+template_name: glm-4-chat-keep-system
 # 评测的模型路径
 # The path of the model to evaluate
 model_path: ./saved_models/qwen2-7b_infinite
