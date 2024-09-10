@@ -41,12 +41,14 @@ def preprocess(sample, conv_template_name):
     if "system" in sample:
         prompt_conversations.system_message = sample["system"]
 
-    prompt_conversations.fill_in_messages({"conversations": sample["chosen"][:1]})
+    prompt_conversations.fill_in_messages({"conversations": sample["chosen"][:-1]})
+    
+    assert sample["chosen"][:-1] == sample["rejected"][:-1]
 
     return dict(
         prompt=prompt_conversations.get_conversation_str(add_generation_prompt=True),
-        chosen=sample["chosen"][1]["value"],
-        rejected=sample["rejected"][1]["value"],
+        chosen=sample["chosen"][-1]["value"],
+        rejected=sample["rejected"][-1]["value"],
     )
 
 
