@@ -92,10 +92,16 @@ def tokenize_conversation(
     return tokenized_conversation
 
 
-
 class LazySupervisedDataset(TorchDataset):
     """Dataset for supervised fine-tuning."""
-    def __init__(self, raw_data, tokenizer: transformers.PreTrainedTokenizer, conv_template_name: str, model_max_length: int):
+
+    def __init__(
+        self,
+        raw_data,
+        tokenizer: transformers.PreTrainedTokenizer,
+        conv_template_name: str,
+        model_max_length: int,
+    ):
         super(LazySupervisedDataset, self).__init__()
         self.tokenizer = tokenizer
         self.conv_template_name = conv_template_name
@@ -115,13 +121,12 @@ class LazySupervisedDataset(TorchDataset):
             self.raw_data[i],
             self.conv_template_name,
             self.tokenizer,
-            self.model_max_length
+            self.model_max_length,
         )
-        
+
         self.cached_data_dict[i] = ret
 
         return ret
-
 
 
 def run_sft():
@@ -140,22 +145,23 @@ def run_sft():
     # read data
     with open(data_args.data_path, "r") as f:
         data = json.load(f)
-    
+
     # split data into train and dev datasets
     if data_args.eval_num > 0:
         random.shuffle(data)
-        train_data = data[:-data_args.eval_num]
-        dev_data = data[-data_args.eval_num:]
+        train_data = data[: -data_args.eval_num]
+        dev_data = data[-data_args.eval_num :]
     else:
         train_data = data
         dev_data = []
-        training_args.eval_strategy="no" 
-    
+        training_args.eval_strategy = "no"
+
     rank0_print(f"Train dataset size: {len(train_data)}")
     rank0_print(f"Dev dataset size: {len(dev_data)}")
-    
-    
-    config = transformers.AutoConfig.from_pretrained(model_args.model_name_or_path)
+
+    config = transformers.AutoConfig.from_pretrained(
+        model_args.model_name_or_path, trust_remote_code=True
+    )
     if config.model_type == "gemma2":
         attn_implementation = "eager"
     else:
@@ -167,14 +173,16 @@ def run_sft():
         # FIXME: currently use bfloat16 regardless of training script
         torch_dtype=torch.bfloat16,
         attn_implementation=attn_implementation,
+        trust_remote_code=True,
     )
     tokenizer = AutoTokenizer.from_pretrained(
         model_args.model_name_or_path,
+        trust_remote_code=True,
     )
     # NB: use eos_token for padding
     tokenizer.pad_token = tokenizer.eos_token
     # set padding_side
-    tokenizer.padding_side = "right"
+    tokenizer.padding_side = "right" if config.model_type != "chatglm" else "left"
     # specifically set bos_token_id for Qwen2Tokenizer
     if isinstance(tokenizer, (Qwen2Tokenizer, Qwen2TokenizerFast)):
         tokenizer.bos_token = "<|im_start|>"
@@ -182,16 +190,20 @@ def run_sft():
 
     # get dataset
     if data_args.lazy_preprocess:
-        train_dataset = LazySupervisedDataset(train_data,
-                    tokenizer=tokenizer,
-                    conv_template_name=data_args.conv_template_name,
-                    model_max_length=model_args.model_max_length)
-        
-        dev_dataset = LazySupervisedDataset(dev_data,
+        train_dataset = LazySupervisedDataset(
+            train_data,
             tokenizer=tokenizer,
             conv_template_name=data_args.conv_template_name,
-            model_max_length=model_args.model_max_length)
-        
+            model_max_length=model_args.model_max_length,
+        )
+
+        dev_dataset = LazySupervisedDataset(
+            dev_data,
+            tokenizer=tokenizer,
+            conv_template_name=data_args.conv_template_name,
+            model_max_length=model_args.model_max_length,
+        )
+
         rank0_print("Loading data...")
 
     else:
@@ -220,7 +232,7 @@ def run_sft():
                 num_proc=data_args.num_workers,
             )
 
-    random_idx = random.randint(0, len(train_dataset)-1)
+    random_idx = random.randint(0, len(train_dataset) - 1)
     input_ids = train_dataset[random_idx]["input_ids"]
     input_text = tokenizer.decode(input_ids)
     rank0_print("-----------Full Text-----------")
@@ -239,7 +251,7 @@ def run_sft():
     )
 
     configure_model(data_args.conv_template_name, tokenizer, model)
-    
+
     # create trainer
     trainer = Trainer(
         model=model,
