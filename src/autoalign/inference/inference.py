@@ -53,6 +53,7 @@ def inference():
         inferencer = MultiProcessVllmInferencer(
             model_path=args.model_path,
             max_new_tokens=args.max_new_tokens_per_utterance,
+            num_gpus_per_model=args.num_gpus,
             num_beams=1,
             top_p=1,
             temperature=0,

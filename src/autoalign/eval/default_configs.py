@@ -1,8 +1,8 @@
 CONFIG_CORE = """from mmengine.config import read_base
 from opencompass.models import HuggingFaceCausalLM, VLLM
 with read_base():
-    from ..opencompass.configs.datasets.mmlu.mmlu_gen import mmlu_datasets
     from ..opencompass.configs.datasets.gsm8k.gsm8k_gen import gsm8k_datasets
+    from ..opencompass.configs.datasets.mmlu.mmlu_gen import mmlu_datasets
     from ..opencompass.configs.datasets.humaneval.humaneval_gen import humaneval_datasets
     from ..opencompass.configs.datasets.humaneval_cn.humaneval_cn_gen import humaneval_cn_datasets
     from ..opencompass.configs.datasets.bbh.bbh_gen import bbh_datasets
@@ -23,10 +23,10 @@ infer = dict(
 CONFIG_ALL = """from mmengine.config import read_base
 from opencompass.models import HuggingFaceCausalLM, VLLM
 with read_base():
+    from ..opencompass.configs.datasets.gsm8k.gsm8k_gen import gsm8k_datasets
     from ..opencompass.configs.datasets.mmlu.mmlu_gen import mmlu_datasets
     from ..opencompass.configs.datasets.cmmlu.cmmlu_gen import cmmlu_datasets
     from ..opencompass.configs.datasets.ceval.ceval_gen import ceval_datasets
-    from ..opencompass.configs.datasets.gsm8k.gsm8k_gen import gsm8k_datasets
     from ..opencompass.configs.datasets.math.math_gen import math_datasets
     from ..opencompass.configs.datasets.humaneval.humaneval_gen import humaneval_datasets
     from ..opencompass.configs.datasets.humaneval_cn.humaneval_cn_gen import humaneval_cn_datasets
@@ -97,7 +97,7 @@ models = [
         path="{model_path}",{meta_template}
         max_out_len=100,
         max_seq_len=2048,
-        model_kwargs=dict(tensor_parallel_size=1,enforce_eager=True),
+        model_kwargs=dict(tensor_parallel_size={num_gpus},enforce_eager=True),
         generation_kwargs=dict(temperature=0),
         batch_size={batch_size},
         run_cfg=dict(num_gpus={num_gpus}, num_procs=1)
