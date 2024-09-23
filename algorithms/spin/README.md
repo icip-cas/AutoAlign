@@ -14,8 +14,16 @@ export REJECTED_SOURCE_TAG="Qwen2-7B"
 source inference_for_spin.sh
 ```
 
-### Train
+## Data Preparation
 
 ```
+export CHOSEN_FILE="../../data/ultrachat.json"
+export CHOSEN_SOURCE_TAG="golden"
+source prepare_for_dpo.sh
+```
 
+### Train
+
+```bash
+bash train_dpo.sh
 ```
