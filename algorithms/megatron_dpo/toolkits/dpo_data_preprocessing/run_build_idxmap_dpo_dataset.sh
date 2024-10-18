@@ -1,20 +1,26 @@
 #! /bin/bash
 START_TIME=$SECONDS
 
-cd toolkits/dpo_data_preprocessing
-input_data_path=/ciphome/zhangqingyu2023/code/auto-alignment/data/dummy_dpo.json
-json_keys=conversations
-tokenizer=Qwen2Tokenizer
-seq_len=2048
-output_data_path=/ciphome/zhangqingyu2023/code/auto-alignment/algorithms/megatron_dpo/data
-load_dir=/ciphome/zhangqingyu2023/hf_models/Qwen2-1.5B
+CURRENT_DIR="$( cd "$( dirname "$0" )" && pwd )"
+MEGATRON_PATH=$( dirname $( dirname ${CURRENT_DIR}))
+export PYTHONPATH=$PYTHONPATH:${MEGATRON_PATH}:${MEGATRON_PATH}/Megatron-LM-240718
+
+
+input_data_path=$1
+json_keys=$2
+tokenizer=$3
+seq_len=$4
+output_data_path=$5
+load_dir=$6
 
 if [ $tokenizer = "Qwen2Tokenizer" ]; then
   python build_idxmap_dpo_dataset.py \
+  --dpo \
+  --mask \
   --input ${input_data_path} \
   --json-keys ${json_keys} \
   --output-prefix ${output_data_path} \
-  --tokenizer-name-or-path ${load_dir} \
+  --load ${load_dir} \
   --patch-tokenizer-type Qwen2Tokenizer \
   --model-max-length ${seq_len} \
   --workers 256 \
@@ -23,10 +29,12 @@ if [ $tokenizer = "Qwen2Tokenizer" ]; then
 
 elif [ $tokenizer = "LLama3Tokenizer" ]; then
   python build_idxmap_dpo_dataset.py \
+  --dpo \
+  --mask \
   --input ${input_data_path} \
   --json-keys ${json_keys} \
   --output-prefix ${output_data_path} \
-  --tokenizer-name-or-path ${load_dir} \
+  --load ${load_dir} \
   --patch-tokenizer-type LLama3Tokenizer \
   --model-max-length ${seq_len} \
   --workers 256 \

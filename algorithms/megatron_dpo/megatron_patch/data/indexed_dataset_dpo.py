@@ -9,14 +9,13 @@ import numpy as np
 import torch
 
 
-from indexed_dataset import (
+from .indexed_dataset import (
     best_fitting_dtype,
     _warmup_mmap_file,
     code,
     data_file_path,
     dtypes,
     index_file_path,
-    MMapIndexedDataset,
     IndexedDatasetBuilder,
 )
 
@@ -32,8 +31,26 @@ def print_rank_0(message):
 def data_label_file_path(prefix_path):
     return prefix_path + "_label.bin"
 
+def chosen_data_file_path(prefix_path):
+    return prefix_path + "_chosen_input.bin"
+
+def chosen_label_file_path(prefix_path):
+    return prefix_path + "_chosen_label.bin"
+
+def chosen_idx_file_path(prefix_path):
+    return prefix_path + "_chosen.idx"
+
+def rejected_data_file_path(prefix_path):
+    return prefix_path + "_rejected_input.bin"
+
+def rejected_label_file_path(prefix_path):
+    return prefix_path + "_rejected_label.bin"
+
+def rejected_idx_file_path(prefix_path):
+    return prefix_path + "_rejected.idx"
+
 class MMapIndexedDataset_DPO(torch.utils.data.Dataset):
-    class Index(object):# 初始化类实例即可读取idx文件中的sizes pointer doc_idx三个数组的信息，以此建立数据集的索引
+    class Index(object):# after the class inited, it can read three information about (sizes pointer doc_idx) from idx files that set up the index of dataset
         _HDR_MAGIC = b'MMIDIDX\x00\x00'
 
         @classmethod
@@ -74,6 +91,7 @@ class MMapIndexedDataset_DPO(torch.utils.data.Dataset):
 
                     doc_idx = np.array(doc_idx, dtype=np.int64)
                     self._file.write(doc_idx.tobytes(order='C'))
+                    del doc_idx
 
 
                 def __exit__(self, exc_type, exc_val, exc_tb):
@@ -95,7 +113,7 @@ class MMapIndexedDataset_DPO(torch.utils.data.Dataset):
                 self._dtype = dtypes[dtype_code]
                 self._dtype_size = self._dtype().itemsize
 
-                self._len = struct.unpack('<Q', stream.read(8))[0]
+                self._len = struct.unpack('<Q', stream.read(8))[0] # the size of tensor set. tensor set e.g. [3,4] - > [[1,2,3],[1,2,3,4]]
                 self._doc_count = struct.unpack('<Q', stream.read(8))[0]
                 offset = stream.tell()
 
@@ -112,10 +130,14 @@ class MMapIndexedDataset_DPO(torch.utils.data.Dataset):
                 count=self._len,
                 offset=offset)
             print_rank_0("    reading pointers...")
-            self._pointers = np.frombuffer(self._bin_buffer, dtype=np.int64, count=self._len,
+            self._pointers = np.frombuffer(self._bin_buffer, 
+                                           dtype=np.int64,
+                                           count=self._len,
                                            offset=offset + self._sizes.nbytes)
             print_rank_0("    reading document index...")
-            self._doc_idx = np.frombuffer(self._bin_buffer, dtype=np.int64, count=self._doc_count,
+            self._doc_idx = np.frombuffer(self._bin_buffer, 
+                                          dtype=np.int64,
+                                          count=self._doc_count,
                                           offset=offset + self._sizes.nbytes + self._pointers.nbytes)
 
         def __del__(self):
@@ -141,14 +163,20 @@ class MMapIndexedDataset_DPO(torch.utils.data.Dataset):
         def __len__(self):
             return self._len
 
-    def __init__(self, path, skip_warmup=False):
+    def __init__(self, prefix_path, skip_warmup=False):
         super().__init__()
 
-        self._path = None
+        self._prefix_path = None
+        
         self._index = None
+        self._chosen_index = None
+        self._rejected_index = None
+        
         self._bin_buffer = None
+        self._chosen_bin_buffer = None
+        self._rejected_bin_buffer = None
 
-        self._do_init(path, skip_warmup)
+        self._do_init(prefix_path, skip_warmup)
 
     def __getstate__(self):
         return self._path
@@ -156,97 +184,180 @@ class MMapIndexedDataset_DPO(torch.utils.data.Dataset):
     def __setstate__(self, state):
         self._do_init(state)
 
-    def _do_init(self, path, skip_warmup): # create index,data buffer,lable buffer
-        self._path = path
-        self._index = self.Index(index_file_path(self._path), skip_warmup)  # create index !!!
+    def _do_init(self, prefix_path, skip_warmup): # create index, data buffer,lable buffer
+        self._prefix_path = prefix_path
+        self._chosen_index = self.Index(chosen_idx_file_path(self._prefix_path), skip_warmup) # create chosen index 
+        self._rejected_index = self.Index(rejected_idx_file_path(self._prefix_path), skip_warmup) # create reject index 
 
         if not skip_warmup:
-            print_rank_0("    warming up data mmap file...")
-            _warmup_mmap_file(data_file_path(self._path))
+            print_rank_0("    warming up data mmap files...")
+            _warmup_mmap_file(chosen_data_file_path(self._prefix_path))
+            _warmup_mmap_file(rejected_data_file_path(self._prefix_path))
+            
+            print_rank_0("    warming up label mmap files...")
+            _warmup_mmap_file(chosen_label_file_path(self._prefix_path))
+            _warmup_mmap_file(rejected_label_file_path(self._prefix_path))
         
-        print_rank_0("    creating numpy buffer of mmap...")
-        self._bin_buffer_mmap = np.memmap(data_file_path(self._path), mode='r', order='C')
-        print_rank_0("    creating memory view of numpy buffer...")
-        self._bin_buffer = memoryview(self._bin_buffer_mmap)
+        # input data
+        print_rank_0("    creating numpy buffers of mmap for input data...")
+        self._chosen_bin_buffer_mmap = np.memmap(chosen_data_file_path(self._prefix_path), mode='r', order='C')
+        self._rejected_bin_buffer_mmap = np.memmap(rejected_data_file_path(self._prefix_path), mode='r', order='C')
+        
+        print_rank_0("    creating memory views of numpy buffers for input data...")
+        self._chosen_bin_buffer = memoryview(self._chosen_bin_buffer_mmap)
+        self._rejected_bin_buffer = memoryview(self._rejected_bin_buffer_mmap)
 
-        #newly added
-        print_rank_0("    creating numpy label buffer of mmap...")
-        self._label_bin_buffer_mmap = np.memmap(data_label_file_path(self._path), mode='r', order='C')
-        print_rank_0("    creating memory view of numpy label buffer...")
-        self._label_bin_buffer = memoryview(self._label_bin_buffer_mmap)
+        # label data
+        print_rank_0("    creating numpy buffers of mmap for label data...")
+        self._chosen_label_bin_buffer_mmap = np.memmap(chosen_label_file_path(self._prefix_path), mode='r', order='C')
+        self._rejected_label_bin_buffer_mmap = np.memmap(rejected_label_file_path(self._prefix_path), mode='r', order='C')
+        
+        print_rank_0("    creating memory views of numpy buffers for label data...")
+        self._chosen_label_bin_buffer = memoryview(self._chosen_label_bin_buffer_mmap)
+        self._rejected_label_bin_buffer = memoryview(self._rejected_label_bin_buffer_mmap)
+        
 
     def __del__(self):
-        self._bin_buffer_mmap._mmap.close()
-        del self._bin_buffer_mmap
-        self._label_bin_buffer_mmap._mmap.close()
-        del self._index
+        # Close and delete chosen input data mmap
+        if hasattr(self, '_chosen_bin_buffer_mmap'):
+            self._chosen_bin_buffer_mmap._mmap.close()
+            del self._chosen_bin_buffer_mmap
+        
+        # Close and delete rejected input data mmap
+        if hasattr(self, '_rejected_bin_buffer_mmap'):
+            self._rejected_bin_buffer_mmap._mmap.close()
+            del self._rejected_bin_buffer_mmap
+        
+        # Close and delete chosen label data mmap
+        if hasattr(self, '_chosen_label_bin_buffer_mmap'):
+            self._chosen_label_bin_buffer_mmap._mmap.close()
+            del self._chosen_label_bin_buffer_mmap
+        
+        # Close and delete rejected label data mmap
+        if hasattr(self, '_rejected_label_bin_buffer_mmap'):
+            self._rejected_label_bin_buffer_mmap._mmap.close()
+            del self._rejected_label_bin_buffer_mmap
+        
+        # Delete indices
+        if hasattr(self, '_chosen_index'):
+            del self._chosen_index
+        if hasattr(self, '_rejected_index'):
+            del self._rejected_index
 
     def __len__(self):
-        return len(self._index)
+        return len(self._chosen_index)
 
     # @lru_cache(maxsize=8)
     def __getitem__(self, idx): # return data and label
         if isinstance(idx, int):
-            ptr, size = self._index[idx]
-            input_np_array = np.frombuffer(self._bin_buffer, dtype=self._index.dtype,
-                                     count=size, offset=ptr) # self._index.dtype是整个数据集初始化时确定的dtype,data和lable在add item时使用的即是这个dtype,即best_fitting_dtype(vocab_size)
+            # self._index.dtype是整个数据集初始化时确定的dtype, data和lable在add item时使用的即是这个dtype,即best_fitting_dtype(vocab_size)
+            chosen_ptr, chosen_size = self._chosen_index[idx]
+            rejected_ptr, rejected_size = self._rejected_index[idx]
             
-            #newly added
-            label_np_array = np.frombuffer(self._label_bin_buffer, dtype=self._index.dtype,
-                                     count=size, offset=ptr)
-            return input_np_array, label_np_array
+            chosen_input = np.frombuffer(self._chosen_bin_buffer, 
+                                     dtype=self._chosen_index.dtype,
+                                     count=chosen_size, 
+                                     offset=chosen_ptr)
+            chosen_label = np.frombuffer(self._chosen_label_bin_buffer, 
+                                        dtype=self._chosen_index.dtype,
+                                        count=chosen_size, 
+                                        offset=chosen_ptr)
+
+            rejected_input = np.frombuffer(self._rejected_bin_buffer, 
+                                        dtype=self._rejected_index.dtype,
+                                        count=rejected_size, 
+                                        offset=rejected_ptr)
+            rejected_label = np.frombuffer(self._rejected_label_bin_buffer, 
+                                        dtype=self._rejected_index.dtype,
+                                        count=rejected_size, 
+                                        offset=rejected_ptr)
+            
+            return {
+                'chosen': (chosen_input, chosen_label),
+                'rejected': (rejected_input, rejected_label)
+            }
+            
+        
         elif isinstance(idx, slice):
             start, stop, step = idx.indices(len(self))
             if step != 1:
                 raise ValueError("Slices into indexed_dataset must be contiguous")
-            ptr = self._index._pointers[start]
-            sizes = self._index._sizes[idx]
-            offsets = list(accumulate(sizes))
-            total_size = sum(sizes)
-            np_array = np.frombuffer(self._bin_buffer, dtype=self._index.dtype,
-                                     count=total_size, offset=ptr)
-            sents = np.split(np_array, offsets[:-1])
 
-            #get label_sents
-            label_np_array = np.frombuffer(self._label_bin_buffer, dtype=self._index.dtype,
-                                     count=total_size, offset=ptr)
-            label_sents = np.split(label_np_array, offsets[:-1])
-            return sents,label_sents
+            chosen_ptr = self._chosen_index._pointers[start]
+            chosen_sizes = self._chosen_index._sizes[idx]
+            chosen_offsets = list(accumulate(chosen_sizes))
+            chosen_total_size = sum(chosen_sizes)
+
+            rejected_ptr = self._rejected_index._pointers[start]
+            rejected_sizes = self._rejected_index._sizes[idx]
+            rejected_offsets = list(accumulate(rejected_sizes))
+            rejected_total_size = sum(rejected_sizes)
+
+            chosen_input = np.frombuffer(self._chosen_bin_buffer, dtype=self._chosen_index.dtype,
+                                        count=chosen_total_size, offset=chosen_ptr)
+            chosen_input_sents = np.split(chosen_input, chosen_offsets[:-1])
+
+            chosen_label = np.frombuffer(self._chosen_label_bin_buffer, dtype=self._chosen_index.dtype,
+                                        count=chosen_total_size, offset=chosen_ptr)
+            chosen_label_sents = np.split(chosen_label, chosen_offsets[:-1])
+
+            rejected_input = np.frombuffer(self._rejected_bin_buffer, dtype=self._rejected_index.dtype,
+                                        count=rejected_total_size, offset=rejected_ptr)
+            rejected_input_sents = np.split(rejected_input, rejected_offsets[:-1])
+
+            rejected_label = np.frombuffer(self._rejected_label_bin_buffer, dtype=self._rejected_index.dtype,
+                                        count=rejected_total_size, offset=rejected_ptr)
+            rejected_label_sents = np.split(rejected_label, rejected_offsets[:-1])
+            
+            
+            return {
+                'chosen': (chosen_input_sents, chosen_label_sents),
+                'rejected': (rejected_input_sents, rejected_label_sents)
+            }
+
 
     def get(self, idx, offset=0, length=None):
-        """ Retrieves a single item from the dataset with the option to only
+        """ 
+        Retrieves a single item from the dataset with the option to only
         return a portion of the item.
 
         get(idx) is the same as [idx] but get() does not support slicing.
         """
-        ptr, size = self._index[idx]
+        chosen_ptr, chosen_size = self._chosen_index[idx]
+        rejected_ptr, rejected_size = self._rejected_index[idx]
+
         if length is None:
-            length = size - offset
-        ptr += offset * np.dtype(self._index.dtype).itemsize
-        input_np_array = np.frombuffer(self._bin_buffer, dtype=self._index.dtype,
-                                 count=length, offset=ptr)
-        
-        #get label_np_array
-        label_np_array = np.frombuffer(self._label_bin_buffer, dtype=self._index.dtype,
-                                 count=length, offset=ptr)
-        return input_np_array,label_np_array
+            chosen_length = chosen_size - offset
+            rejected_length = rejected_size - offset
+        else:
+            chosen_length = length
+            rejected_length = length
+
+        chosen_ptr += offset * np.dtype(self._chosen_index.dtype).itemsize
+        rejected_ptr += offset * np.dtype(self._rejected_index.dtype).itemsize
+
+        chosen_input = np.frombuffer(self._chosen_bin_buffer, dtype=self._chosen_index.dtype,
+                                    count=chosen_length, offset=chosen_ptr)
+        chosen_label = np.frombuffer(self._chosen_label_bin_buffer, dtype=self._chosen_index.dtype,
+                                    count=chosen_length, offset=chosen_ptr)
+
+        rejected_input = np.frombuffer(self._rejected_bin_buffer, dtype=self._rejected_index.dtype,
+                                    count=rejected_length, offset=rejected_ptr)
+        rejected_label = np.frombuffer(self._rejected_label_bin_buffer, dtype=self._rejected_index.dtype,
+                                    count=rejected_length, offset=rejected_ptr)
+
+        return {
+            'chosen': (chosen_input, chosen_label),
+            'rejected': (rejected_input, rejected_label)
+        }
 
     @property
     def sizes(self):
-        return self._index.sizes
+        return self._chosen_index.sizes
 
     def size(self, index):
-        return self._index.sizes[index]
+        return self._chosen_index.sizes[index]
 
-    @property
-    def doc_idx(self):
-        return self._index.doc_idx
-
-    def get_doc_idx(self):
-        return self._index._doc_idx
-
-    def set_doc_idx(self, doc_idx_):
-        self._index._doc_idx = doc_idx_
 
     @property
     def supports_prefetch(self):
@@ -255,19 +366,21 @@ class MMapIndexedDataset_DPO(torch.utils.data.Dataset):
     @staticmethod
     def exists(path):
         return (
-                os.path.exists(index_file_path(path)) and os.path.exists(data_file_path(path))
+            os.path.exists(chosen_idx_file_path(path)) and 
+            os.path.exists(chosen_data_file_path(path)) and
+            os.path.exists(chosen_label_file_path(path))
         )
 
 
 class MMapIndexedDatasetBuilder_DPO(object):
     def __init__(self, out_file, dtype=np.int64):
-        self._data_file = open(out_file, 'wb')  
-        self._lable_file = open(out_file[:-4]+"_label.bin",'wb')
+        self._data_file = open(out_file + "_input.bin", 'wb')  
+        self._lable_file = open(out_file +"_label.bin",'wb')
         self._dtype = dtype  # best_fitting_dtype(vocab_size)
         self._sizes = [] # data delta address
         self._doc_idx = [0] # data base address
 
-    def add_item(self, tensor,tensor_label):
+    def add_item(self, tensor, tensor_label):
         np_array = np.array(tensor.numpy(), dtype=self._dtype)
         self._data_file.write(np_array.tobytes(order='C'))
         label_np_array = np.array(tensor_label.numpy(), dtype=self._dtype)
@@ -294,13 +407,14 @@ class MMapIndexedDatasetBuilder_DPO(object):
         self._data_file.close()
         self._lable_file.close()
 
-        with MMapIndexedDataset_DPO.Index.writer(index_file, self._dtype) as index:
+        with MMapIndexedDataset_DPO.Index.writer(index_file_path(index_file), self._dtype) as index:
                 index.write(self._sizes, self._doc_idx)
 
 def make_dpo_builder(out_file,impl,vocab_size=None):
     if impl == 'mmap':
         return MMapIndexedDatasetBuilder_DPO(
-            out_file,dtype=best_fitting_dtype(vocab_size)
+            out_file,
+            dtype=best_fitting_dtype(vocab_size)
             )
     else:
         return IndexedDatasetBuilder(out_file)

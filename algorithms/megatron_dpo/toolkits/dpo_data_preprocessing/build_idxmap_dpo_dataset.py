@@ -15,7 +15,7 @@
 
 
 
-"""Processing data for SFT and Conversations."""
+"""Processing data for SFT and DPO."""
 
 import argparse
 import json
@@ -34,8 +34,7 @@ import torch
 
 from megatron_patch.tokenizer import build_tokenizer
 from megatron_patch.data.indexed_dataset_dpo import make_dpo_builder
-
-
+from collections import defaultdict
 
 def custom_print(*args):
     formatted_message = ' '.join(str(arg) for arg in args)
@@ -46,7 +45,6 @@ def custom_print(*args):
     
 
 
-
 class Encoder(object):
     def __init__(self, args):
         self.args = args
@@ -54,17 +52,108 @@ class Encoder(object):
         Encoder.mask_id = Encoder.tokenizer.vocab_size + 1   
 
     def initializer(self): 
-        Encoder.tokenizer = build_tokenizer(self.args)
-
+        pass
+    
     def encode(self, json_line):
 
+        # return doc, bytes_processed, tokens_processed, doc is a dic contain data and label
         if self.args.conversations: # multi lable mask
             return conv_encoder_provider(json_line)
         elif self.args.sft: # single lable mask
             return sft_encode_provide(json_line)
+        elif self.args.dpo: # include prompt chosen rejected data
+            return dpo_encode_provide(json_line)
         else :
-            raise ValueError("This script only supports SFT format data. Please ensure that either --conversations or --args.sft is passed.")
+            raise ValueError("This script only supports SFT And DPO format data. Please ensure that either --conversations/--sft/--dpo is passed.")
         
+def dpo_encode_provide(json_line): # llama2 conversations templates from fastchat.conversation.py
+    
+    chosen_data = json_line['chosen']
+    rejected_data = json_line['rejected']
+    
+
+    def process_dialogue(json_line):
+        args = get_args()
+        ids = {}
+        processed_text = ""
+        num_begin_mask_id = 0
+        assert type(json_line) == list
+        doc_ids = []
+        doc_lable_ids = []
+        
+        if json_line[0]["from"]=='system':
+            sys_mess = json_line[0]["value"]
+            system_message = f"[INST] <<SYS>>\n{sys_mess}\n<</SYS>>\n\n"
+            json_line = json_line[1:]
+        else:
+            system_message = "[INST] "
+        
+        conv_len = len(json_line)
+        assert conv_len % 2 == 0
+        tmp_tokens = Encoder.tokenizer.tokenize(system_message)
+        doc_ids = doc_ids + tmp_tokens
+        doc_lable_ids = doc_lable_ids + [Encoder.mask_id] * len(tmp_tokens)
+        num_begin_mask_id += len(tmp_tokens)
+        
+        for idx, item in enumerate(json_line):
+            processed_text += item["value"]
+            assert item["from"] in ["human","gpt"]
+            assert item["from"] == json_line[(idx + 2)% conv_len]["from"]
+            if item["from"] == "human":
+                if idx == 0 :
+                    tmp = item["value"] + " "
+                    tmp_tokens = Encoder.tokenizer.tokenize(tmp)
+                    doc_ids = doc_ids + tmp_tokens
+                    if args.mask:
+                        doc_lable_ids = doc_lable_ids + [Encoder.mask_id] * len(tmp_tokens)
+                        num_begin_mask_id += len(tmp_tokens)
+                    else:
+                        doc_lable_ids = doc_lable_ids + tmp_tokens
+                else :
+                    tmp = "[INST]"+item["value"] + " "
+                    tmp_tokens = Encoder.tokenizer.tokenize(tmp)
+                    doc_ids = doc_ids + tmp_tokens
+                    if args.mask:
+                        doc_lable_ids = doc_lable_ids + [Encoder.mask_id] * len(tmp_tokens)
+                    else:
+                        doc_lable_ids = doc_lable_ids + tmp_tokens
+            else:
+                tmp = "[/INST]"+ item["value"] +" </s><s>"
+                tmp_tokens = Encoder.tokenizer.tokenize(tmp)
+                doc_ids = doc_ids + tmp_tokens 
+                doc_lable_ids = doc_lable_ids + tmp_tokens
+        
+        assert len(doc_ids) == len(doc_lable_ids)
+        if len(doc_ids) > args.model_max_length :
+            doc_ids = doc_ids[:args.model_max_length]
+            doc_lable_ids = doc_lable_ids[:args.model_max_length]
+        if num_begin_mask_id  >= args.model_max_length :
+            doc_lable_ids = []
+            doc_ids =[]
+        ids[args.json_keys[0]] = {}
+        ids[args.json_keys[0]]["data"] = doc_ids
+        ids[args.json_keys[0]]["label"] = doc_lable_ids 
+        return ids, len(processed_text.encode('utf-8')), len(doc_ids)
+    
+    
+    chosen_ids, chosen_data_len, chosen_ids_len = process_dialogue(chosen_data)
+    rejected_ids, rejected_data_len, rejected_ids_len = process_dialogue(rejected_data)
+
+    ids = {
+        'chosen': chosen_ids,
+        'rejected': rejected_ids
+    }
+    processed_text_lens = {
+        'chosen': chosen_data_len,
+        'rejected': rejected_data_len
+    }
+    
+    processed_ids_lens = {
+        'chosen': chosen_ids_len,
+        'rejected': rejected_ids_len
+    }
+    
+    return ids, processed_text_lens, processed_ids_lens
 
 def conv_encoder_provider(json_line): # llama2 conversations templates from fastchat.conversation.py
     args = get_args()
@@ -194,7 +283,7 @@ def get_args():
 
     group = parser.add_argument_group(title='tokenizer')
     group.add_argument("--mask", action="store_true", help="Utilize mask to finetune the model.")
-    group.add_argument('--tokenizer-type', type=str, required=True,
+    group.add_argument('--tokenizer-type', type=str, required=False,
                        choices=['BertWordPieceLowerCase','BertWordPieceCase',
                                 'GPT2BPETokenizer', 'PretrainedFromHF', "LLaMATokenizer","GPTSentensePieceTokenizer"],
                        help='What type of tokenizer to use.')
@@ -209,7 +298,7 @@ def get_args():
                        help='Append a bos token to the end of a document.')
     group.add_argument('--prepend-space', action='store_true',
                     help='Prepends a space to the beginning of a document')
-    group.add_argument("--tokenizer-name-or-path", type=str, default=None,
+    group.add_argument("--load", type=str, default=None,
                        help="Name or path of the huggingface tokenizer.")
     group.add_argument('--make-vocab-size-divisible-by', type=int, default=128,
                        help='Pad the vocab size to be divisible by this value.'
@@ -225,6 +314,10 @@ def get_args():
         choices=['Qwen2Tokenizer', 'LLamaTokenizer', 'DeepSeekV2Tokenizer', 'LLama3Tokenizer'],
         help='What type of tokenizer to use.',
     )
+    group.add_argument('--extra-vocab-size',
+                    type=int,
+                    default=0,
+                    help='extra_vocab_size')
 
     group = parser.add_argument_group(title='output data')
     group.add_argument('--output-prefix', type=str, default=None,
@@ -240,7 +333,7 @@ def get_args():
     args = parser.parse_args()
     args.keep_empty = False
 
-    if args.tokenizer_type.lower().startswith('bert'):
+    if args.patch_tokenizer_type.lower().startswith('bert'):
         if not args.split_sentences:
             custom_print("Bert tokenizer detected, are you sure you don't want to split sentences?")
 
@@ -271,28 +364,44 @@ def main():
 
     fin = filtered_fin
     custom_print("After filtering,number of json lines is", len(fin))
-    breakpoint()
     encoder = Encoder(args)  
     custom_print(f"Vocab size: {Encoder.tokenizer.vocab_size}")
     custom_print(f"mask id: {Encoder.mask_id}")
     custom_print(f"Output prefix: {args.output_prefix}")
+    
 
-    output_bin_files = {}
-    output_idx_files = {}
-    builders = {}
+    output_bin_files = defaultdict(dict)
+    output_idx_files = defaultdict(dict)
+    builders = defaultdict(dict)
     key = args.json_keys[0]
     num_large_doc_filterd = 0
 
     if args.test_tokenize:
-        test_doc,_,_= encoder.encode(filtered_fin[0])
-        custom_print("decode tokenized data: ",Encoder.tokenizer.detokenize(test_doc[key]['data']))
-        custom_print("tokenized label: ",test_doc[key]['label'])
+        test_doc, _, _= encoder.encode(filtered_fin[0])
+        if args.dpo :
+            custom_print("decode tokenized chosen data: ",Encoder.tokenizer.detokenize(test_doc['chosen'][key]['data']))
+            custom_print("tokenized chosen label: ",test_doc['chosen'][key]['label'])
+            custom_print("decode tokenized rejected data: ",Encoder.tokenizer.detokenize(test_doc['rejected'][key]['data']))
+            custom_print("tokenized rejected label: ",test_doc['rejected'][key]['label'])
+        else:
+            custom_print("decode tokenized data: ",Encoder.tokenizer.detokenize(test_doc[key]['data']))
+            custom_print("tokenized label: ",test_doc[key]['label'])
     else:
-        output_bin_files[key] = "{}_{}_maxlen_{}.bin".format(args.output_prefix,
-                                                    key, args.model_max_length)
-        output_idx_files[key] = "{}_{}_maxlen_{}.idx".format(args.output_prefix,
-                                                    key, args.model_max_length)
-        builders[key] = make_dpo_builder(output_bin_files[key],impl=args.dataset_impl,vocab_size=Encoder.tokenizer.vocab_size)
+        for data_class in ['chosen','rejected'] :
+            output_bin_files[data_class][key] = "{}_{}_maxlen_{}_{}".format(args.output_prefix,
+                                                        key, 
+                                                        args.model_max_length,
+                                                        data_class
+                                                        )
+            output_idx_files[data_class][key] = "{}_{}_maxlen_{}_{}".format(args.output_prefix,
+                                                        key, 
+                                                        args.model_max_length,
+                                                        data_class
+                                                        )
+            # return dpo_builder
+            builders[data_class][key] = make_dpo_builder(output_bin_files[data_class][key],
+                                                impl=args.dataset_impl,
+                                                vocab_size=Encoder.tokenizer.vocab_size)
         startup_end = time.time()
         custom_print("Time to startup:", startup_end - startup_start)
 
@@ -305,23 +414,24 @@ def main():
             total_bytes_processed = 0
             total_tokens_processed = 0
 
-            progress_bar = tqdm(encoded_docs, total=len(filtered_fin), desc="Data tokenized and stored in binary format")
+            progress_bar = tqdm(encoded_docs, total=len(filtered_fin), desc="DPO data tokenized and stored in binary format")
             for doc, bytes_processed, tokens_processed in progress_bar:
-                if len(doc[key]["data"]) == 0:
-                    num_large_doc_filterd += 1
-                    continue
-                total_documents += 1
-                total_bytes_processed += bytes_processed
-                total_tokens_processed += tokens_processed
+                for data_class in ['chosen','rejected'] :
+                    if len(doc[data_class][key]["data"]) == 0:
+                        num_large_doc_filterd += 1
+                        break
+                    total_documents += 1
+                    total_bytes_processed += bytes_processed[data_class]
+                    total_tokens_processed += tokens_processed[data_class]
 
-                doc_data = doc[key]["data"]
-                doc_label = doc[key]["label"]
-               
-                builders[key].add_item(
-                    torch.IntTensor(doc_data),
-                    torch.IntTensor(doc_label)
-                )  # write in data.bin and lable.bin
-                builders[key].end_document()
+                    doc_data = doc[data_class][key]["data"]
+                    doc_label = doc[data_class][key]["label"]
+                
+                    builders[data_class][key].add_item(
+                        torch.IntTensor(doc_data),
+                        torch.IntTensor(doc_label)
+                    )  # write in data.bin and lable.bin
+                    builders[data_class][key].end_document()
             
 
         custom_print(f"Time to tokenize and store: {time.time() - proc_start} s")
@@ -333,7 +443,9 @@ def main():
         # To write indices to an IDX file in binary format, 
         # the binary data should include a checksum prefix, followed by an array of document sizes, an array of document byte sizes (i.e., offsets), 
         # and an array of document indices (i.e., base addresses)."
-        builders[key].finalize(output_idx_files[key])
+        
+        for data_class in ['chosen','rejected'] :
+            builders[data_class][key].finalize(output_idx_files[data_class][key])
         custom_print("Time to finish preprocessing data:", time.time() - startup_start)
         
 if __name__ == '__main__':
