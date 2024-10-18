@@ -27,6 +27,7 @@ from megatron.training.utils import (
 )
 from megatron_patch.arguments import get_patch_args
 from megatron_patch.data import build_pretrain_dataset_from_original
+from megatron_patch.data.gpt_dataset_dpo import build_train_valid_test_datasets_dpo
 
 from megatron_patch.data.utils import get_batch_on_this_tp_rank_original, get_batch_on_this_tp_rank_idxmap_sft
 from megatron_patch.model.qwen2.layer_specs import (
@@ -232,14 +233,23 @@ def train_valid_test_datasets_provider(train_val_test_num_samples):
         train_ds, valid_ds, test_ds = build_pretrain_dataset_from_original(args.dataset)
     else:
         config = core_gpt_dataset_config_from_args(args)
-
-        if config.mock:
-            dataset_type = MockGPTDataset
-        else:
-            dataset_type = GPTDataset
-        train_ds, valid_ds, test_ds = BlendedMegatronDatasetBuilder(
-            dataset_type, train_val_test_num_samples, is_dataset_built_on_rank, config
-        ).build()
+        
+        if args.train_mode == "dpo":
+            train_ds, valid_ds, test_ds = build_train_valid_test_datasets_dpo(
+            data_prefix=args.data_path,
+            data_impl=args.data_impl,
+            splits_string=args.split,
+            seq_length=args.seq_length,
+            seed=args.seed,
+            )
+        else :
+            if config.mock:
+                dataset_type = MockGPTDataset
+            else:
+                dataset_type = GPTDataset
+            train_ds, valid_ds, test_ds = BlendedMegatronDatasetBuilder(
+                dataset_type, train_val_test_num_samples, is_dataset_built_on_rank, config
+            ).build()
 
         print_rank_0("> finished creating GPT datasets ...")
 
