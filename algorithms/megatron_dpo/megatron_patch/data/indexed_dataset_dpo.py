@@ -4,7 +4,7 @@ import stat
 import struct
 from functools import lru_cache
 from itertools import accumulate
-
+from megatron.training import get_args, print_rank_0
 import numpy as np
 import torch
 
@@ -19,13 +19,6 @@ from .indexed_dataset import (
     IndexedDatasetBuilder,
 )
 
-def print_rank_0(message):
-    """If distributed is initialized, print only on rank 0."""
-    if torch.distributed.is_initialized():
-        if torch.distributed.get_rank() == 0:
-            print(message, flush=True)
-    else:
-        print(message, flush=True)
 
 
 def data_label_file_path(prefix_path):
@@ -250,7 +243,7 @@ class MMapIndexedDataset_DPO(torch.utils.data.Dataset):
     # @lru_cache(maxsize=8)
     def __getitem__(self, idx): # return data and label
         if isinstance(idx, int):
-            # self._index.dtype是整个数据集初始化时确定的dtype, data和lable在add item时使用的即是这个dtype,即best_fitting_dtype(vocab_size)
+            # self._index.dtype was determined when the data and label were writen in .bin, which means the  method about add_item() used the best_fitting_dtype(vocab_size)
             chosen_ptr, chosen_size = self._chosen_index[idx]
             rejected_ptr, rejected_size = self._rejected_index[idx]
             

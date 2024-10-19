@@ -377,7 +377,7 @@ def main():
     num_large_doc_filterd = 0
 
     if args.test_tokenize:
-        test_doc, _, _= encoder.encode(filtered_fin[0])
+        test_doc, _, _= encoder.encode(filtered_fin[1])
         if args.dpo :
             custom_print("decode tokenized chosen data: ",Encoder.tokenizer.detokenize(test_doc['chosen'][key]['data']))
             custom_print("tokenized chosen label: ",test_doc['chosen'][key]['label'])

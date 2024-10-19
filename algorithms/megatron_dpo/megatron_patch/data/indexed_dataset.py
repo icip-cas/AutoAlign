@@ -30,7 +30,7 @@ def print_rank_0(message):
 
 
 def best_fitting_dtype(vocab_size=None):
-    if vocab_size is not None or vocab_size < 65500:
+    if vocab_size is not None and vocab_size < 65500:
         return np.uint16
     else:
         return np.int32

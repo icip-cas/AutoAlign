@@ -232,7 +232,6 @@ def train_valid_test_datasets_provider(train_val_test_num_samples):
     if "-Raw" in args.dataset:
         train_ds, valid_ds, test_ds = build_pretrain_dataset_from_original(args.dataset)
     else:
-        config = core_gpt_dataset_config_from_args(args)
         
         if args.train_mode == "dpo":
             train_ds, valid_ds, test_ds = build_train_valid_test_datasets_dpo(
@@ -243,6 +242,7 @@ def train_valid_test_datasets_provider(train_val_test_num_samples):
             seed=args.seed,
             )
         else :
+            config = core_gpt_dataset_config_from_args(args)
             if config.mock:
                 dataset_type = MockGPTDataset
             else:
