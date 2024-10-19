@@ -246,5 +246,129 @@ def get_batch_on_this_tp_rank_idxmap_sft(data_iterator):
             'attention_mask': attention_mask,
             'position_ids': position_ids
         }
+    return batch
+
+def get_batch_on_this_tp_rank_idxmap_dpo(data_iterator):
+    args = get_args()
+    tokenizer = get_tokenizer()
+    mask_id = tokenizer.vocab_size + 1
+    def _broadcast(item):
+        if item is None:
+            return
+        torch.distributed.broadcast(item, mpu.get_tensor_model_parallel_src_rank(),
+                                    group=mpu.get_tensor_model_parallel_group())
+
+    if mpu.get_tensor_model_parallel_rank() == 0:
+        if isinstance(data_iterator, dict):
+            data = data_iterator
+        else:
+            data = next(data_iterator)
+
+
+        # Process chosen and rejected data separately
+        chosen_tokens = data['chosen_text'].long()
+        rejected_tokens = data['rejected_text'].long()
+        
+        
+        chosen_label = data['chosen_text'].long()
+        rejected_label =data['rejected_text'].long()
+        
+        # Create labels by shifting tokens
+        chosen_labels = torch.roll(chosen_label, shifts=-1, dims=1)
+        rejected_labels = torch.roll(rejected_label, shifts=-1, dims=1)
+        
+        
+        # Set the last token of each sequence to pad_token_id
+        chosen_labels[:, -1] = tokenizer.pad_token_id
+        rejected_labels[:, -1] = tokenizer.pad_token_id
+        
+        # Stack chosen and rejected data
+        tokens = torch.cat([chosen_tokens, rejected_tokens], dim=0)
+        labels = torch.cat([chosen_labels, rejected_labels], dim=0)
+
+        
+        # NOTE: assert lengths of tokens/labels are sequence-length
+        assert args.seq_length == labels.shape[-1]
+        
+        # Set up loss mask
+        loss_mask = torch.ones_like(labels, dtype=torch.float)
+        loss_mask[labels == mask_id] = 0.0
+
+
+        attention_mask, _, position_ids = get_ltor_masks_and_position_ids(
+            tokens,
+            tokenizer.eod,
+            args.reset_position_ids,
+            args.reset_attention_mask,
+            False,
+            args.create_attention_mask_in_dataloader
+        )
+
+        batch = {
+            'tokens': tokens.cuda(non_blocking=True),
+            'labels': labels.cuda(non_blocking=True),
+            'loss_mask': loss_mask.cuda(non_blocking=True),
+            'attention_mask': attention_mask.cuda(non_blocking=True) if attention_mask is not None else None,
+            'position_ids': position_ids.cuda(non_blocking=True)
+        }
+
+        if args.pipeline_model_parallel_size == 1:
+            _broadcast(batch['tokens'])
+            _broadcast(batch['labels'])
+            _broadcast(batch['loss_mask'])
+            _broadcast(batch['attention_mask'])
+
+        elif mpu.is_pipeline_first_stage():
+            _broadcast(batch['tokens'])
+            _broadcast(batch['attention_mask'])
+
+        elif mpu.is_pipeline_last_stage():
+            _broadcast(batch['labels'])
+            _broadcast(batch['loss_mask'])
+            _broadcast(batch['attention_mask'])
+        
+        _broadcast(batch['position_ids'])
+
+
+    else:
+
+        batch_size = args.micro_batch_size * 2  # Double the batch size for chosen and rejected
+        tokens = torch.empty((batch_size, args.seq_length), dtype=torch.int64,
+                             device=torch.cuda.current_device())
+        labels = torch.empty((batch_size, args.seq_length), dtype=torch.int64,
+                             device=torch.cuda.current_device())
+        loss_mask = torch.empty((batch_size, args.seq_length), dtype=torch.float32,
+                                device=torch.cuda.current_device())
+        
+        attention_mask = None
+        if args.create_attention_mask_in_dataloader:
+            attention_mask = torch.empty((batch_size, 1, args.seq_length, args.seq_length), dtype=torch.bool,
+                                        device=torch.cuda.current_device())
+        position_ids = torch.empty((batch_size, args.seq_length), dtype=torch.int64,
+                                   device=torch.cuda.current_device())
+
+        if args.pipeline_model_parallel_size == 1:
+            for tensor in [tokens, labels, loss_mask, attention_mask]:
+                _broadcast(tensor)
+        elif mpu.is_pipeline_first_stage():
+            labels = None
+            loss_mask = None
+            _broadcast(tokens)
+            _broadcast(attention_mask)
+        elif mpu.is_pipeline_last_stage():
+            tokens = None
+            _broadcast(labels)
+            _broadcast(loss_mask)
+            _broadcast(attention_mask)
+
+        _broadcast(position_ids)
+        batch = {
+            'tokens': tokens,
+            'labels': labels,
+            'loss_mask': loss_mask,
+            'attention_mask': attention_mask,
+            'position_ids': position_ids,
+        }
+
 
     return batch
