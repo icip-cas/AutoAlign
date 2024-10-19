@@ -34,7 +34,7 @@ from megatron_patch.model.qwen2.layer_specs import (
     get_gpt_layer_local_spec,
     get_gpt_layer_with_transformer_engine_spec,
 )
-from megatron_patch.model.qwen2.model import GPTModel
+from megatron_patch.model.qwen2.model_dpo import GPTModel_DPO
 from megatron_patch.model.qwen2.transformer_config import Qwen2TransformerConfig
 from megatron_patch.tokenizer import build_tokenizer, get_tokenizer
 from megatron.core.packed_seq_params import PackedSeqParams
@@ -45,7 +45,7 @@ torch._dynamo.config.suppress_errors = True
 
 def model_provider(
     pre_process=True, post_process=True
-) -> Union[GPTModel]:
+) -> Union[GPTModel_DPO]:
 
     args = get_args()
     build_tokenizer(args)
@@ -65,7 +65,7 @@ def model_provider(
             args.num_experts, args.moe_grouped_gemm, args.qk_layernorm
         )
 
-    model = GPTModel(
+    model = GPTModel_DPO(
         config=config,
         transformer_layer_spec=transformer_layer_spec,
         vocab_size=args.padded_vocab_size,
@@ -93,13 +93,10 @@ def get_batch(data_iterator):
 
     args = get_args()
 
-
     # get batches based on the TP rank you are on
 
     batch = get_batch_on_this_tp_rank_idxmap_dpo(data_iterator)
     
-
-
     return tuple([*batch.values()])
 
 
@@ -138,12 +135,12 @@ def loss_func(loss_mask: torch.Tensor, output_tensor: torch.Tensor):
     return loss * args.context_parallel_size, {"lm loss": averaged_loss[0]}
 
 
-def forward_step(data_iterator, model: GPTModel):
+def forward_step(data_iterator, model: GPTModel_DPO):
     """Forward training step.
 
     Args:
         data_iterator : Input data iterator
-        model (GPTModel): The GPT Model
+        model (GPTModel_DPO): The GPT Model
     """
     timers = get_timers()
     args = get_args()
