@@ -39,7 +39,6 @@ class GPTDataset_DPO(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         # Get the shuffled index.
-        breakpoint()
         assert idx < len(self.dpo_idx) and idx >= 0
         idx = self.dpo_idx[idx]
         
@@ -91,17 +90,16 @@ class GPTDataset_DPO(torch.utils.data.Dataset):
         shuffled_documents = documents.copy()
         self.numpy_random_state.shuffle(shuffled_documents)
     
-        self.data_idx = np.tile(shuffled_documents, self.args.epoch)
+        self.data_idx = np.tile(shuffled_documents, self.args.epochs)
 
-        flag = True
-        if flag:
+        if self.args.shuffle_all_epoch:
             # Shuffle across all epochs
             perm = self.numpy_random_state.permutation(len(self.data_idx))
             self.data_idx = self.data_idx[perm]
         else:
             # Shuffle each epoch independently
             epoch_size = len(documents)
-            for i in range(self.args.epoch):
+            for i in range(self.args.epochs):
                 start = i * epoch_size
                 end = (i + 1) * epoch_size
                 perm = self.numpy_random_state.permutation(epoch_size)
