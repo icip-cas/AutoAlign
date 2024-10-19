@@ -2,8 +2,6 @@ import time
 from functools import lru_cache
 import numpy as np
 import sys
-sys.path.append("/ciphome/zhangqingyu2023/code/auto-alignment/algorithms/megatron_dpo")
-sys.path.append("/ciphome/zhangqingyu2023/code/auto-alignment/algorithms/megatron_dpo/Megatron-LM-240718",)
 import torch
 from megatron.training import get_args, print_rank_0
 from megatron_patch.tokenizer import get_tokenizer
@@ -19,7 +17,7 @@ class GPTDataset_DPO(torch.utils.data.Dataset):
                  documents, 
                  indexed_dataset, # document means ranges of data
                  seq_length, seed):
-        # self.args = get_args()
+        self.args = get_args()
         self.name = name
         self.indexed_dataset = indexed_dataset
         self.seq_length = seq_length
@@ -28,10 +26,9 @@ class GPTDataset_DPO(torch.utils.data.Dataset):
         self.dpo_idx = self._initialize_and_shuffle_indices(documents)
             
         
-        # cur_tokenizer = get_tokenizer()
-        cur_tokenizer = None
-        # self.mask_id = cur_tokenizer.vocab_size + 1
-        self.mask_id = 1478963
+        cur_tokenizer = get_tokenizer()
+        self.mask_id = cur_tokenizer.vocab_size + 1
+    
         if hasattr(cur_tokenizer, 'pad_token_id'):
             self.pad = cur_tokenizer.pad_token_id
         else:
@@ -94,8 +91,7 @@ class GPTDataset_DPO(torch.utils.data.Dataset):
         shuffled_documents = documents.copy()
         self.numpy_random_state.shuffle(shuffled_documents)
     
-        # self.data_idx = np.tile(shuffled_documents, self.args.epoch)
-        self.data_idx = np.tile(shuffled_documents, 3)
+        self.data_idx = np.tile(shuffled_documents, self.args.epoch)
 
         flag = True
         if flag:
@@ -105,8 +101,7 @@ class GPTDataset_DPO(torch.utils.data.Dataset):
         else:
             # Shuffle each epoch independently
             epoch_size = len(documents)
-            # for i in range(self.args.epoch):
-            for i in range(3):
+            for i in range(self.args.epoch):
                 start = i * epoch_size
                 end = (i + 1) * epoch_size
                 perm = self.numpy_random_state.permutation(epoch_size)
@@ -220,7 +215,7 @@ def build_train_valid_test_datasets_dpo(
 
 if __name__ == "__main__" :
     train_dataset, valid_dataset, test_dataset = build_train_valid_test_datasets_dpo(
-        data_prefix=("/ciphome/zhangqingyu2023/code/auto-alignment/algorithms/megatron_dpo/data/dummy_dpo_conversations_maxlen_2048",),
+        data_prefix=("auto-alignment/algorithms/megatron_dpo/data/dummy_dpo_conversations_maxlen_2048",),
         data_impl="mmap",
         splits_string="99,1,1",
         seq_length=2048,
