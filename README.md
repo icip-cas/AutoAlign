@@ -33,7 +33,8 @@ The core functionalities of the toolkit include:
 **Default**
 
 ```
-pip install .[train]
+pip install .
+pip install .[flash-attn]
 ```
 
 **Evaluation (Optional)**

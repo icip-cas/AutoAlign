@@ -20,7 +20,7 @@ def parse_args():
     parser.add_argument("--test-file", type=str, required=True)
     parser.add_argument("--max-new-tokens-per-utterance", type=int, default=1024)
     parser.add_argument("--output-dir", default="./outputs/")
-    parser.add_argument("--num-gpus", type=int, default=4)
+    parser.add_argument("--num_gpus_per_model", type=int, default=1)
     parser.add_argument("--system-message", type=str, default=None)
     parser.add_argument("--source", type=str, required=True)
     parser.add_argument("--debug-mode", action="store_true")
@@ -53,7 +53,7 @@ def inference():
         inferencer = MultiProcessVllmInferencer(
             model_path=args.model_path,
             max_new_tokens=args.max_new_tokens_per_utterance,
-            num_gpus_per_model=args.num_gpus,
+            num_gpus_per_model=args.num_gpus_per_model,
             num_beams=1,
             top_p=1,
             temperature=0,
