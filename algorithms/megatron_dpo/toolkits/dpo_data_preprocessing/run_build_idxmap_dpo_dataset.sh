@@ -25,6 +25,7 @@ if [ $tokenizer = "Qwen2Tokenizer" ]; then
   --model-max-length ${seq_len} \
   --workers 256 \
   --chunk-size 32 \
+  --extra-vocab-size 293 \
   --dataset-impl mmap 
 
 elif [ $tokenizer = "LLama3Tokenizer" ]; then

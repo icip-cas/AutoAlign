@@ -1,4 +1,4 @@
-cd /ciphome/zhangqingyu2023/code/Pai-Megatron-Patch/examples/qwen2
+cd /ciphome/zhangqingyu2023/code/auto-alignment/algorithms/megatron_dpo/example/qwen2
 sh run_mcore_qwen.sh  \
 dsw  \
 1.5B   \

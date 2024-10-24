@@ -17,7 +17,7 @@ import sys
 import time
 
 import torch
-from megatron import (get_args, get_num_microbatches, get_signal_handler,
+from megatron import (get_args,get_num_microbatches, get_signal_handler,
                       get_tensorboard_writer, get_timers, is_last_rank,
                       print_rank_0, print_rank_last, update_num_microbatches)
 

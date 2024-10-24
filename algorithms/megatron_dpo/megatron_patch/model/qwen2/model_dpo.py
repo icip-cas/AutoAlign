@@ -18,7 +18,7 @@ from typing import Dict, Literal, Optional, Tuple, Union
 from torch import Tensor
 import torch
 import torch.nn.functional as F
-from megatron import get_args
+from megatron.training import get_args
 from megatron.core import mpu
 from megatron.core import InferenceParams, parallel_state, tensor_parallel
 from megatron.core.dist_checkpointing.mapping import ShardedStateDict
@@ -29,14 +29,15 @@ from megatron.core.packed_seq_params import PackedSeqParams
 from megatron.core.transformer.enums import AttnMaskType, ModelType
 from megatron.core.transformer.spec_utils import ModuleSpec
 from megatron.core.transformer.transformer_config import TransformerConfig
+from megatron_patch.tokenizer import build_tokenizer
 
 from .transformer_block import TransformerBlock
 from .model import GPTModel
 
-class GPTModel_DPO(GPTModel):
+class GPTModel_DPO(LanguageModule):
     """GPT Transformer language model.
     """
-
+       
     def __init__(
         self,
         config: TransformerConfig,
@@ -64,20 +65,7 @@ class GPTModel_DPO(GPTModel):
         dpo_loss_of_orion = False,
         orpo_loss = False,
     ) -> None:
-        super().__init__(config = config,
-                         transformer_layer_spec = transformer_layer_spec,
-                         vocab_size = vocab_size,
-                         max_sequence_length = max_sequence_length,
-                         pre_process = pre_process,
-                         post_process = post_process,
-                         fp16_lm_cross_entropy = fp16_lm_cross_entropy,
-                         parallel_output = parallel_output,
-                         share_embeddings_and_output_weights = share_embeddings_and_output_weights,
-                         position_embedding_type = position_embedding_type,
-                         rotary_percent = rotary_percent,
-                         rotary_base = rotary_base,
-                         seq_len_interpolation_factor = seq_len_interpolation_factor
-                         )
+        super().__init__(config=config)
         args = get_args()
         
         self.parallel_output = parallel_output
@@ -127,6 +115,7 @@ class GPTModel_DPO(GPTModel):
                                 rotary_base = rotary_base,
                                 seq_len_interpolation_factor = seq_len_interpolation_factor
                             )
+
         for param in self.ref_model.parameters():
             param.requires_grad = False
 
@@ -203,7 +192,7 @@ class GPTModel_DPO(GPTModel):
             if self.forward_without_loss:
                 return self.margin_or_lopp(labels, logits, ref_logits)
 
-            ret = self.dpo(labels, logits, ref_logits, keep_vars=False)
+            ret = self.dpo(labels, logits, ref_logits)
             return ret
 
     def state_dict_for_save_checkpoint(self, prefix='', keep_vars=False):
@@ -225,8 +214,7 @@ class GPTModel_DPO(GPTModel):
     
     def load_state_dict(self, state_dict, strict=True):
         """Customized load."""
- 
-        
+
         if 'ref_model' not in state_dict: # for iter 0
             policy_state_dict = ref_state_dict = state_dict
         else: # for resume condition when policy param has been trained and both policy and ref param has been saved
@@ -235,18 +223,50 @@ class GPTModel_DPO(GPTModel):
             # print('ref_model keys:', ref_model['language_model'].keys())
             policy_state_dict, ref_state_dict = state_dict, ref_model
         
+
         self.policy_model.load_state_dict(policy_state_dict, strict=strict)
         self.ref_model.load_state_dict(ref_state_dict, strict=strict)
         
         if self.post_process and not self.untie_embeddings_and_output_weights: # all reduce embedding grad will call self.word_embeddings
             self.word_embeddings = self.policy_model.word_embeddings
         
-        for name, param in self.policy_model.named_parameters():
-            ref_param = self.ref_model.state_dict()[name]
+        # for name, param in self.policy_model.named_parameters():
+        #     ref_param = self.ref_model.state_dict()[name]
             # if not torch.equal(param.data, ref_param.data):
             #     print(f"Parameter {name} is different between policy and ref models.")
             # else:
             #     print(f"Checked {name}")
+        
+        return [],[]
+    
+    def get_batch_logps(self, logits, labels, average_log_prob=False):
+        # Save the original batch size and sequence length
+        batch_size, seq_length, vocab_size = logits.size()
+        
+        # Flatten logits and labels
+        logits = logits.reshape(batch_size * seq_length, vocab_size)
+        labels = labels.reshape(batch_size * seq_length)
+        
+        # Compute per-token log probabilities
+        per_token_logps = -1 * tensor_parallel.vocab_parallel_cross_entropy(logits, labels)
+        
+        # Reshape back to [batch_size, seq_length]
+        per_token_logps = per_token_logps.view(batch_size, seq_length)
+        
+        # Compute sequence log probabilities
+        seq_logps = per_token_logps.sum(dim=-1)  # Shape: [batch_size]
+        
+        if average_log_prob:
+            # Compute valid token counts per sequence
+            args = get_args()
+            tokenizer = build_tokenizer(args)
+            pad_token_id = tokenizer.pad_token_id
+            labels_reshaped = labels.view(batch_size, seq_length)
+            seq_lengths = (labels_reshaped != pad_token_id).sum(dim=-1).clamp(min=1)
+            # Compute average log probability per token
+            seq_logps = seq_logps / seq_lengths
+        
+        return seq_logps  # Shape: [batch_size]
 
     def dpo_loss(self, policy_chosen_logps, policy_rejected_logps,
              reference_chosen_logps, reference_rejected_logps, chosen_kl, rejected_kl):
@@ -277,12 +297,16 @@ class GPTModel_DPO(GPTModel):
         return losses, chosen_rewards.detach(), rejected_rewards.detach()
 
     def dpo(self, labels, logits, ref_logits):
-        rbs = logits.shape[0] // 2
-        policy_chosen_logits, policy_rejected_logits = logits.split(rbs, dim=0)
+        batch_size = logits.shape[0]
+        if batch_size % 2 != 0 or batch_size < 2:
+            raise ValueError(f"Batch size must be even and at least 2, but got batch_size = {batch_size}")
+        
+        # Split logits into chosen and rejected parts
+        policy_chosen_logits, policy_rejected_logits = logits.chunk(2, dim=0)
         policy_chosen_logits_mean = policy_chosen_logits.detach().mean().float()
         policy_rejected_logits_mean = policy_rejected_logits.detach().mean().float()
 
-        # here reduce for mean logits
+        # Reduce for mean logits
         torch.distributed.all_reduce(
             policy_chosen_logits_mean,
             op=torch.distributed.ReduceOp.SUM,
@@ -293,35 +317,42 @@ class GPTModel_DPO(GPTModel):
             op=torch.distributed.ReduceOp.SUM,
             group=mpu.get_tensor_model_parallel_group(),
         )
-        policy_chosen_logits_mean = policy_chosen_logits_mean / parallel_state.get_tensor_model_parallel_world_size()
-        policy_rejected_logits_mean = policy_rejected_logits_mean / parallel_state.get_tensor_model_parallel_world_size()
+        world_size = parallel_state.get_tensor_model_parallel_world_size()
+        policy_chosen_logits_mean /= world_size
+        policy_rejected_logits_mean /= world_size
 
+        # Compute log probabilities
         logps = self.get_batch_logps(logits, labels)
         ref_logps = self.get_batch_logps(ref_logits, labels)
 
-        policy_chosen_logps, policy_rejected_logps = logps.split(rbs, dim=0)
-        reference_chosen_logps, reference_rejected_logps = ref_logps.split(rbs, dim=0)
+        # Split log probabilities into chosen and rejected parts
+        policy_chosen_logps, policy_rejected_logps = logps.chunk(2, dim=0)
+        reference_chosen_logps, reference_rejected_logps = ref_logps.chunk(2, dim=0)
 
+        # Initialize Kullback-Leibler divergences if needed
+        chosen_kl, rejected_kl = None, None
         if self.loss_type == 'kto':
-            kl = self.beta * self.get_batch_logps(logits-ref_logits, labels, average_log_prob=True).clamp(min=0)
-            chosen_kl, rejected_kl = kl.split(rbs, dim=0)
+            kl = self.beta * self.get_batch_logps(logits - ref_logits, labels, average_log_prob=True).clamp(min=0)
+            chosen_kl, rejected_kl = kl.chunk(2, dim=0)
 
-        # DPO loss
+        # Compute DPO loss
         losses, chosen_rewards, rejected_rewards = self.dpo_loss(
             policy_chosen_logps,
             policy_rejected_logps,
             reference_chosen_logps,
             reference_rejected_logps,
-            chosen_kl if self.loss_type == 'kto' else None,
-            rejected_kl if self.loss_type == 'kto' else None
+            chosen_kl,
+            rejected_kl,
         )
 
         reward_accuracies = (chosen_rewards > rejected_rewards).float()
         
+        # Additional loss calculations if needed
         if self.orpo_loss:
+            chosen_labels, _ = labels.chunk(2, dim=0)
+            loss_mask = (chosen_labels != -100)
             policy_chosen_logps = policy_chosen_logps / loss_mask.sum(-1)
             policy_rejected_logps = policy_rejected_logps / loss_mask.sum(-1)
-            # orpo的做法
             log_odds = (policy_chosen_logps - policy_rejected_logps) \
                     - (torch.log1p(-torch.exp(policy_chosen_logps)) - torch.log1p(-torch.exp(policy_rejected_logps)))
             odds_ratio_loss = -F.logsigmoid(log_odds)
@@ -331,17 +362,17 @@ class GPTModel_DPO(GPTModel):
         elif self.dpo_loss_of_orion:
             sft_loss = 0.0
             if self.ftx_gamma > 1e-6:
-                chosen_labels, _ = labels.split(rbs, dim=0)
+                chosen_labels, _ = labels.chunk(2, dim=0)
                 loss_mask = (chosen_labels != -100)
                 sft_loss = -policy_chosen_logps / loss_mask.sum(-1)
-                # losses += self.ftx_gamma * sft_loss
                 losses = losses * (1 - self.ftx_gamma) + self.ftx_gamma * sft_loss
             else:
                 if self.ftx_gamma > 1e-6:
-                    chosen_labels, _ = labels.split(rbs, dim=0)
+                    chosen_labels, _ = labels.chunk(2, dim=0)
                     loss_mask = (chosen_labels != -100)
                     losses += self.ftx_gamma * policy_chosen_logps / loss_mask.sum(-1)
 
+        # Prepare metrics
         metrics = {
             "dpo-metrics/rewards-chosen": chosen_rewards.mean().float(),
             "dpo-metrics/rewards-rejected": rejected_rewards.mean().float(),
@@ -360,7 +391,7 @@ class GPTModel_DPO(GPTModel):
             metrics["dpo-metrics/log_odds"] = log_odds.mean().float()
 
         return losses, metrics
-    
+        
     
     def margin_or_logps(self, labels, logits, ref_logits):
         # DPO logits abn logps

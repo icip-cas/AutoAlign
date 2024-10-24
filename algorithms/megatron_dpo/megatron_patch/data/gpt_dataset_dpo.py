@@ -3,9 +3,9 @@ from functools import lru_cache
 import numpy as np
 import sys
 import torch
-from megatron.training import get_args, print_rank_0
-from megatron_patch.tokenizer import get_tokenizer
+from megatron_patch.tokenizer import build_tokenizer
 from megatron_patch.data.indexed_dataset_dpo import MMapIndexedDataset_DPO
+from megatron.training import print_rank_0, get_args
 
 
 
@@ -26,11 +26,11 @@ class GPTDataset_DPO(torch.utils.data.Dataset):
         self.dpo_idx = self._initialize_and_shuffle_indices(documents)
             
         
-        cur_tokenizer = get_tokenizer()
-        self.mask_id = cur_tokenizer.vocab_size + 1
+        self.cur_tokenizer = build_tokenizer(self.args)
+        self.mask_id = self.cur_tokenizer.vocab_size + 1
     
-        if hasattr(cur_tokenizer, 'pad_token_id'):
-            self.pad = cur_tokenizer.pad_token_id
+        if hasattr(self.cur_tokenizer, 'pad_token_id'):
+            self.pad = self.cur_tokenizer.pad_token_id
         else:
             self.pad = 0
 
@@ -63,8 +63,8 @@ class GPTDataset_DPO(torch.utils.data.Dataset):
         
     def _pad_and_mask(self, sample, label_sample):
         assert sample.shape == label_sample.shape
-        pad_len = self.seq_length + 1 - len(sample)
-
+        pad_len = self.seq_length - len(sample)
+ 
         pad_value = np.ones(shape=(pad_len,), dtype=sample.dtype)
         label_pad_value = np.ones(shape=(pad_len,), dtype=sample.dtype)
 
@@ -73,6 +73,7 @@ class GPTDataset_DPO(torch.utils.data.Dataset):
         padded_sample = np.concatenate([sample, pad_value])
         padded_label_sample = np.concatenate([label_sample, label_pad_value])
 
+        
         assert self.mask_id == padded_label_sample[0]
         assert self.mask_id != padded_sample[0]
 

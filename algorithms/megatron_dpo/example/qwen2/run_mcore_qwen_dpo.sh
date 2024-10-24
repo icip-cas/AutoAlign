@@ -17,12 +17,12 @@ if [ -z ${MP_AC_LAYERS} ];then
 fi
 
 if [ $ENV = dsw ]; then
-    export CUDA_VISIBLE_DEVICES=0,1,2,3
+    export CUDA_VISIBLE_DEVICES=3
     MASTER_ADDR=localhost
     MASTER_PORT=$(shuf -n 1 -i 10000-65535)
     NNODES=1
     NODE_RANK=0
-    GPUS_PER_NODE=4
+    GPUS_PER_NODE=1
 elif [ $ENV = dlc ]; then
     NNODES=${WORLD_SIZE}
     NODE_RANK=${RANK}
@@ -333,7 +333,7 @@ else
     dataset_option=" \
         --data-path ${DATASET_PATH} \
         --split 99,1,0 \
-        --dataset LLama-Pretrain-Idxmap"
+        --dataset mmap" 
 fi
 
 
@@ -407,7 +407,7 @@ megatron_options="  \
         --no-save-optim \
         "
 
-run_cmd="torchrun $DISTRIBUTED_ARGS pretrain_qwen.py
+run_cmd="torchrun $DISTRIBUTED_ARGS dpo_qwen.py
  ${megatron_options} ${dataset_option} ${pr_options} ${load_options} ${te_options} ${activation_checkpoint_options} \
  ${do_options} ${sp_options} ${gqa_options} ${offload_option} ${comm_overlap_option} ${sft_option} ${moe_options} ${tie_option} ${vp_options} ${packing_options}"
 

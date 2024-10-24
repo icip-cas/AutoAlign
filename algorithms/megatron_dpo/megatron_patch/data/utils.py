@@ -17,7 +17,7 @@ from megatron.core import mpu
 try:
     from megatron import get_args
 except:
-    from megatron.training import get_args
+    from megatron.training import get_args, print_rank_0
 try:
     from megatron.utils import get_ltor_masks_and_position_ids
 except:
@@ -287,6 +287,7 @@ def get_batch_on_this_tp_rank_idxmap_dpo(data_iterator):
         labels = torch.cat([chosen_labels, rejected_labels], dim=0)
 
         
+
         # NOTE: assert lengths of tokens/labels are sequence-length
         assert args.seq_length == labels.shape[-1]
         

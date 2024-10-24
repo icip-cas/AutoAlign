@@ -18,7 +18,7 @@ from megatron.core.datasets.gpt_dataset import (
 )
 from megatron.core.datasets.utils import get_blend_from_list
 from megatron.core.enums import ModelType
-from megatron.training import get_args, get_timers, pretrain, print_rank_0
+from megatron.training import get_args, get_timers, print_rank_0, dpo
 from megatron.training.arguments import core_transformer_config_from_args
 from megatron.training.utils import (
     average_losses_across_data_parallel_group,
@@ -35,10 +35,11 @@ from megatron_patch.model.qwen2.layer_specs import (
     get_gpt_layer_with_transformer_engine_spec,
 )
 from megatron_patch.model.qwen2.model_dpo import GPTModel_DPO
+from megatron_patch.model.qwen2.model import GPTModel
 from megatron_patch.model.qwen2.transformer_config import Qwen2TransformerConfig
 from megatron_patch.tokenizer import build_tokenizer, get_tokenizer
 from megatron.core.packed_seq_params import PackedSeqParams
-from megatron_patch.training_dpo import dpo
+# from megatron_patch.training_dpo import dpo
 
 torch._dynamo.config.suppress_errors = True
 
@@ -80,6 +81,8 @@ def model_provider(
         rotary_base=args.rotary_base,
         seq_len_interpolation_factor=args.rotary_seq_len_interpolation_factor,
     )
+    
+
 
     return model
 
@@ -96,8 +99,9 @@ def get_batch(data_iterator):
     # get batches based on the TP rank you are on
 
     batch = get_batch_on_this_tp_rank_idxmap_dpo(data_iterator)
+    packed_seq_params = None
     
-    return tuple([*batch.values()])
+    return tuple([*batch.values(), packed_seq_params])
 
 
 
@@ -110,28 +114,30 @@ def loss_func(loss_mask: torch.Tensor, output_tensor: torch.Tensor):
     """
     args = get_args()
 
-    losses = output_tensor.float()
-    loss_mask = loss_mask.view(-1).float()
-    if args.context_parallel_size > 1:
-        loss = torch.cat(
-            [torch.sum(losses.view(-1) * loss_mask).view(1), loss_mask.sum().view(1)]
-        )
-        torch.distributed.all_reduce(loss, group=mpu.get_context_parallel_group())
-        loss = loss[0] / loss[1]
-    else:
-        loss = torch.sum(losses.view(-1) * loss_mask) / loss_mask.sum()
+    losses = output_tensor[0].float().sum()
+    # loss_mask = loss_mask.view(-1).float()
+    # if args.context_parallel_size > 1:
+    #     loss = torch.cat(
+    #         [torch.sum(losses.view(-1) * loss_mask).view(1), loss_mask.sum().view(1)]
+    #     )
+    #     torch.distributed.all_reduce(loss, group=mpu.get_context_parallel_group())
+    #     loss = loss[0] / loss[1]
+    # else:
+    #     loss = torch.sum(losses.view(-1) * loss_mask) / loss_mask.sum()
 
     # Check individual rank losses are not NaN prior to DP all-reduce.
-    if args.check_for_nan_in_loss_and_grad:
-        global_rank = torch.distributed.get_rank()
-        assert not loss.isnan(), (
-            f"Rank {global_rank}: found NaN in local forward loss calculation. "
-            f"Device: {torch.cuda.current_device()}, node: {os.uname()[1]}"
-        )
+    # if args.check_for_nan_in_loss_and_grad:
+    #     global_rank = torch.distributed.get_rank()
+    #     assert not loss.isnan(), (
+    #         f"Rank {global_rank}: found NaN in local forward loss calculation. "
+    #         f"Device: {torch.cuda.current_device()}, node: {os.uname()[1]}"
+    #     )
 
     # Reduce loss for logging.
-    averaged_loss = average_losses_across_data_parallel_group([loss])
-
+    # averaged_loss = average_losses_across_data_parallel_group([loss])
+    averaged_loss = average_losses_across_data_parallel_group([losses])
+    loss = losses
+    
     return loss * args.context_parallel_size, {"lm loss": averaged_loss[0]}
 
 
@@ -160,7 +166,7 @@ def is_dataset_built_on_rank():
     ) and mpu.get_tensor_model_parallel_rank() == 0
 
 
-def train_valid_test_datasets_provider():
+def train_valid_test_datasets_provider(train_valid_test_num_samples):
     """Build the train test and validation datasets.
     """
     args = get_args()
@@ -168,7 +174,7 @@ def train_valid_test_datasets_provider():
 
     train_ds, valid_ds, test_ds = build_train_valid_test_datasets_dpo(
         data_prefix=args.data_path,
-        data_impl=args.data_impl,
+        data_impl=args.dataset,
         splits_string=args.split,
         seq_length=args.seq_length,
         seed=args.seed,
