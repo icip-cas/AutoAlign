@@ -145,7 +145,6 @@ def loss_func(loss_mask: torch.Tensor, output_tensor: torch.Tensor):
         output_tensor (torch.Tensor): The tensor with the losses
     """
     args = get_args()
-
     losses = output_tensor.float()
     loss_mask = loss_mask.view(-1).float()
     if args.context_parallel_size > 1:

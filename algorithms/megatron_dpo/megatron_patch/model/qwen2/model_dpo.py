@@ -177,20 +177,19 @@ class GPTModel_DPO(LanguageModule):
                 packed_seq_params=packed_seq_params,
                 extra_block_kwargs=extra_block_kwargs,
              )
-
         if not self.post_process:
             ret = torch.cat((hidden_states, ref_hidden_states), dim=1)
             
             return ret, {}
         else:
             logits = hidden_states
-            ref_logits = ref_hidden_states.transpose(0,1).contiguous()
+            ref_logits = ref_hidden_states
 
             if labels is None:
-                return torch.stack((logits.transpose(0,1), ref_logits), 1)
+                return torch.stack([logits.transpose(0,1).contiguous(), ref_logits.transpose(0,1).contiguous()]), {}
 
             if self.forward_without_loss:
-                return self.margin_or_lopp(labels, logits, ref_logits)
+                return self.margin_or_lopp(labels, logits, ref_logits), {}
 
             ret = self.dpo(labels, logits, ref_logits)
             return ret
@@ -268,15 +267,21 @@ class GPTModel_DPO(LanguageModule):
         
         return seq_logps  # Shape: [batch_size]
 
-    def dpo_loss(self, policy_chosen_logps, policy_rejected_logps,
-             reference_chosen_logps, reference_rejected_logps, chosen_kl, rejected_kl):
+    def dpo_loss(self, 
+                 policy_chosen_logps, 
+                 policy_rejected_logps,
+                 reference_chosen_logps, 
+                 reference_rejected_logps, 
+                 chosen_kl,
+                 rejected_kl):
+        
         chosen_rewards = self.beta * (policy_chosen_logps - reference_chosen_logps)
         rejected_rewards = self.beta * (policy_rejected_logps - reference_rejected_logps)
         logits = chosen_rewards - rejected_rewards
 
         if self.loss_type == 'sigmoid':
-            losses = (-F.logsigmoid(logits) * (1 - self.label_smoothing) -
-                    F.logsigmoid(-logits) * self.label_smoothing)
+            losses = (-F.logsigmoid(logits) * (1 - self.label_smoothing) 
+                      -F.logsigmoid(-logits) * self.label_smoothing)
         elif self.loss_type == 'kto':
             # TRL implementation of KTO
             # eqn (7) of the HALOs paper
