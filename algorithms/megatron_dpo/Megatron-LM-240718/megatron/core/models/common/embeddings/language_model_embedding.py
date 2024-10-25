@@ -97,7 +97,9 @@ class LanguageModelEmbedding(MegatronModule):
         Returns:
             Tensor: The output embeddings
         """
+
         word_embeddings = self.word_embeddings(input_ids)
+
         if self.add_position_embedding:
             position_embeddings = self.position_embeddings(position_ids)
             embeddings = word_embeddings + position_embeddings
@@ -133,5 +135,6 @@ class LanguageModelEmbedding(MegatronModule):
                 embeddings = self.embedding_dropout(embeddings)
         else:
             embeddings = self.embedding_dropout(embeddings)
+    
 
         return embeddings

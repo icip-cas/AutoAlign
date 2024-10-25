@@ -161,6 +161,8 @@ def forward_step(data_iterator, model: GPTModel_DPO):
     timers("batch-generator", log_level=2).start()
     tokens, labels, loss_mask, attention_mask, position_ids, packed_seq_params = get_batch(data_iterator)
     timers("batch-generator").stop()
+                
+
     output_tensor = model(tokens, position_ids, attention_mask, labels=labels, packed_seq_params=packed_seq_params)
 
     return output_tensor, partial(loss_func, loss_mask)

@@ -209,10 +209,9 @@ comm_overlap_option="\
     --overlap-grad-reduce \
     --overlap-param-gather"
  
-
+#   --tp-comm-overlap \
 if [ $TP_COMM_OVERLAP -eq 1 ]; then
     comm_overlap_option="\
-        --tp-comm-overlap \
         --overlap-grad-reduce \
         --overlap-param-gather"
 fi

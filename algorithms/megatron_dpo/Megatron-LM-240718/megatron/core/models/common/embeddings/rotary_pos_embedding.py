@@ -237,6 +237,7 @@ def apply_rotary_pos_emb(
                 " is not included in Apex. Try upgrading to the latest version"
             )
             apply_rotary_pos_emb.printed_fused_warning = True
+
     if config.apply_rope_fusion:
         if cu_seqlens is None:
             return fused_apply_rotary_pos_emb(t, freqs, transpose_output_memory=True)

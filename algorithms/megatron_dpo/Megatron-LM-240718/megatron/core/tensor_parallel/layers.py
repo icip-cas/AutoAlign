@@ -218,6 +218,7 @@ class VocabParallelEmbedding(torch.nn.Module):
                 _initialize_affine_weight_gpu(self.weight, init_method, partition_dim=0, stride=1)
 
     def forward(self, input_):
+ 
         if self.tensor_model_parallel_size > 1:
             # Build the mask.
             input_mask = (input_ < self.vocab_start_index) | (input_ >= self.vocab_end_index)
@@ -226,12 +227,14 @@ class VocabParallelEmbedding(torch.nn.Module):
             masked_input[input_mask] = 0
         else:
             masked_input = input_
+        
         # Get the embeddings.
         if self.deterministic_mode:
             output_parallel = self.weight[masked_input]
         else:
             # F.embedding currently has a non-deterministic backward function
             output_parallel = F.embedding(masked_input, self.weight)
+
         # Mask the output embedding.
         if self.tensor_model_parallel_size > 1:
             output_parallel[input_mask, :] = 0.0
@@ -243,6 +246,7 @@ class VocabParallelEmbedding(torch.nn.Module):
         else:
             # Reduce across all the model parallel GPUs.
             output = reduce_from_tensor_model_parallel_region(output_parallel)
+   
         return output
 
     def sharded_state_dict(

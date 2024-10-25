@@ -198,7 +198,7 @@ class GPTModel(LanguageModule):
                 inference_params, self.decoder, decoder_input, self.config
             )
             rotary_pos_emb = self.rotary_pos_emb(rotary_seq_len)
-
+        
         # Run decoder.
         hidden_states = self.decoder(
             hidden_states=decoder_input,

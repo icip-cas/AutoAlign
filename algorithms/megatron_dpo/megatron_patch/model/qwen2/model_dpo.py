@@ -155,6 +155,9 @@ class GPTModel_DPO(LanguageModule):
         extra_block_kwargs: dict = None,
     ) -> Tensor:
         
+        
+
+        
         hidden_states = self.policy_model(
             input_ids,
             position_ids,
