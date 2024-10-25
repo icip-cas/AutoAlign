@@ -80,8 +80,16 @@ def model_provider(
         rotary_percent=args.rotary_percent,
         rotary_base=args.rotary_base,
         seq_len_interpolation_factor=args.rotary_seq_len_interpolation_factor,
+        beta=args.beta,
+        label_smoothing=args.label_smoothing,
+        loss_type=args.loss_type,
+        ftx_gamma=args.ftx_gamma,
+        model_using=args.model_using,
+        forward_without_loss=args.forward_without_loss,
+        dpo_loss_of_orion=args.dpo_loss_of_orion,
+        orpo_loss=args.orpo_loss,
     )
-    
+        
 
 
     return model
@@ -114,30 +122,28 @@ def loss_func(loss_mask: torch.Tensor, output_tensor: torch.Tensor):
     """
     args = get_args()
 
-    losses = output_tensor[0].float().sum()
-    # loss_mask = loss_mask.view(-1).float()
-    # if args.context_parallel_size > 1:
-    #     loss = torch.cat(
-    #         [torch.sum(losses.view(-1) * loss_mask).view(1), loss_mask.sum().view(1)]
-    #     )
-    #     torch.distributed.all_reduce(loss, group=mpu.get_context_parallel_group())
-    #     loss = loss[0] / loss[1]
-    # else:
-    #     loss = torch.sum(losses.view(-1) * loss_mask) / loss_mask.sum()
+    losses = output_tensor.float()
+    loss_mask = loss_mask.view(-1).float()
+    if args.context_parallel_size > 1:
+        loss = torch.cat(
+            [torch.sum(losses.view(-1) * loss_mask).view(1), loss_mask.sum().view(1)]
+        )
+        torch.distributed.all_reduce(loss, group=mpu.get_context_parallel_group())
+        loss = loss[0] / loss[1]
+    else:
+        loss = torch.sum(losses.view(-1) * loss_mask) / loss_mask.sum()
 
     # Check individual rank losses are not NaN prior to DP all-reduce.
-    # if args.check_for_nan_in_loss_and_grad:
-    #     global_rank = torch.distributed.get_rank()
-    #     assert not loss.isnan(), (
-    #         f"Rank {global_rank}: found NaN in local forward loss calculation. "
-    #         f"Device: {torch.cuda.current_device()}, node: {os.uname()[1]}"
-    #     )
+    if args.check_for_nan_in_loss_and_grad:
+        global_rank = torch.distributed.get_rank()
+        assert not loss.isnan(), (
+            f"Rank {global_rank}: found NaN in local forward loss calculation. "
+            f"Device: {torch.cuda.current_device()}, node: {os.uname()[1]}"
+        )
 
     # Reduce loss for logging.
-    # averaged_loss = average_losses_across_data_parallel_group([loss])
-    averaged_loss = average_losses_across_data_parallel_group([losses])
-    loss = losses
-    
+    averaged_loss = average_losses_across_data_parallel_group([loss])
+
     return loss * args.context_parallel_size, {"lm loss": averaged_loss[0]}
 
 
