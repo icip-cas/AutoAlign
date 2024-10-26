@@ -270,8 +270,8 @@ def get_batch_on_this_tp_rank_idxmap_dpo(data_iterator):
         rejected_tokens = data['rejected_text'].long()
         
         
-        chosen_label = data['chosen_text'].long()
-        rejected_label =data['rejected_text'].long()
+        chosen_label = data['chosen_label'].long()
+        rejected_label =data['rejected_label'].long()
         
         # Create labels by shifting tokens
         chosen_labels = torch.roll(chosen_label, shifts=-1, dims=1)

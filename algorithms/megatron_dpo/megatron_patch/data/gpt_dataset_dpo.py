@@ -52,6 +52,7 @@ class GPTDataset_DPO(torch.utils.data.Dataset):
 
         # Process rejected data
         rejected_padded = self._pad_and_mask(rejected_input, rejected_label)
+        
 
         return {
             "chosen_text": np.array(chosen_padded['text'], dtype=np.int64),

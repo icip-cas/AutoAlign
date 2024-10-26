@@ -694,7 +694,7 @@ def train_step(
         model=model,
         num_microbatches=get_num_microbatches(),
         seq_length=args.seq_length,
-        micro_batch_size=args.micro_batch_size,
+        micro_batch_size=args.micro_batch_size * 4,
         decoder_seq_length=args.decoder_seq_length,
         forward_only=False,
     )

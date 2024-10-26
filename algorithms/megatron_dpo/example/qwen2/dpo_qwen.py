@@ -90,8 +90,6 @@ def model_provider(
         orpo_loss=args.orpo_loss,
     )
         
-
-
     return model
 
 
@@ -122,16 +120,16 @@ def loss_func(loss_mask: torch.Tensor, output_tensor: torch.Tensor):
     """
     args = get_args()
     losses, metrics = output_tensor
-    losses = losses.float()
-    loss_mask = loss_mask.view(-1).float()
-    if args.context_parallel_size > 1:
-        loss = torch.cat(
-            [torch.sum(losses.view(-1) * loss_mask).view(1), loss_mask.sum().view(1)]
-        )
-        torch.distributed.all_reduce(loss, group=mpu.get_context_parallel_group())
-        loss = loss[0] / loss[1]
-    else:
-        loss = torch.sum(losses.view(-1) * loss_mask) / loss_mask.sum()
+    loss = losses.float()
+    # loss_mask = loss_mask.view(-1).float()
+    # if args.context_parallel_size > 1:
+    #     loss = torch.cat(
+    #         [torch.sum(losses.view(-1) * loss_mask).view(1), loss_mask.sum().view(1)]
+    #     )
+    #     torch.distributed.all_reduce(loss, group=mpu.get_context_parallel_group())
+    #     loss = loss[0] / loss[1]
+    # else:
+    #     loss = torch.sum(losses.view(-1) * loss_mask) / loss_mask.sum()
 
     # Check individual rank losses are not NaN prior to DP all-reduce.
     if args.check_for_nan_in_loss_and_grad:

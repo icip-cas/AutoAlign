@@ -35,6 +35,9 @@ import torch
 from megatron_patch.tokenizer import build_tokenizer
 from megatron_patch.data.indexed_dataset_dpo import make_dpo_builder
 from collections import defaultdict
+from src.autoalign import conversation
+
+TEMPLATES = conversation.TEMPLATES
 
 def custom_print(*args):
     formatted_message = ' '.join(str(arg) for arg in args)

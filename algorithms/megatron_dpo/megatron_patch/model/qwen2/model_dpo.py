@@ -29,7 +29,7 @@ from megatron.core.packed_seq_params import PackedSeqParams
 from megatron.core.transformer.enums import AttnMaskType, ModelType
 from megatron.core.transformer.spec_utils import ModuleSpec
 from megatron.core.transformer.transformer_config import TransformerConfig
-from megatron_patch.tokenizer import build_tokenizer
+from megatron_patch.tokenizer import get_tokenizer
 
 from .transformer_block import TransformerBlock
 from .model import GPTModel
@@ -73,6 +73,7 @@ class GPTModel_DPO(LanguageModule):
         self.post_process = post_process
         self.fp16_lm_cross_entropy = args.fp16_lm_cross_entropy
         self.untie_embeddings_and_output_weights = args.untie_embeddings_and_output_weights
+        self.share_embeddings_and_output_weights = share_embeddings_and_output_weights
         
         self.beta = beta
         self.label_smoothing = label_smoothing
@@ -82,7 +83,7 @@ class GPTModel_DPO(LanguageModule):
         self.forward_without_loss = forward_without_loss
         self.dpo_loss_of_orion = dpo_loss_of_orion
         self.orpo_loss = orpo_loss
-        
+        self.tokenizer = get_tokenizer()
         
         self.policy_model = GPTModel(
                                 config = config,
@@ -99,6 +100,7 @@ class GPTModel_DPO(LanguageModule):
                                 rotary_base = rotary_base,
                                 seq_len_interpolation_factor = seq_len_interpolation_factor
                             )
+        
         
         self.ref_model = GPTModel(
                                 config = config,
@@ -155,9 +157,6 @@ class GPTModel_DPO(LanguageModule):
         extra_block_kwargs: dict = None,
     ) -> Tensor:
         
-        
-
-        
         hidden_states = self.policy_model(
             input_ids,
             position_ids,
@@ -168,6 +167,7 @@ class GPTModel_DPO(LanguageModule):
             packed_seq_params=packed_seq_params,
             extra_block_kwargs=extra_block_kwargs,
             )
+        # torch.Size([2, 2048, 151936])
 
         with torch.no_grad():
             ref_hidden_states = self.ref_model(
@@ -180,10 +180,11 @@ class GPTModel_DPO(LanguageModule):
                 packed_seq_params=packed_seq_params,
                 extra_block_kwargs=extra_block_kwargs,
              )
+        # torch.Size([2, 2048, 151936])
         if not self.post_process:
             ret = torch.cat((hidden_states, ref_hidden_states), dim=1)
             
-            return ret, {}
+            return ret
         else:
             logits = hidden_states
             ref_logits = ref_hidden_states
@@ -245,6 +246,10 @@ class GPTModel_DPO(LanguageModule):
         # Save the original batch size and sequence length
         batch_size, seq_length, vocab_size = logits.size()
         
+        mask_id = self.tokenizer.vocab_size + 1 
+        loss_mask = (labels != mask_id).float() 
+        loss_mask = loss_mask.view(batch_size * seq_length) 
+        
         # Flatten logits and labels
         logits = logits.reshape(batch_size * seq_length, vocab_size)
         labels = labels.reshape(batch_size * seq_length)
@@ -252,20 +257,18 @@ class GPTModel_DPO(LanguageModule):
         # Compute per-token log probabilities
         per_token_logps = -1 * tensor_parallel.vocab_parallel_cross_entropy(logits, labels)
         
+        per_token_logps = per_token_logps * loss_mask
+        
         # Reshape back to [batch_size, seq_length]
         per_token_logps = per_token_logps.view(batch_size, seq_length)
         
         # Compute sequence log probabilities
         seq_logps = per_token_logps.sum(dim=-1)  # Shape: [batch_size]
         
+        
         if average_log_prob:
-            # Compute valid token counts per sequence
-            args = get_args()
-            tokenizer = build_tokenizer(args)
-            pad_token_id = tokenizer.pad_token_id
             labels_reshaped = labels.view(batch_size, seq_length)
-            seq_lengths = (labels_reshaped != pad_token_id).sum(dim=-1).clamp(min=1)
-            # Compute average log probability per token
+            seq_lengths = (labels_reshaped != mask_id).sum(dim=-1).clamp(min=1)
             seq_logps = seq_logps / seq_lengths
         
         return seq_logps  # Shape: [batch_size]
@@ -331,7 +334,31 @@ class GPTModel_DPO(LanguageModule):
 
         # Compute log probabilities
         logps = self.get_batch_logps(logits, labels)
+        
+        batch_size, seq_length, vocab_size = logits.size()
+        logits = logits.reshape(batch_size * seq_length, vocab_size)
+        labels = labels.reshape(batch_size * seq_length)
+        mask_id = self.tokenizer.vocab_size + 1 
+        loss_mask = (labels != mask_id).float() 
+        per_token_logps_sft = (-1 * tensor_parallel.vocab_parallel_cross_entropy(logits, labels)).detach()  # Detach from computation graph
+        loss_mask = loss_mask.view(batch_size * seq_length)  # Flatten loss mask to match flattened logits
+        # Apply loss mask and compute the average SFT loss over all valid tokens
+        sft_loss = -(per_token_logps_sft * loss_mask).sum() / loss_mask.sum()  # Total masked loss divided by number of valid tokens
+
+        print("=" * 10 + " Policy SFT Loss: {:.4f} ".format(sft_loss.item()) + "=" * 10)  # Use separators
+        
         ref_logps = self.get_batch_logps(ref_logits, labels)
+        
+        batch_size, seq_length, vocab_size = ref_logits.size()
+        ref_logits = ref_logits.reshape(batch_size * seq_length, vocab_size)
+        labels = labels.reshape(batch_size * seq_length)
+        mask_id = self.tokenizer.vocab_size + 1 
+        loss_mask = (labels != mask_id).float() 
+        per_token_logps_sft = (-1 * tensor_parallel.vocab_parallel_cross_entropy(ref_logits, labels)).detach()  # Detach from computation graph
+        loss_mask = loss_mask.view(batch_size * seq_length)  # Flatten loss mask to match flattened logits
+        # Apply loss mask and compute the average SFT loss over all valid tokens
+        sft_loss = -(per_token_logps_sft * loss_mask).sum() / loss_mask.sum()  # Total masked loss divided by number of valid tokens
+        print("=" * 10 + " Ref SFT Loss: {:.4f} ".format(sft_loss.item()) + "=" * 10)  # Use separators
 
         # Split log probabilities into chosen and rejected parts
         policy_chosen_logps, policy_rejected_logps = logps.chunk(2, dim=0)
