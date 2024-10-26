@@ -312,6 +312,7 @@ def get_batch_on_this_tp_rank_idxmap_dpo(data_iterator):
             'attention_mask': attention_mask.cuda(non_blocking=True) if attention_mask is not None else None,
             'position_ids': position_ids.cuda(non_blocking=True)
         }
+        
 
         if args.pipeline_model_parallel_size == 1:
             _broadcast(batch['tokens'])
@@ -343,7 +344,7 @@ def get_batch_on_this_tp_rank_idxmap_dpo(data_iterator):
         
         attention_mask = None
         if args.create_attention_mask_in_dataloader:
-            attention_mask = torch.empty((batch_size, 1, args.seq_length, args.seq_length), dtype=torch.bool,
+            attention_mask = torch.empty((1, 1, args.seq_length, args.seq_length), dtype=torch.bool,
                                         device=torch.cuda.current_device())
         position_ids = torch.empty((batch_size, args.seq_length), dtype=torch.int64,
                                    device=torch.cuda.current_device())

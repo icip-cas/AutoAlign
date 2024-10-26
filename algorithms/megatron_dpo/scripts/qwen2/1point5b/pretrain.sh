@@ -2,7 +2,7 @@ cd /ciphome/zhangqingyu2023/code/auto-alignment/algorithms/megatron_dpo/example/
 sh run_mcore_qwen.sh  \
 dsw  \
 1.5B   \
-1    \
+2    \
 8 \
 1e-5   \
 1e-6   \

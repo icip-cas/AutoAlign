@@ -207,9 +207,8 @@ fi
 TP_COMM_OVERLAP=$(( ($TP > 1) ? 1 : 0 ))
 comm_overlap_option="\
     --overlap-grad-reduce \
-    --overlap-param-gather"
+    --overlap-param-gather "
  
-#   --tp-comm-overlap \
 if [ $TP_COMM_OVERLAP -eq 1 ]; then
     comm_overlap_option="\
         --overlap-grad-reduce \
@@ -281,7 +280,8 @@ te_options=" \
 
 if [ $SP = true ] && [ $TP -gt 1 ]; then
     sp_options=" \
-		    --sequence-parallel"
+		    --sequence-parallel \
+            --tp-comm-overlap "
 
 elif [ $SP = false ]; then
     sp_options=" \

@@ -8,8 +8,6 @@ from megatron_patch.data.indexed_dataset_dpo import MMapIndexedDataset_DPO
 from megatron.training import print_rank_0, get_args
 
 
-
-
 class GPTDataset_DPO(torch.utils.data.Dataset):
 
     def __init__(self, 

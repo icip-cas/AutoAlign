@@ -18,7 +18,7 @@ from typing import Dict, Literal, Optional, Tuple, Union
 from torch import Tensor
 import torch
 import torch.nn.functional as F
-from megatron.training import get_args
+from megatron.training import print_rank_0, get_args
 from megatron.core import mpu
 from megatron.core import InferenceParams, parallel_state, tensor_parallel
 from megatron.core.dist_checkpointing.mapping import ShardedStateDict
@@ -141,7 +141,7 @@ class GPTModel_DPO(LanguageModule):
             self.ref_model.set_input_tensor(None)
         else:
             # print("input_Tesor", input_tensor[0].shape) # seq_len, 2*micro_batch_size, hidden_size
-            policy_, ref_ = input_tensor[0].split(2, dim=1)
+            policy_, ref_ = input_tensor[0].chunk(2, dim=1)
             self.policy_model.set_input_tensor(policy_)
             self.ref_model.set_input_tensor(ref_)
 
@@ -156,7 +156,6 @@ class GPTModel_DPO(LanguageModule):
         packed_seq_params: PackedSeqParams = None,
         extra_block_kwargs: dict = None,
     ) -> Tensor:
-        
         hidden_states = self.policy_model(
             input_ids,
             position_ids,
@@ -167,8 +166,7 @@ class GPTModel_DPO(LanguageModule):
             packed_seq_params=packed_seq_params,
             extra_block_kwargs=extra_block_kwargs,
             )
-        # torch.Size([2, 2048, 151936])
-
+    
         with torch.no_grad():
             ref_hidden_states = self.ref_model(
                 input_ids,
@@ -180,7 +178,7 @@ class GPTModel_DPO(LanguageModule):
                 packed_seq_params=packed_seq_params,
                 extra_block_kwargs=extra_block_kwargs,
              )
-        # torch.Size([2, 2048, 151936])
+     
         if not self.post_process:
             ret = torch.cat((hidden_states, ref_hidden_states), dim=1)
             
@@ -278,34 +276,15 @@ class GPTModel_DPO(LanguageModule):
                  policy_rejected_logps,
                  reference_chosen_logps, 
                  reference_rejected_logps, 
-                 chosen_kl,
-                 rejected_kl):
-        
+                 ):
         chosen_rewards = self.beta * (policy_chosen_logps - reference_chosen_logps)
         rejected_rewards = self.beta * (policy_rejected_logps - reference_rejected_logps)
         logits = chosen_rewards - rejected_rewards
 
-        if self.loss_type == 'sigmoid':
-            losses = (-F.logsigmoid(logits) * (1 - self.label_smoothing) 
-                      -F.logsigmoid(-logits) * self.label_smoothing)
-        elif self.loss_type == 'kto':
-            # TRL implementation of KTO
-            # eqn (7) of the HALOs paper
-            chosen_KL = (policy_chosen_logps - reference_chosen_logps).mean().clamp(min=0)
-            rejected_KL = (policy_rejected_logps - reference_rejected_logps).mean().clamp(min=0)
-            chosen_logratios = policy_chosen_logps - reference_chosen_logps
-            rejected_logratios = policy_rejected_logps - reference_rejected_logps
-            losses = torch.cat(
-                (
-                    1 - F.sigmoid(self.beta * (chosen_logratios - rejected_KL)),
-                    1 - F.sigmoid(self.beta * (chosen_KL - rejected_logratios)),
-                ),
-                0,
-            )
-        else:
-            raise ValueError(f'unknown loss type {self.loss_type}')
+        losses = (-F.logsigmoid(logits) * (1 - self.label_smoothing) 
+                    -F.logsigmoid(-logits) * self.label_smoothing)
     
-        return losses, chosen_rewards.detach(), rejected_rewards.detach()
+        return losses.mean() , chosen_rewards.detach(), rejected_rewards.detach()
 
     def dpo(self, labels, logits, ref_logits):
         batch_size = logits.shape[0]
@@ -343,9 +322,7 @@ class GPTModel_DPO(LanguageModule):
         per_token_logps_sft = (-1 * tensor_parallel.vocab_parallel_cross_entropy(logits, labels)).detach()  # Detach from computation graph
         loss_mask = loss_mask.view(batch_size * seq_length)  # Flatten loss mask to match flattened logits
         # Apply loss mask and compute the average SFT loss over all valid tokens
-        sft_loss = -(per_token_logps_sft * loss_mask).sum() / loss_mask.sum()  # Total masked loss divided by number of valid tokens
-
-        print("=" * 10 + " Policy SFT Loss: {:.4f} ".format(sft_loss.item()) + "=" * 10)  # Use separators
+        policy_sft_loss = -(per_token_logps_sft * loss_mask).sum() / loss_mask.sum()  # Total masked loss divided by number of valid tokens
         
         ref_logps = self.get_batch_logps(ref_logits, labels)
         
@@ -357,18 +334,12 @@ class GPTModel_DPO(LanguageModule):
         per_token_logps_sft = (-1 * tensor_parallel.vocab_parallel_cross_entropy(ref_logits, labels)).detach()  # Detach from computation graph
         loss_mask = loss_mask.view(batch_size * seq_length)  # Flatten loss mask to match flattened logits
         # Apply loss mask and compute the average SFT loss over all valid tokens
-        sft_loss = -(per_token_logps_sft * loss_mask).sum() / loss_mask.sum()  # Total masked loss divided by number of valid tokens
-        print("=" * 10 + " Ref SFT Loss: {:.4f} ".format(sft_loss.item()) + "=" * 10)  # Use separators
+        ref_sft_loss = -(per_token_logps_sft * loss_mask).sum() / loss_mask.sum()  # Total masked loss divided by number of valid tokens
 
         # Split log probabilities into chosen and rejected parts
         policy_chosen_logps, policy_rejected_logps = logps.chunk(2, dim=0)
         reference_chosen_logps, reference_rejected_logps = ref_logps.chunk(2, dim=0)
 
-        # Initialize Kullback-Leibler divergences if needed
-        chosen_kl, rejected_kl = None, None
-        if self.loss_type == 'kto':
-            kl = self.beta * self.get_batch_logps(logits - ref_logits, labels, average_log_prob=True).clamp(min=0)
-            chosen_kl, rejected_kl = kl.chunk(2, dim=0)
 
         # Compute DPO loss
         losses, chosen_rewards, rejected_rewards = self.dpo_loss(
@@ -376,8 +347,6 @@ class GPTModel_DPO(LanguageModule):
             policy_rejected_logps,
             reference_chosen_logps,
             reference_rejected_logps,
-            chosen_kl,
-            rejected_kl,
         )
 
         reward_accuracies = (chosen_rewards > rejected_rewards).float()
@@ -417,7 +386,10 @@ class GPTModel_DPO(LanguageModule):
             "dpo-metrics/logps-rejected": policy_rejected_logps.detach().mean().float(),
             "dpo-metrics/logits-chosen": policy_chosen_logits_mean,
             "dpo-metrics/logits-rejected": policy_rejected_logits_mean,
+            "dpo-metrics/policy-sft-loss": policy_sft_loss.item(),
+            "dpo-metrics/ref-sft-loss": ref_sft_loss.item(),
         }
+
 
         if self.dpo_loss_of_orion:
             metrics["dpo-metrics/sft_loss"] = sft_loss
