@@ -20,8 +20,8 @@ ture \
 false   \
 false \
 100000  \
-/ciphome/zhangqingyu2023/data/dpo/ultrafeedback_binarized_conversations_maxlen_2048   \
-/ciphome/zhangqingyu2023/data/dpo/ultrafeedback_binarized_conversations_maxlen_2048  \
+/ciphome/zhangqingyu2023/data/dpo/ultrafeedback_binarized_apply_template_conversations_maxlen_2048   \
+/ciphome/zhangqingyu2023/data/dpo/ultrafeedback_binarized_apply_template_conversations_maxlen_2048  \
 /ciphome/zhangqingyu2023/mg_models/Qwen2-1.5B-hf-to-mcore-te-tp2-pp2 \
 1000000000  \
 100   \

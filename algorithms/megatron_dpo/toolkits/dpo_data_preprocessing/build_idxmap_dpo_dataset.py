@@ -35,9 +35,11 @@ import torch
 from megatron_patch.tokenizer import build_tokenizer
 from megatron_patch.data.indexed_dataset_dpo import make_dpo_builder
 from collections import defaultdict
-from src.autoalign import conversation
+from src.autoalign.conversation import TEMPLATES, Role
 
-TEMPLATES = conversation.TEMPLATES
+
+Chat_Template = TEMPLATES['chatml-idsys']
+
 
 def custom_print(*args):
     formatted_message = ' '.join(str(arg) for arg in args)
@@ -45,7 +47,8 @@ def custom_print(*args):
     BLUE = '\033[94m'
     END = '\033[0m'  
     print(f"{BLUE}[{current_time}] [INFO]{END} {formatted_message}")
-    
+
+custom_print("Chat Template:\n",Chat_Template.get_attributes())
 
 
 class Encoder(object):
@@ -72,8 +75,15 @@ def dpo_encode_provide(json_line): # llama2 conversations templates from fastcha
     
     chosen_data = json_line['chosen']
     rejected_data = json_line['rejected']
+    sys_starts = Chat_Template.role_starts[Role.SYSTEM]
+    sys_ends = Chat_Template.role_ends[Role.SYSTEM]
     
-
+    user_starts = Chat_Template.role_starts[Role.HUMAN]
+    user_ends = Chat_Template.role_ends[Role.HUMAN]
+    
+    assistant_starts = Chat_Template.role_starts[Role.ASSISTANT]
+    assistant_ends = Chat_Template.role_ends[Role.ASSISTANT]
+    
     def process_dialogue(json_line):
         args = get_args()
         ids = {}
@@ -85,10 +95,10 @@ def dpo_encode_provide(json_line): # llama2 conversations templates from fastcha
         
         if json_line[0]["from"]=='system':
             sys_mess = json_line[0]["value"]
-            system_message = f"[INST] <<SYS>>\n{sys_mess}\n<</SYS>>\n\n"
+            system_message = f"{sys_starts}{sys_mess}{sys_ends}"
             json_line = json_line[1:]
         else:
-            system_message = "[INST] "
+            system_message = sys_starts + Chat_Template.default_system_message + sys_ends
         
         conv_len = len(json_line)
         assert conv_len % 2 == 0
@@ -102,25 +112,15 @@ def dpo_encode_provide(json_line): # llama2 conversations templates from fastcha
             assert item["from"] in ["human","gpt"]
             assert item["from"] == json_line[(idx + 2)% conv_len]["from"]
             if item["from"] == "human":
-                if idx == 0 :
-                    tmp = item["value"] + " "
-                    tmp_tokens = Encoder.tokenizer.tokenize(tmp)
-                    doc_ids = doc_ids + tmp_tokens
-                    if args.mask:
-                        doc_lable_ids = doc_lable_ids + [Encoder.mask_id] * len(tmp_tokens)
-                        num_begin_mask_id += len(tmp_tokens)
-                    else:
-                        doc_lable_ids = doc_lable_ids + tmp_tokens
-                else :
-                    tmp = "[INST]"+item["value"] + " "
-                    tmp_tokens = Encoder.tokenizer.tokenize(tmp)
-                    doc_ids = doc_ids + tmp_tokens
-                    if args.mask:
-                        doc_lable_ids = doc_lable_ids + [Encoder.mask_id] * len(tmp_tokens)
-                    else:
-                        doc_lable_ids = doc_lable_ids + tmp_tokens
+                tmp = user_starts +item["value"] + user_ends
+                tmp_tokens = Encoder.tokenizer.tokenize(tmp)
+                doc_ids = doc_ids + tmp_tokens
+                if args.mask:
+                    doc_lable_ids = doc_lable_ids + [Encoder.mask_id] * len(tmp_tokens)
+                else:
+                    doc_lable_ids = doc_lable_ids + tmp_tokens
             else:
-                tmp = "[/INST]"+ item["value"] +" </s><s>"
+                tmp = assistant_starts + item["value"] + assistant_ends
                 tmp_tokens = Encoder.tokenizer.tokenize(tmp)
                 doc_ids = doc_ids + tmp_tokens 
                 doc_lable_ids = doc_lable_ids + tmp_tokens
