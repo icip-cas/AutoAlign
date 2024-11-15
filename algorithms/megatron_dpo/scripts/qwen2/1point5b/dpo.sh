@@ -3,7 +3,7 @@ sh run_mcore_qwen_dpo.sh  \
 dsw  \
 1.5B   \
 2   \
-32 \
+16 \
 1e-5   \
 1e-6   \
 2048 \
