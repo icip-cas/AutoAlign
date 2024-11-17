@@ -398,8 +398,8 @@ def main():
             custom_print("decode tokenized rejected data: ",Encoder.tokenizer.detokenize(test_doc['rejected'][key]['data']))
             custom_print("tokenized rejected label: ",test_doc['rejected'][key]['label'])
         else:
-            custom_print("decode tokenized data: ",Encoder.tokenizer.detokenize(test_doc[key]['data']))
-            custom_print("tokenized label: ",test_doc[key]['label'])
+            custom_print("decode tokenized data: ",Encoder.tokenizer.detokenize(test_doc['conv'][key]['data']))
+            custom_print("tokenized label: ",test_doc['conv'][key]['label'])
     else:
         for data_class in ['conv'] :
             output_bin_files[data_class][key] = "{}_{}_maxlen_{}_{}".format(args.output_prefix,

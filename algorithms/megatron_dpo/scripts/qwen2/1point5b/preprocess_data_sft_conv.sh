@@ -4,6 +4,6 @@ bash run_build_idxmap_sft_conv_dataset.sh \
 /share/zhangqingyu/data/sft/sharegpt_formatted_data-evol-gpt4.json \
 conversations \
 Qwen2Tokenizer \
-2048 \
+4096 \
 /share/zhangqingyu/data/sft/sharegpt_formatted_data-evol-gpt4 \
 /share/zhangqingyu/hf_models/Qwen2-1.5B

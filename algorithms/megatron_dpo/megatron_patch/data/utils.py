@@ -374,3 +374,118 @@ def get_batch_on_this_tp_rank_idxmap_dpo(data_iterator):
 
 
     return batch
+
+def get_batch_on_this_tp_rank_idxmap_sft_conv(data_iterator):
+    args = get_args()
+    tokenizer = get_tokenizer()
+    mask_id = tokenizer.vocab_size + 1
+    def _broadcast(item):
+        if item is None:
+            return
+        torch.distributed.broadcast(item, mpu.get_tensor_model_parallel_src_rank(),
+                                    group=mpu.get_tensor_model_parallel_group())
+
+    if mpu.get_tensor_model_parallel_rank() == 0:
+        if isinstance(data_iterator, dict):
+            data = data_iterator
+        else:
+            data = next(data_iterator)
+            
+        # Process conv data 
+        conv_tokens = data['conv_text'].long()
+        conv_label = data['conv_label'].long()
+        
+        # Create labels by shifting tokens
+        conv_labels = torch.roll(conv_label, shifts=-1, dims=1)
+  
+        # Set the last token of each sequence to pad_token_id
+        conv_labels[:, -1] = mask_id
+        
+        # Stack chosen and rejected data
+        tokens = conv_tokens
+        labels = conv_labels
+
+        # NOTE: assert lengths of tokens/labels are sequence-length
+        assert args.seq_length == labels.shape[-1]
+        
+        # Set up loss mask
+        loss_mask = torch.ones_like(labels, dtype=torch.float)
+        loss_mask[labels == mask_id] = 0.0
+
+        attention_mask, _, position_ids = get_ltor_masks_and_position_ids(
+            tokens,
+            tokenizer.eod,
+            args.reset_position_ids,
+            args.reset_attention_mask,
+            False,
+            args.create_attention_mask_in_dataloader
+        )
+
+        batch = {
+            'tokens': tokens.cuda(non_blocking=True),
+            'labels': labels.cuda(non_blocking=True),
+            'loss_mask': loss_mask.cuda(non_blocking=True),
+            'attention_mask': attention_mask.cuda(non_blocking=True) if attention_mask is not None else None,
+            'position_ids': position_ids.cuda(non_blocking=True)
+        }
+        
+
+        if args.pipeline_model_parallel_size == 1:
+            _broadcast(batch['tokens'])
+            _broadcast(batch['labels'])
+            _broadcast(batch['loss_mask'])
+            _broadcast(batch['attention_mask'])
+
+        elif mpu.is_pipeline_first_stage():
+            _broadcast(batch['tokens'])
+            _broadcast(batch['attention_mask'])
+
+        elif mpu.is_pipeline_last_stage():
+            _broadcast(batch['labels'])
+            _broadcast(batch['loss_mask'])
+            _broadcast(batch['attention_mask'])
+        
+        _broadcast(batch['position_ids'])
+
+
+    else:
+        batch_size = args.micro_batch_size 
+        tokens = torch.empty((batch_size, args.seq_length), dtype=torch.int64,
+                             device=torch.cuda.current_device())
+        labels = torch.empty((batch_size, args.seq_length), dtype=torch.int64,
+                             device=torch.cuda.current_device())
+        loss_mask = torch.empty((batch_size, args.seq_length), dtype=torch.float32,
+                                device=torch.cuda.current_device())
+        
+        attention_mask = None
+        if args.create_attention_mask_in_dataloader:
+            attention_mask = torch.empty((1, 1, args.seq_length, args.seq_length), dtype=torch.bool,
+                                        device=torch.cuda.current_device())
+        position_ids = torch.empty((batch_size, args.seq_length), dtype=torch.int64,
+                                   device=torch.cuda.current_device())
+
+        if args.pipeline_model_parallel_size == 1:
+            for tensor in [tokens, labels, loss_mask, attention_mask]:
+                _broadcast(tensor)
+        elif mpu.is_pipeline_first_stage():
+            labels = None
+            loss_mask = None
+            _broadcast(tokens)
+            _broadcast(attention_mask)
+        elif mpu.is_pipeline_last_stage():
+            tokens = None
+            _broadcast(labels)
+            _broadcast(loss_mask)
+            _broadcast(attention_mask)
+
+        _broadcast(position_ids)
+        batch = {
+            'tokens': tokens,
+            'labels': labels,
+            'loss_mask': loss_mask,
+            'attention_mask': attention_mask,
+            'position_ids': position_ids,
+        }
+
+
+    return batch

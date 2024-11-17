@@ -13,6 +13,7 @@ from .global_vars import get_timers
 from .initialize  import initialize_megatron
 from .training import pretrain, get_model, get_train_valid_test_num_samples
 from .training_dpo import dpo, get_model, get_train_valid_test_num_samples
+from .training_sft import sft, get_model, get_train_valid_test_num_samples
 
 from .utils import (print_rank_0,
                     is_last_rank,
