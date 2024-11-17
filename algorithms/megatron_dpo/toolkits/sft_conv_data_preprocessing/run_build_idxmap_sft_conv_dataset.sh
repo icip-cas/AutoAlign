@@ -14,8 +14,8 @@ output_data_path=$5
 load_dir=$6
 
 if [ $tokenizer = "Qwen2Tokenizer" ]; then
-  python build_idxmap_dpo_dataset.py \
-  --dpo \
+  python build_idxmap_sft_conv_dataset.py \
+  --sft_conv \
   --mask \
   --input ${input_data_path} \
   --json-keys ${json_keys} \
@@ -29,8 +29,8 @@ if [ $tokenizer = "Qwen2Tokenizer" ]; then
   --dataset-impl mmap 
 
 elif [ $tokenizer = "LLama3Tokenizer" ]; then
-  python build_idxmap_dpo_dataset.py \
-  --dpo \
+  python build_idxmap_sft_conv_dataset.py \
+  --sft_conv \
   --mask \
   --input ${input_data_path} \
   --json-keys ${json_keys} \
