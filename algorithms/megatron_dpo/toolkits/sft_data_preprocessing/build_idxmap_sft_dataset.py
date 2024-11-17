@@ -229,7 +229,6 @@ def check_files_exist(in_ss_out_names, key, num_partitions):
 
 def main():
     args = get_args()
-    breakpoint()
     in_ss_out_names = []
     if args.partitions == 1:
         file_name, extension = os.path.splitext(args.input)
