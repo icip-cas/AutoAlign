@@ -32,7 +32,7 @@ __pycache__
 *.log
 *.out
 
-_*
+# _*
 flagged/
 
 # models
