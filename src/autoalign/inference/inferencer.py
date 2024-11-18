@@ -18,18 +18,12 @@ from vllm import LLM, SamplingParams
 
 class HFInferencer:
     def __init__(self, model_name_or_path: str):
-
         self.model = AutoModelForCausalLM.from_pretrained(
             model_name_or_path, device_map="auto"
         )
         self.tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
 
     def inference(self, prompt: str, **kwargs):
-
-        print(
-            self.tokenizer.convert_ids_to_tokens(self.tokenizer([prompt]).input_ids[0])
-        )
-
         device = self.model.device
         inputs = self.tokenizer([prompt], return_tensors="pt").to(device)
 
@@ -38,7 +32,7 @@ class HFInferencer:
             output_ids = output_ids[0]
         else:
             output_ids = output_ids[0][len(inputs["input_ids"][0]) :]
-        generated_text = self.tokenizer.decode(output_ids)
+        generated_text = self.tokenizer.decode(output_ids, skip_special_tokens=True)
 
         return generated_text
 

@@ -23,9 +23,9 @@ dependencies = [
     "datasets",
     "tokenizers",
     "sentencepiece",
-    "numpy",
+    "numpy<2.0.0",
     "pandas",
-    "transformers>=4.41.2",
+    "transformers<=4.43.4",
     "deepspeed==0.11.2",
     "pydantic",
     "packaging",
@@ -43,10 +43,11 @@ dependencies = [
     "openai>=1.0.0",
     # alpaca_eval
     "scikit-learn>=1.3",
+    "modelscope"
 ]
 
 [project.optional-dependencies]
-train = [
+flash-attn = [
   "flash-attn>=2.0"
 ]
 eval = [
@@ -54,6 +55,7 @@ eval = [
   "torchaudio==2.3.0",
   "human-eval==1.0.3",
   "alpaca-eval==0.6.3",
+  "huggingface-hub==0.25.1"
 ]
 
 dev = [

@@ -26,7 +26,8 @@ from .default_configs import (
 def parse_args(args: list):
 
     parser = ArgumentParser()
-    parser.add_argument("--config_path", type=str, default=None, required=True)
+    parser.add_argument("--config-path", type=str, default=None, required=True)
+    parser.add_argument("--force", action="store_true")
     args = parser.parse_args(args)
     return args
 
@@ -292,6 +293,7 @@ def run_alpaca_eval(
     batch_size: int,
     template_name: str,
     judge_model: str,
+    args,
 ) -> None:
     print("run_alpaca_eval")
     eval_set = datasets.load_dataset(
@@ -303,7 +305,11 @@ def run_alpaca_eval(
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     logger.info("starting to generate outputs")
     answer_file = f"data/alpaca/{model_name}/{model_name}_outputs.json"
-    if os.path.exists(answer_file) and not remove_file_if_user_confirms(answer_file):
+    if (
+        os.path.exists(answer_file)
+        and not args.force
+        and not remove_file_if_user_confirms(answer_file)
+    ):
         logger.info(f"Using existing answer file at {answer_file}")
     else:
         try:
@@ -373,6 +379,7 @@ def run_mt_bench_eval(
     mtpath: str,
     num_gpus_per_model: int,
     template_name: str,
+    args,
 ) -> None:
     batch_size = max(8, batch_size)
     logger.info(
@@ -383,7 +390,11 @@ def run_mt_bench_eval(
     answer_file = f"{mtpath}/model_answer/{model_name}.jsonl"
     judge_file = f"{mtpath}/model_judgment/{model_name}_gpt-4_single.jsonl"
 
-    if os.path.exists(answer_file) and not remove_file_if_user_confirms(answer_file):
+    if (
+        os.path.exists(answer_file)
+        and not args.force
+        and not remove_file_if_user_confirms(answer_file)
+    ):
 
         logger.info(f"Using existing answer file at {answer_file}")
 
@@ -443,18 +454,20 @@ def run_objective_eval(
     opencompass_path,
     backend,
     template_name,
+    args,
 ):
     # check duplicate model_name
-    if os.path.exists("configs/{model_name}.py".format(model_name=model_name)):
-        warn_duplicate(model_name, "configs")
-    if os.path.exists(
-        "outputs/{model_name}/ordered_res.csv".format(model_name=model_name)
-    ) or os.path.exists(
-        "outputs/{model_name}/ordered_res.txt".format(model_name=model_name)
-    ):
-        warn_duplicate(model_name, "ordered_results")
+    if not args.force:
+        if os.path.exists("configs/{model_name}.py".format(model_name=model_name)):
+            warn_duplicate(model_name, "configs")
+        if os.path.exists(
+            "outputs/{model_name}/ordered_res.csv".format(model_name=model_name)
+        ) or os.path.exists(
+            "outputs/{model_name}/ordered_res.txt".format(model_name=model_name)
+        ):
+            warn_duplicate(model_name, "ordered_results")
     work_dir = "outputs/{model_name}/opencompass_log/".format(model_name=model_name)
-    if os.path.isdir(work_dir):
+    if os.path.isdir(work_dir) and not args.force:
         check_duplicate = False
         for eval in os.listdir(work_dir):
             if check_duplicate:
@@ -524,6 +537,7 @@ def run_eval(args) -> None:
             opencompass_path,
             opencompass_backend,
             template_name,
+            args,
         )
     elif eval_type == "subjective":
         if not os.environ.get("OPENAI_BASE_URL") or not os.environ.get(
@@ -537,8 +551,11 @@ def run_eval(args) -> None:
             mtpath,
             per_model_gpu,
             template_name,
+            args,
         )
-        run_alpaca_eval(model_name, model_path, batch_size, template_name, judge_model)
+        run_alpaca_eval(
+            model_name, model_path, batch_size, template_name, judge_model, args
+        )
     else:
         logger.error(f"eval_type {eval_type} not supported")
         return
