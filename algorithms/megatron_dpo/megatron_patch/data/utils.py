@@ -279,8 +279,8 @@ def get_batch_on_this_tp_rank_idxmap_dpo(data_iterator):
         
         
         # Set the last token of each sequence to pad_token_id
-        chosen_labels[:, -1] = tokenizer.pad_token_id
-        rejected_labels[:, -1] = tokenizer.pad_token_id
+        chosen_labels[:, -1] = mask_id
+        rejected_labels[:, -1] = mask_id
         
         # Stack chosen and rejected data
         tokens = torch.cat([chosen_tokens, rejected_tokens], dim=0)

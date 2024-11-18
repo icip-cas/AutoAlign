@@ -5,9 +5,16 @@ import sys
 import torch
 from megatron_patch.tokenizer import build_tokenizer,get_tokenizer
 from megatron_patch.data.indexed_dataset_sft_conv import MMapIndexedDataset_SFT_Conv
-from megatron.training import print_rank_0, get_args
+from megatron.training import get_args
 
-
+def print_rank_0(message):
+    """If distributed is initialized, print only on rank 0."""
+    if torch.distributed.is_initialized():
+        if torch.distributed.get_rank() == 0:
+            print(message, flush=True)
+    else:
+        print(message, flush=True)
+        
 class GPTDataset_SFT_Conv(torch.utils.data.Dataset):
 
     def __init__(self, 

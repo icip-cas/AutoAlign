@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Pretrain utilities."""
+"""DPO utilities."""
 
 import dataclasses
 import gc
@@ -20,6 +20,7 @@ import math
 import os
 import sys
 from datetime import datetime
+import struct
 
 from .log_handler import CustomHandler
 
@@ -64,6 +65,8 @@ from megatron.training.initialize import (
 
 from megatron.training.memory_tracer.memstats_collector import MemStatsCollector
 from megatron.training.optimizer_param_scheduler import OptimizerParamScheduler
+from megatron_patch.data.indexed_dataset_dpo import chosen_idx_file_path
+from megatron_patch.data.gpt_dataset_dpo import _get_train_valid_test_split_
 
 from . import one_logger_utils
 
@@ -259,6 +262,30 @@ def dpo(
 
     # Track E2E metrics on pretrain start
     one_logger_utils.on_pretrain_start()
+    
+    # Update the number of training iterations based on the number of samples.
+    assert os.path.exists(chosen_idx_file_path(args.data_path[0])),"need correct input data prefix"
+    with open(chosen_idx_file_path(args.data_path[0]), 'rb') as stream:
+        _HDR_MAGIC = b'MMIDIDX\x00\x00'
+        magic_test = stream.read(9)
+        assert _HDR_MAGIC == magic_test, (
+            'Index file doesn\'t match expected format. '
+            'Make sure that --dataset-impl is configured properly.'
+        )
+        version = struct.unpack('<Q', stream.read(8))
+        assert (1,) == version
+        dtype_code, = struct.unpack('<B', stream.read(1))
+        args.total_num_samples = struct.unpack('<Q', stream.read(8))[0]
+        
+       
+    
+    splits = _get_train_valid_test_split_(args.split, args.total_num_samples)
+    args.total_num_samples = (splits[1]-splits[0])*args.epochs
+    args.train_iters = (splits[1]-splits[0])*args.epochs // args.global_batch_size 
+    if args.eval_interval is None or args.eval_interval > args.train_iters:
+        args.eval_interval = args.train_iters
+    args.eval_iters = (splits[2]-splits[1])*args.epochs // args.global_batch_size //  (args.train_iters // args.eval_interval) 
+    args.test_iters = (splits[3]-splits[2])*args.epochs // args.global_batch_size
 
     # Model, optimizer, and learning rate.
     timers('model-and-optimizer-setup', log_level=0).start(barrier=True)
@@ -946,8 +973,25 @@ def training_log(
                 writer.add_scalar('iteration-time', elapsed_time_per_iteration, iteration)
             if wandb_writer:
                 wandb_writer.log({'iteration-time': elapsed_time_per_iteration}, iteration)
+
+        def format_time(seconds):
+            hours = seconds // 3600
+            minutes = (seconds % 3600) // 60
+            seconds = seconds % 60
+            return "{:02d}:{:02d}:{:02d}".format(int(hours), int(minutes), int(seconds))
+
+        elapsed_total = elapsed_time_per_iteration * iteration
+        estimated_total = elapsed_time_per_iteration * args.train_iters
+        estimated_remaining = estimated_total - elapsed_total
+
+        elapsed_total_formatted = format_time(elapsed_total)
+        estimated_remaining_formatted = format_time(estimated_remaining)
+
         log_string = f" [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]"
+        log_string = ' epoch {:8f}/{:3d} |'.format(args.epochs * iteration/args.train_iters, args.epochs)
         log_string += ' iteration {:8d}/{:8d} |'.format(iteration, args.train_iters)
+        log_string += ' samples: {:8d}/{:8d} |'.format(args.consumed_train_samples, args.total_num_samples)
+        log_string += ' Elapsed Time: {} | Estimated Remaining Time: {} |'.format(elapsed_total_formatted, estimated_remaining_formatted)
         log_string += ' consumed samples: {:12d} |'.format(args.consumed_train_samples)
         log_string += ' elapsed time per iteration (ms): {:.1f} |'.format(
             elapsed_time_per_iteration * 1000.0

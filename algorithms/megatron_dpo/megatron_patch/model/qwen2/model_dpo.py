@@ -193,8 +193,9 @@ class GPTModel_DPO(LanguageModule):
             if self.forward_without_loss:
                 return self.margin_or_lopp(labels, logits, ref_logits), {}
 
-            ret = self.dpo(labels, logits, ref_logits)
-            return ret
+            ret, metrics = self.dpo(labels, logits, ref_logits)
+            print(f'dpo-metrics/rewards-accuracies: {metrics["dpo-metrics/rewards-accuracies"]}')
+            return ret, metrics
 
     def state_dict_for_save_checkpoint(self, prefix='', keep_vars=False):
         """Customized save for policy_model and ref_model, to avoid checkpoint mismatch in resume training"""

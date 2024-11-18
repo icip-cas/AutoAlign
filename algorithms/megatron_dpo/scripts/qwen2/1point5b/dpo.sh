@@ -2,8 +2,8 @@ cd /share/zhangqingyu/code/auto-alignment/algorithms/megatron_dpo/examples/qwen2
 sh run_mcore_qwen_dpo.sh  \
 dsw  \
 1.5B   \
-2   \
-16 \
+4   \
+32 \
 1e-5   \
 1e-6   \
 2048 \

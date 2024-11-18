@@ -10,10 +10,10 @@ export PYTHONPATH=${CURRENT_DIR}:${MEGATRON_PATH}:${MEGATRON_PATH}/Megatron-LM-2
 export CUDA_DEVICE_MAX_CONNECTIONS=1
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
-DATASET_PATH=/share/zhangqingyu/data/sft/sharegpt_formatted_data-evol-gpt4_conversations_maxlen_2048
-VALID_DATASET_PATH=/share/zhangqingyu/data/sft/sharegpt_formatted_data-evol-gpt4_conversations_maxlen_2048
+DATASET_PATH=/share/zhangqingyu/data/dpo/ultrafeedback_binarized_conversations_maxlen_2048
+VALID_DATASET_PATH=/share/zhangqingyu/data/dpo/ultrafeedback_binarized_conversations_maxlen_2048
 PRETRAIN_CHECKPOINT_PATH=/share/zhangqingyu/mg_models/Qwen2-1.5B-hf-to-mcore-te-tp2-pp2
-OUTPUT_BASEPATH=/share/zhangqingyu/checkpoint/sft/output_mcore_qwen2_1point5_ct_tp2_pp2
+OUTPUT_BASEPATH=/share/zhangqingyu/checkpoint/dpo/output_mcore_qwen2_1point5_ct_tp2_pp2
 
 
 # ==============================
@@ -31,12 +31,12 @@ GPUS_PER_NODE=8
 # 训练超参数设置
 # ==============================
 MODEL_SIZE=1.5B
-BATCH_SIZE=4
-GLOBAL_BATCH_SIZE=64
+BATCH_SIZE=1
+GLOBAL_BATCH_SIZE=8
 LR=1e-5
 MIN_LR=1e-6
-SEQ_LEN=4096
-PAD_LEN=4096
+SEQ_LEN=2048
+PAD_LEN=2048
 
 
 # ==============================
@@ -65,10 +65,10 @@ dataset_option=" \
 
 
 # ==============================
-# SFT
+# DPO
 # ==============================
-SFT=True
-# the following two values will not be used when SFT is true
+
+# the following two values will not be used when DPO is true
 TRAIN_TOKENS=1000000000
 WARMUP_TOKENS=100
 SAVE_INTERVAL=100000
@@ -76,10 +76,10 @@ SAVE_INTERVAL=100000
 TRAIN_ITERS=10000
 LR_WARMUP_ITERS=100
 LR_DECAY_ITERS=$(( ${TRAIN_ITERS} - ${LR_WARMUP_ITERS}))
-PREFIX="sft-mcore-qwen2-1point5b-lr-${LR}-minlr-${MIN_LR}-bs-${BATCH_SIZE}-gbs-${GLOBAL_BATCH_SIZE}-seqlen-${SEQ_LEN}"
+PREFIX="dpo-mcore-qwen2-1point5b-lr-${LR}-minlr-${MIN_LR}-bs-${BATCH_SIZE}-gbs-${GLOBAL_BATCH_SIZE}-seqlen-${SEQ_LEN}"
 sft_option=" \
         --eod-mask-loss \
-        --train-mode sft"
+        --train-mode dpo"
 
 
 # ==============================
@@ -297,7 +297,7 @@ megatron_options="  \
 # Tranin!
 # ==============================
 DISTRIBUTED_ARGS="--nproc_per_node $GPUS_PER_NODE --nnodes $NNODES --node_rank $NODE_RANK --master_addr $MASTER_ADDR --master_port $MASTER_PORT"
-run_cmd="torchrun $DISTRIBUTED_ARGS sft_qwen.py
+run_cmd="torchrun $DISTRIBUTED_ARGS dpo_qwen.py
  ${megatron_options} ${dataset_option} ${pr_options} ${load_options} ${te_options} ${activation_checkpoint_options} \
  ${do_options} ${sp_options} ${gqa_options} ${offload_option} ${comm_overlap_option} ${sft_option} ${tie_option}"
 

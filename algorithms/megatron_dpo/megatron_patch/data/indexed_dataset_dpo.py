@@ -4,10 +4,15 @@ import stat
 import struct
 from functools import lru_cache
 from itertools import accumulate
-from megatron.training import get_args, print_rank_0
 import numpy as np
 import torch
-
+def print_rank_0(message):
+    """If distributed is initialized, print only on rank 0."""
+    if torch.distributed.is_initialized():
+        if torch.distributed.get_rank() == 0:
+            print(message, flush=True)
+    else:
+        print(message, flush=True)
 
 from .indexed_dataset import (
     best_fitting_dtype,
