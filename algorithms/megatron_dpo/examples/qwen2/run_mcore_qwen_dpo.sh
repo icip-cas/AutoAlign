@@ -331,7 +331,7 @@ if [ ${MP_DATASET_TYPE} = "raw" ]; then
 else 
     dataset_option=" \
         --data-path ${DATASET_PATH} \
-        --split 99,1,0 \
+        --split 100,0,0 \
         --dataset mmap" 
 fi
 

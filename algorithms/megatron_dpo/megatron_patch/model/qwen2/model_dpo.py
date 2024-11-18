@@ -194,7 +194,6 @@ class GPTModel_DPO(LanguageModule):
                 return self.margin_or_lopp(labels, logits, ref_logits), {}
 
             ret, metrics = self.dpo(labels, logits, ref_logits)
-            print(f'dpo-metrics/rewards-accuracies: {metrics["dpo-metrics/rewards-accuracies"]}')
             return ret, metrics
 
     def state_dict_for_save_checkpoint(self, prefix='', keep_vars=False):

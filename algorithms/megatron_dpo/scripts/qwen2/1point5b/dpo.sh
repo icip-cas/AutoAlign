@@ -20,8 +20,8 @@ ture \
 false   \
 false \
 100000  \
-/share/zhangqingyu/data/dpo/ultrafeedback_binarized_conversations_maxlen_2048   \
-/share/zhangqingyu/data/dpo/ultrafeedback_binarized_conversations_maxlen_2048  \
+/share/zhangqingyu/data/dpo/ultrafeedback_binarized_1_10_conversations_maxlen_2048   \
+/share/zhangqingyu/data/dpo/ultrafeedback_binarized_1_10_conversations_maxlen_2048  \
 /share/zhangqingyu/mg_models/Qwen2-1.5B-hf-to-mcore-te-tp2-pp2 \
 1000000000  \
 100   \
