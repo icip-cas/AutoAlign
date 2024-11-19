@@ -242,6 +242,8 @@ class GPTModel_DPO(LanguageModule):
     
     def get_batch_logps(self, logits, labels, average_log_prob=False):
         # Save the original batch size and sequence length
+
+        
         batch_size, seq_length, vocab_size = logits.size()
         
         mask_id = self.tokenizer.vocab_size + 1 
@@ -263,11 +265,6 @@ class GPTModel_DPO(LanguageModule):
         # Compute sequence log probabilities
         seq_logps = per_token_logps.sum(dim=-1)  # Shape: [batch_size]
         
-        
-        if average_log_prob:
-            labels_reshaped = labels.view(batch_size, seq_length)
-            seq_lengths = (labels_reshaped != mask_id).sum(dim=-1).clamp(min=1)
-            seq_logps = seq_logps / seq_lengths
         
         return seq_logps  # Shape: [batch_size]
 
@@ -314,27 +311,27 @@ class GPTModel_DPO(LanguageModule):
         # Compute log probabilities
         logps = self.get_batch_logps(logits, labels)
         
-        batch_size, seq_length, vocab_size = logits.size()
-        logits = logits.reshape(batch_size * seq_length, vocab_size)
-        labels = labels.reshape(batch_size * seq_length)
-        mask_id = self.tokenizer.vocab_size + 1 
-        loss_mask = (labels != mask_id).float() 
-        per_token_logps_sft = (-1 * tensor_parallel.vocab_parallel_cross_entropy(logits, labels)).detach()  # Detach from computation graph
-        loss_mask = loss_mask.view(batch_size * seq_length)  # Flatten loss mask to match flattened logits
-        # Apply loss mask and compute the average SFT loss over all valid tokens
-        policy_sft_loss = -(per_token_logps_sft * loss_mask).sum() / loss_mask.sum()  # Total masked loss divided by number of valid tokens
+        # batch_size, seq_length, vocab_size = logits.size()
+        # logits = logits.reshape(batch_size * seq_length, vocab_size)
+        # labels = labels.reshape(batch_size * seq_length)
+        # mask_id = self.tokenizer.vocab_size + 1 
+        # loss_mask = (labels != mask_id).float() 
+        # per_token_logps_sft = (-1 * tensor_parallel.vocab_parallel_cross_entropy(logits, labels)).detach()  # Detach from computation graph
+        # loss_mask = loss_mask.view(batch_size * seq_length)  # Flatten loss mask to match flattened logits
+        # # Apply loss mask and compute the average SFT loss over all valid tokens
+        # policy_sft_loss = -(per_token_logps_sft * loss_mask).sum() / loss_mask.sum()  # Total masked loss divided by number of valid tokens
         
         ref_logps = self.get_batch_logps(ref_logits, labels)
         
-        batch_size, seq_length, vocab_size = ref_logits.size()
-        ref_logits = ref_logits.reshape(batch_size * seq_length, vocab_size)
-        labels = labels.reshape(batch_size * seq_length)
-        mask_id = self.tokenizer.vocab_size + 1 
-        loss_mask = (labels != mask_id).float() 
-        per_token_logps_sft = (-1 * tensor_parallel.vocab_parallel_cross_entropy(ref_logits, labels)).detach()  # Detach from computation graph
-        loss_mask = loss_mask.view(batch_size * seq_length)  # Flatten loss mask to match flattened logits
-        # Apply loss mask and compute the average SFT loss over all valid tokens
-        ref_sft_loss = -(per_token_logps_sft * loss_mask).sum() / loss_mask.sum()  # Total masked loss divided by number of valid tokens
+        # batch_size, seq_length, vocab_size = ref_logits.size()
+        # ref_logits = ref_logits.reshape(batch_size * seq_length, vocab_size)
+        # labels = labels.reshape(batch_size * seq_length)
+        # mask_id = self.tokenizer.vocab_size + 1 
+        # loss_mask = (labels != mask_id).float() 
+        # per_token_logps_sft = (-1 * tensor_parallel.vocab_parallel_cross_entropy(ref_logits, labels)).detach()  # Detach from computation graph
+        # loss_mask = loss_mask.view(batch_size * seq_length)  # Flatten loss mask to match flattened logits
+        # # Apply loss mask and compute the average SFT loss over all valid tokens
+        # ref_sft_loss = -(per_token_logps_sft * loss_mask).sum() / loss_mask.sum()  # Total masked loss divided by number of valid tokens
 
         # Split log probabilities into chosen and rejected parts
         policy_chosen_logps, policy_rejected_logps = logps.chunk(2, dim=0)
@@ -386,8 +383,8 @@ class GPTModel_DPO(LanguageModule):
             "dpo-metrics/logps-rejected": policy_rejected_logps.detach().mean().float(),
             "dpo-metrics/logits-chosen": policy_chosen_logits_mean,
             "dpo-metrics/logits-rejected": policy_rejected_logits_mean,
-            "dpo-metrics/policy-sft-loss": policy_sft_loss.item(),
-            "dpo-metrics/ref-sft-loss": ref_sft_loss.item(),
+            # "dpo-metrics/policy-sft-loss": policy_sft_loss.item(),
+            # "dpo-metrics/ref-sft-loss": ref_sft_loss.item(),
         }
 
 

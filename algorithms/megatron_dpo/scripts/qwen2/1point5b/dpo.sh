@@ -13,7 +13,7 @@ bf16  \
 2  \
 1 \
 1 \
-ture \
+false \
 true   \
 true \
 ture \

@@ -1,5 +1,5 @@
 # Copyright (c) 2023, NVIDIA CORPORATION.  All rights reserved.
-"""Pretrain GPT."""
+"""DPO GPT."""
 
 import os
 from functools import partial

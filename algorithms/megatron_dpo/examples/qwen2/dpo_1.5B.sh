@@ -10,8 +10,8 @@ export PYTHONPATH=${CURRENT_DIR}:${MEGATRON_PATH}:${MEGATRON_PATH}/Megatron-LM-2
 export CUDA_DEVICE_MAX_CONNECTIONS=1
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
-DATASET_PATH=/share/zhangqingyu/data/dpo/ultrafeedback_binarized_conversations_maxlen_2048
-VALID_DATASET_PATH=/share/zhangqingyu/data/dpo/ultrafeedback_binarized_conversations_maxlen_2048
+DATASET_PATH=/share/zhangqingyu/data/dpo/ultrafeedback_binarized_1_10_conversations_maxlen_2048
+VALID_DATASET_PATH=/share/zhangqingyu/data/dpo/ultrafeedback_binarized_1_10_conversations_maxlen_2048
 PRETRAIN_CHECKPOINT_PATH=/share/zhangqingyu/mg_models/Qwen2-1.5B-hf-to-mcore-te-tp2-pp2
 OUTPUT_BASEPATH=/share/zhangqingyu/checkpoint/dpo/output_mcore_qwen2_1point5_ct_tp2_pp2
 
@@ -20,35 +20,38 @@ OUTPUT_BASEPATH=/share/zhangqingyu/checkpoint/dpo/output_mcore_qwen2_1point5_ct_
 # 算力资源配置
 # ==============================
 export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
-MASTER_ADDR=localhost
-MASTER_PORT=$(shuf -n 1 -i 10000-65535)
-NNODES=1
-NODE_RANK=0
+NNODES=$1
+NODE_RANK=$2
+MASTER_ADDR=$3
+MASTER_PORT=$4
 GPUS_PER_NODE=8
 
 
 # ==============================
 # 训练超参数设置
 # ==============================
-MODEL_SIZE=1.5B
-BATCH_SIZE=1
-GLOBAL_BATCH_SIZE=8
-LR=1e-5
-MIN_LR=1e-6
-SEQ_LEN=2048
-PAD_LEN=2048
+MODEL_SIZE=$5
+BATCH_SIZE=$6
+GLOBAL_BATCH_SIZE=$7
+SEQ_LEN=$8
+PAD_LEN=$8
+LR=$9
+MIN_LR=${10}
 
 
 # ==============================
 # 并行设置
 # ==============================
-TP=2
-PP=2
-SP=true
+TP=${11}
+PP=${12}
+# 序列并行目前有bug，暂时不使用
+SP=false
 CP=1
 if [ $SP = true ] && [ $TP -gt 1 ]; then
     sp_options=" \
-		    --sequence-parallel"
+		    --sequence-parallel \
+            --tp-comm-overlap "
+
 elif [ $SP = false ]; then
     sp_options=" \
                     "
@@ -57,18 +60,19 @@ fi
 # ==============================
 # 数据集配置
 # ==============================
+EPOCHS=${13}
 dataset_option=" \
     --data-path ${DATASET_PATH} \
     --split 99,1,0 \
     --dataset mmap  \
-    --epochs 1 "
+    --epochs ${EPOCHS} "
 
 
 # ==============================
 # DPO
 # ==============================
-
-# the following two values will not be used when DPO is true
+SFT=True
+# the following two values will not be used when SFT is true
 TRAIN_TOKENS=1000000000
 WARMUP_TOKENS=100
 SAVE_INTERVAL=100000
@@ -138,7 +142,7 @@ fi
 # 激活检查点模式: sel, full, offload, false
 # ==============================
 MP_AC_LAYERS=1
-AC=none
+AC=false
 if [ $AC = full ]; then
     _check=$(( ($NUM_LAYERS / $PP) % ${MP_AC_LAYERS} ))
     if [ $_check != 0 ]; then
@@ -180,7 +184,6 @@ comm_overlap_option="\
 
 if [ $TP_COMM_OVERLAP -eq 1 ]; then
     comm_overlap_option="\
-        --tp-comm-overlap \
         --overlap-grad-reduce \
         --overlap-param-gather"
 fi

@@ -28,20 +28,19 @@ def replace_keys(data, key_map):
     else:
         return data
 
-input_file = "/mnt/userdata/data2/luxinyu2021/auto-alignment/data/train/ultrafeedback_binarized.json"
-output_file = "/ciphome/zhangqingyu2023/data/dpo/ultrafeedback_binarized.json"
+input_file = "input.json"
+output_file = "output.json"
 
-# 逐行解析和转换
+
 new_data = []
 with open(input_file, "r", encoding="utf-8") as f:
     for line in f:
-        if line.strip():  # 忽略空行
+        if line.strip():  
             try:
                 data = json.loads(line)
                 new_data.append(replace_keys(data, key_map))
             except json.JSONDecodeError as e:
                 print(f"JSON 解码错误在行：{line}\n错误：{e}")
 
-# 写入新文件
 with open(output_file, "w", encoding="utf-8") as f:
     json.dump(new_data, f, ensure_ascii=False, indent=2)
