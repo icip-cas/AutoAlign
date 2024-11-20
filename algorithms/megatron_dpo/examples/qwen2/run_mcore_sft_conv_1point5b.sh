@@ -250,7 +250,6 @@ megatron_options="  \
         --init-method-std 0.008 \
         --attention-dropout 0.0 \
         --hidden-dropout 0.0 \
-        --lr-decay-iters ${LR_DECAY_ITERS} \
         --lr-warmup-iters ${LR_WARMUP_ITERS} \
         --train-iters ${TRAIN_ITERS} \
         --micro-batch-size ${BATCH_SIZE} \
