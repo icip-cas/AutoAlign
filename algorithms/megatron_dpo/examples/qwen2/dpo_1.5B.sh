@@ -63,7 +63,7 @@ fi
 EPOCHS=${13}
 dataset_option=" \
     --data-path ${DATASET_PATH} \
-    --split 99,1,0 \
+    --split 100,0,0 \
     --dataset mmap  \
     --epochs ${EPOCHS} "
 
@@ -73,13 +73,9 @@ dataset_option=" \
 # ==============================
 SFT=True
 # the following two values will not be used when SFT is true
-TRAIN_TOKENS=1000000000
-WARMUP_TOKENS=100
 SAVE_INTERVAL=100000
-
 TRAIN_ITERS=10000
-LR_WARMUP_ITERS=100
-LR_DECAY_ITERS=$(( ${TRAIN_ITERS} - ${LR_WARMUP_ITERS}))
+LR_WARMUP_ITERS=${14}
 PREFIX="dpo-mcore-qwen2-1point5b-lr-${LR}-minlr-${MIN_LR}-bs-${BATCH_SIZE}-gbs-${GLOBAL_BATCH_SIZE}-seqlen-${SEQ_LEN}"
 sft_option=" \
         --eod-mask-loss \
@@ -253,7 +249,6 @@ megatron_options="  \
         --init-method-std 0.008 \
         --attention-dropout 0.0 \
         --hidden-dropout 0.0 \
-        --lr-decay-iters ${LR_DECAY_ITERS} \
         --lr-warmup-iters ${LR_WARMUP_ITERS} \
         --train-iters ${TRAIN_ITERS} \
         --micro-batch-size ${BATCH_SIZE} \

@@ -248,7 +248,10 @@ class GPTModel_DPO(LanguageModule):
         
         mask_id = self.tokenizer.vocab_size + 1 
         loss_mask = (labels != mask_id).float() 
+        
         loss_mask = loss_mask.view(batch_size * seq_length) 
+        
+
         
         # Flatten logits and labels
         logits = logits.reshape(batch_size * seq_length, vocab_size)

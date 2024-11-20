@@ -278,7 +278,7 @@ def dpo(
         args.total_num_samples = struct.unpack('<Q', stream.read(8))[0]
         
        
-    
+    # update args.total_num_samples, args.train_iters, args.eval_iters, args.test_iters
     splits = _get_train_valid_test_split_(args.split, args.total_num_samples)
     args.total_num_samples = (splits[1]-splits[0])*args.epochs
     args.train_iters = (splits[1]-splits[0])*args.epochs // args.global_batch_size 
@@ -992,7 +992,6 @@ def training_log(
         log_string += ' iteration {:8d}/{:8d} |'.format(iteration, args.train_iters)
         log_string += ' samples: {:8d}/{:8d} |'.format(args.consumed_train_samples, args.total_num_samples)
         log_string += ' Elapsed Time: {} | Estimated Remaining Time: {} |'.format(elapsed_total_formatted, estimated_remaining_formatted)
-        log_string += ' consumed samples: {:12d} |'.format(args.consumed_train_samples)
         log_string += ' elapsed time per iteration (ms): {:.1f} |'.format(
             elapsed_time_per_iteration * 1000.0
         )
@@ -1669,7 +1668,9 @@ def get_train_valid_test_num_samples():
     args = get_args()
 
     # Number of train/valid/test samples.
-    if args.train_samples:
+    if args.epochs:
+        train_samples = args.total_num_samples
+    elif args.train_samples:
         train_samples = args.train_samples
     else:
         train_samples = args.train_iters * args.global_batch_size

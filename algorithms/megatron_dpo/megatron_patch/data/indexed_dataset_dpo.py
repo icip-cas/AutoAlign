@@ -290,7 +290,7 @@ class MMapIndexedDataset_DPO(torch.utils.data.Dataset):
             rejected_sizes = self._rejected_index._sizes[idx]
             rejected_offsets = list(accumulate(rejected_sizes))
             rejected_total_size = sum(rejected_sizes)
-
+ 
             chosen_input = np.frombuffer(self._chosen_bin_buffer, dtype=self._chosen_index.dtype,
                                         count=chosen_total_size, offset=chosen_ptr)
             chosen_input_sents = np.split(chosen_input, chosen_offsets[:-1])

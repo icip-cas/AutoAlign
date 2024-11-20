@@ -15,7 +15,7 @@ hosts=(
 
 function stop_all() {
     for host in "${hosts[@]}"; do
-        ssh $host "pkill -f -9 pretrain"
+        ssh $host "pkill -f -9 dpo"
     done
     echo "所有节点的相关进程已停止。"
 }
@@ -37,6 +37,7 @@ MIN_LR=1e-6
 TP=2
 PP=2
 EPOCHS=3
+LR_WARMUP_ITERS=10
 LOG_DIR="/share/zhangqingyu/logs/${MODEL_SIZE}_tp${TP}_pp${PP}_cp${CP}_mb${BATCH_SIZE}_gb${GLOBAL_BATCH_SIZE}_nnode${NNODES}_$(date +%Y%m%d_%H%M%S)_profile"
 
 # 创建日志目录
@@ -48,7 +49,7 @@ for ((i=0; i<NNODES; i++)); do
     ssh $host "
         source /share/zhangqingyu/scripts/env.sh 
         cd /share/zhangqingyu/code/auto-alignment/algorithms/megatron_dpo/
-        bash examples/qwen2/dpo_${MODEL_SIZE}.sh ${NNODES} ${NODE_RANK} ${MASTER_ADDR} ${MASTER_PORT} ${MODEL_SIZE} ${BATCH_SIZE} ${GLOBAL_BATCH_SIZE} ${SEQ_LEN} ${LR} ${MIN_LR} ${TP} ${PP} ${EPOCHS} > ${LOG_DIR}/node_${NODE_RANK}.log 2>&1 &
+        bash examples/qwen2/dpo_${MODEL_SIZE}.sh ${NNODES} ${NODE_RANK} ${MASTER_ADDR} ${MASTER_PORT} ${MODEL_SIZE} ${BATCH_SIZE} ${GLOBAL_BATCH_SIZE} ${SEQ_LEN} ${LR} ${MIN_LR} ${TP} ${PP} ${EPOCHS} ${LR_WARMUP_ITERS} > ${LOG_DIR}/node_${NODE_RANK}.log 2>&1 &
     "
     NODE_RANK=$((NODE_RANK+1))
 done
