@@ -90,8 +90,6 @@ def get_batch(data_iterator):
     if (not mpu.is_pipeline_first_stage()) and (not mpu.is_pipeline_last_stage()):
         return None, None, None, None, None, None
 
-    args = get_args()
-
     # get batches based on the TP rank you are on
 
     batch = get_batch_on_this_tp_rank_idxmap_sft_conv(data_iterator)

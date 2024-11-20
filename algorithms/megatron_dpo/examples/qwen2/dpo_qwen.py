@@ -39,7 +39,6 @@ from megatron_patch.model.qwen2.model import GPTModel
 from megatron_patch.model.qwen2.transformer_config import Qwen2TransformerConfig
 from megatron_patch.tokenizer import build_tokenizer, get_tokenizer
 from megatron.core.packed_seq_params import PackedSeqParams
-# from megatron_patch.training_dpo import dpo
 
 torch._dynamo.config.suppress_errors = True
 
