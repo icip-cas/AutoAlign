@@ -31,6 +31,29 @@ torch.backends.cudnn.allow_tf32 = False
 torch.backends.cuda.enable_mem_efficient_sdp(False)
 torch.backends.cuda.enable_flash_sdp(False)
 
+import numpy as np
+from collections.abc import Mapping, Sequence
+@torch.inference_mode()
+def clone_state_dict(elem):
+    """clone all tensors in the elem to cpu device.
+    """
+    elem_type = type(elem)
+    if isinstance(elem, torch.Tensor):
+        elem = elem.clone()
+    elif isinstance(elem, (np.ndarray, str)):
+        pass
+    elif isinstance(elem, Mapping):
+        elem = dict(elem)
+        for k, v in elem.items():
+            elem[k] = clone_state_dict(v)
+        elem = elem_type(elem)
+    elif isinstance(elem, Sequence):
+        elem = list(elem)
+        for i in range(len(elem)):
+            elem[i] = clone_state_dict(elem[i])
+        elem = elem_type(elem)
+    return elem
+
 def add_model_args(parser):
 
     parser.add_argument(
@@ -83,11 +106,13 @@ def load_megatron_model(args):
 
     os.makedirs(args.save, exist_ok=True)
     os.system("cp -rf " + args.hf_ckpt_path + "/config*.json " + args.save)
+    os.system("cp -rf " + args.hf_ckpt_path + "/generation_config.json " + args.save)
     os.system("cp -rf " + args.hf_ckpt_path+ "/tokenizer* " + args.save)
     os.system("cp -rf " + args.hf_ckpt_path + "/vocab.json " + args.save)
     os.system("cp -rf " + args.hf_ckpt_path + "/merges.txt " + args.save)
 
     os.system("cp -rf " + args.hf_ckpt_path + "/config*.json " + args.load)
+    os.system("cp -rf " + args.hf_ckpt_path + "/generation_config.json " + args.load)
     os.system("cp -rf " + args.hf_ckpt_path+ "/tokenizer* " + args.load)
     os.system("cp -rf " + args.hf_ckpt_path + "/vocab.json " + args.load)
     os.system("cp -rf " + args.hf_ckpt_path + "/merges.txt " + args.load)
@@ -360,12 +385,12 @@ def convert_checkpoint_from_megatron_to_transformers(mgmodel, hfmodel, args):
                 hflayer.mlp.down_proj.weight.copy_(mglayer.mlp.linear_fc2.weight)
             else:
                 hflayer.mlp.gate.weight.copy_(mglayer.mlp.router.weight)
-                for mgexpert, hgexpert in zip(mglayer.mlp.experts.local_experts, hflayer.mlp.experts):
+                for mgexpert, hfexpert in zip(mglayer.mlp.experts.local_experts, hflayer.mlp.experts):
                     gate_weight, up_weight = torch.split(mgexpert.linear_fc1.weight,
                                                          split_size_or_sections=args.moe_ffn_hidden_size)
-                    hgexpert.gate_proj.weight.copy_(gate_weight)
-                    hgexpert.up_proj.weight.copy_(up_weight)
-                    hgexpert.down_proj.weight.copy_(mgexpert.linear_fc2.weight)
+                    hfexpert.gate_proj.weight.copy_(gate_weight)
+                    hfexpert.up_proj.weight.copy_(up_weight)
+                    hfexpert.down_proj.weight.copy_(mgexpert.linear_fc2.weight)
 
                 hflayer.mlp.shared_expert_gate.weight.copy_(mglayer.mlp.shared_expert_gate.weight)
                 shared_expert_gate_weight, shared_expert_up_weight = \
@@ -381,7 +406,8 @@ def convert_checkpoint_from_megatron_to_transformers(mgmodel, hfmodel, args):
                 hflayer.post_attention_layernorm.weight.copy_(mglayer.pre_mlp_layernorm.weight)
 
         hfmodel.model.norm.weight.copy_(mgmodel.decoder.final_layernorm.weight)
-        hfmodel.lm_head.weight.copy_(mgmodel.output_layer.weight)
+        if args.untie_embeddings_and_output_weights:
+            hfmodel.lm_head.weight.copy_(mgmodel.output_layer.weight)
 
 
 def convert_checkpoint_from_transformers_to_megatron(hfmodel, mgmodel, args):
@@ -445,7 +471,8 @@ def convert_checkpoint_from_transformers_to_megatron(hfmodel, mgmodel, args):
                 mglayer.pre_mlp_layernorm.weight.copy_(hflayer.post_attention_layernorm.weight)
 
         mgmodel.decoder.final_layernorm.weight.copy_(hfmodel.model.norm.weight)
-        mgmodel.output_layer.weight.copy_(hfmodel.lm_head.weight)
+        if args.untie_embeddings_and_output_weights:
+            mgmodel.output_layer.weight.copy_(hfmodel.lm_head.weight)
 
 
 def save_state_dict(args, model, checkpoint_name):
@@ -456,7 +483,7 @@ def save_state_dict(args, model, checkpoint_name):
     state_dict['model'] = model
     os.makedirs(os.path.dirname(checkpoint_name), exist_ok=True)
     print(f'save model part {checkpoint_name}')
-    torch.save(state_dict, checkpoint_name)
+    torch.save(clone_state_dict(state_dict), checkpoint_name)
 
 def check_layer(layers_to_copy, k):
     pattern = re.compile(r"decoder.layers.\d+")
@@ -684,8 +711,8 @@ def save_mgmodel(mgmodel, args):
                     print(f'tensor_parallel & pipeline_parallel & expert_parallel, save model to {checkpoint_name}')
                     for k, v in full_model.items():
                         if check_layer(layers_to_copy, k):
-                            pattern = re.compile(r'\d+')
-                            res = pattern.findall(k)
+                            layer_pattern = re.compile(r'\d+')
+                            res = layer_pattern.findall(k)
                             k = re.sub(r"decoder.layers.\d+", "decoder.layers." + str(layers_to_copy["decoder.layers." + res[0]]), k)
                         elif not ("word_embeddings" in k or "output_layer" in k or "final_layernorm" in k):
                             continue
@@ -741,7 +768,8 @@ def save_mgmodel(mgmodel, args):
                     save_state_dict(args, model_split, checkpoint_name)
 
     else:
-        raise ValueError('not support pp convert')
+        raise ValueError('Something is wrong, please check your tp/pp/ep size')
+
     print(f'megatron model is save to {args.save}')
 
 
@@ -759,11 +787,11 @@ def save_hfmodel(args, model):
             new_shard = {}
             for k, v in shard.items():
                 new_shard[k] = copy.deepcopy(v)
-            safetensors.torch.save_file(new_shard, target_file, metadata={"format": "pt"})
+            safetensors.torch.save_file(clone_state_dict(new_shard), target_file, metadata={"format": "pt"})
         else:
             target_file = os.path.join(args.save, shard_file)
             print(f'huggingface model is save to {target_file}')
-            torch.save(shard, target_file)
+            torch.save(clone_state_dict(shard), target_file)
 
     if index is None:
         print(f"Model weights saved in {os.path.join(args.save, WEIGHTS_NAME)}")
@@ -817,11 +845,12 @@ def check_hf_mg_forward(hfmodel, mgmodel, mgargs):
         elif mode in ['mg-attn_out']:
             mg_hiddens[layer_idx][name] = output[0].reshape(-1, hidden_size)
 
-    hfmodel.lm_head.register_forward_hook(partial(print_output_hook, layer_idx=mgargs.num_layers - 1, mode='hf-lmhead'),
-                                          with_kwargs=True)
+    if mgargs.untie_embeddings_and_output_weights:
+        hfmodel.lm_head.register_forward_hook(partial(print_output_hook, layer_idx=mgargs.num_layers - 1, mode='hf-lmhead'),
+                                            with_kwargs=True)
 
-    mgmodel.output_layer.register_forward_hook(
-        partial(print_output_hook, layer_idx=mgargs.num_layers - 1, mode='mg-lmhead'), with_kwargs=True)
+        mgmodel.output_layer.register_forward_hook(
+            partial(print_output_hook, layer_idx=mgargs.num_layers - 1, mode='mg-lmhead'), with_kwargs=True)
 
     for idx, layer in enumerate(hfmodel.model.layers):
 
