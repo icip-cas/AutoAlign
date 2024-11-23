@@ -13,18 +13,18 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 DATASET_PATH=/ciphome/zhangqingyu2023/code/auto-alignment/algorithms/megatron_dpo/data/wudao_qwenbpe_text_document
 VALID_DATASET_PATH=/ciphome/zhangqingyu2023/code/auto-alignment/algorithms/megatron_dpo/data/wudao_qwenbpe_text_document
 PRETRAIN_CHECKPOINT_PATH=/ciphome/zhangqingyu2023/mg_models/Qwen2-1.5B-hf-to-mcore-te-tp2-pp1
-OUTPUT_BASEPATH=/ciphome/zhangqingyu2023/checkpoint/con-pre/output_mcore_qwen2_1point5_ct_tp2_pp1
+OUTPUT_BASEPATH=/ciphome/zhangqingyu2023/checkpoint/test/output_mcore_qwen2_1point5_ct_tp2_pp1
 
 
 # ==============================
 # 算力资源配置
 # ==============================
-export CUDA_VISIBLE_DEVICES=0,1,2,3
+export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 MASTER_ADDR=localhost
 MASTER_PORT=$(shuf -n 1 -i 10000-65535)
 NNODES=1
 NODE_RANK=0
-GPUS_PER_NODE=4
+GPUS_PER_NODE=8
 
 
 # ==============================

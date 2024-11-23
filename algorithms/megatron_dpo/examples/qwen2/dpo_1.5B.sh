@@ -10,10 +10,10 @@ export PYTHONPATH=${CURRENT_DIR}:${MEGATRON_PATH}:${MEGATRON_PATH}/Megatron-LM-2
 export CUDA_DEVICE_MAX_CONNECTIONS=1
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
-DATASET_PATH=/share/zhangqingyu/data/dpo/ultrafeedback_binarized_1_10_conversations_maxlen_2048
-VALID_DATASET_PATH=/share/zhangqingyu/data/dpo/ultrafeedback_binarized_1_10_conversations_maxlen_2048
-PRETRAIN_CHECKPOINT_PATH=/share/zhangqingyu/mg_models/Qwen2-1.5B-hf-to-mcore-te-tp2-pp2
-OUTPUT_BASEPATH=/share/zhangqingyu/checkpoint/dpo/output_mcore_qwen2_1point5_ct_tp2_pp2
+DATASET_PATH=/ciphome/zhangqingyu2023/data/dpo/ultrafeedback_binarized_conversations_maxlen_2048
+VALID_DATASET_PATH=/ciphome/zhangqingyu2023/data/dpo/ultrafeedback_binarized_conversations_maxlen_2048
+PRETRAIN_CHECKPOINT_PATH=/ciphome/zhangqingyu2023/mg_models/Qwen2-1.5B-hf-to-mcore-te-tp2-pp2
+OUTPUT_BASEPATH=/ciphome/zhangqingyu2023/checkpoint/dpo/output_mcore_qwen2_1point5_ct_tp2_pp2
 
 
 # ==============================
