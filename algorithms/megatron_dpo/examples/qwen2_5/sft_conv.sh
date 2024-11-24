@@ -14,8 +14,8 @@ cd ../qwen2
  
 DATASET_PATH=/share/zhangqingyu/data/sft/sharegpt_formatted_data-evol-gpt4_conversations_maxlen_8192
 VALID_DATASET_PATH=/share/zhangqingyu/data/sft/sharegpt_formatted_data-evol-gpt4_conversations_maxlen_8192
-PRETRAIN_CHECKPOINT_PATH=/share/zhangqingyu/mg_models/Qwen2.5-1.5B-hf-to-mcore-te-tp1-pp1
-OUTPUT_BASEPATH=/share/zhangqingyu/checkpoint/sft/output_mcore_qwen2_5_1point5_ct_tp1_pp1
+PRETRAIN_CHECKPOINT_PATH=/share/zhangqingyu/mg_models/Qwen2.5-1.5B-hf-to-mcore-te-tp2-pp2
+OUTPUT_BASEPATH=/share/zhangqingyu/checkpoint/sft/output_mcore_qwen2_5_1point5_ct_tp2_pp2
 
 
 # ==============================
@@ -44,8 +44,8 @@ PAD_LEN=8192
 # ==============================
 # 并行设置
 # ==============================
-TP=1
-PP=1
+TP=2
+PP=2
 SP=true
 CP=1
 if [ $SP = true ] && [ $TP -gt 1 ]; then
@@ -71,8 +71,6 @@ dataset_option=" \
 # ==============================
 SFT=True
 # the following two values will not be used when SFT is true
-TRAIN_TOKENS=1000000000
-WARMUP_TOKENS=100
 SAVE_INTERVAL=100000
 
 TRAIN_ITERS=10000
