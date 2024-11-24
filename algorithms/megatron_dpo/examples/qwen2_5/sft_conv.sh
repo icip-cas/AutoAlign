@@ -70,13 +70,12 @@ dataset_option=" \
 # SFT
 # ==============================
 SFT=True
-# the following two values will not be used when SFT is true
-SAVE_INTERVAL=100000
+SAVE_INTERVAL=100
 
 TRAIN_ITERS=10000
 LR_WARMUP_ITERS=10
 LR_DECAY_ITERS=$(( ${TRAIN_ITERS} - ${LR_WARMUP_ITERS}))
-PREFIX="sft-mcore-qwen2_5-1point5b-lr-${LR}-minlr-${MIN_LR}-bs-${BATCH_SIZE}-gbs-${GLOBAL_BATCH_SIZE}-seqlen-${SEQ_LEN}"
+PREFIX="sft-mcore-qwen2_5-${MODEL_SIZE}-lr-${LR}-minlr-${MIN_LR}-bs-${BATCH_SIZE}-gbs-${GLOBAL_BATCH_SIZE}-seqlen-${SEQ_LEN}"
 sft_option=" \
         --eod-mask-loss \
         --train-mode sft"
@@ -399,7 +398,7 @@ megatron_options="  \
         --rotary-seq-len-interpolation-factor 1 \
         --no-save-optim \
         "
-        # --untie-embeddings-and-output-weights \
+
 # ==============================
 # Tranin!
 # ==============================
