@@ -52,7 +52,7 @@ gqa_options=" \
 		    --group-query-attention \
 		    --num-query-groups ${NUM_KEY_VALUE_HEADS}"
 
-tie_option="--untie-embeddings-and-output-weights"
+tie_option=""
 cpu_options=""
 
 elif [ $MODEL_SIZE = 3B ]; then

@@ -416,6 +416,7 @@ def main():
             builders[data_class][key] = make_sft_conv_builder(output_bin_files[data_class][key],
                                                 impl=args.dataset_impl,
                                                 vocab_size=Encoder.tokenizer.vocab_size)
+            custom_print(f"Final output prefix: {args.output_prefix}_{key}_maxlen_{args.model_max_length}")
         startup_end = time.time()
         custom_print("Time to startup:", startup_end - startup_start)
 
