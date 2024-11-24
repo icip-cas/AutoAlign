@@ -9,22 +9,22 @@ cd ${CURRENT_DIR}
 export PYTHONPATH=${CURRENT_DIR}:${MEGATRON_PATH}:${MEGATRON_PATH}/Megatron-LM-240718:$PYTHONPATH
 export CUDA_DEVICE_MAX_CONNECTIONS=1
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
-
+ 
 DATASET_PATH=/share/zhangqingyu/data/sft/sharegpt_formatted_data-evol-gpt4_conversations_maxlen_2048
 VALID_DATASET_PATH=/share/zhangqingyu/data/sft/sharegpt_formatted_data-evol-gpt4_conversations_maxlen_2048
-PRETRAIN_CHECKPOINT_PATH=/share/zhangqingyu/mg_models/Qwen2-1.5B-hf-to-mcore-te-tp2-pp2
-OUTPUT_BASEPATH=/share/zhangqingyu/checkpoint/sft/output_mcore_qwen2_1point5_ct_tp2_pp2
+PRETRAIN_CHECKPOINT_PATH=/share/zhangqingyu/mg_models/Qwen2.5-1.5B-hf-to-mcore-te-tp2-pp2
+OUTPUT_BASEPATH=/share/zhangqingyu/checkpoint/sft/output_mcore_qwen2_5_1point5_ct_tp2_pp2
 
 
 # ==============================
 # 算力资源配置
 # ==============================
-export CUDA_VISIBLE_DEVICES=2,3,4,5,6,7
+export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 MASTER_ADDR=localhost
 MASTER_PORT=$(shuf -n 1 -i 10000-65535)
 NNODES=1
 NODE_RANK=0
-GPUS_PER_NODE=4
+GPUS_PER_NODE=8
 
 
 # ==============================
@@ -74,7 +74,7 @@ WARMUP_TOKENS=100
 SAVE_INTERVAL=100000
 
 TRAIN_ITERS=10000
-LR_WARMUP_ITERS=100
+LR_WARMUP_ITERS=10
 LR_DECAY_ITERS=$(( ${TRAIN_ITERS} - ${LR_WARMUP_ITERS}))
 PREFIX="sft-mcore-qwen2-1point5b-lr-${LR}-minlr-${MIN_LR}-bs-${BATCH_SIZE}-gbs-${GLOBAL_BATCH_SIZE}-seqlen-${SEQ_LEN}"
 sft_option=" \
@@ -90,7 +90,7 @@ HIDDEN_SIZE=1536
 NUM_ATTN_HEADS=12
 INTERMEDIATE_SIZE=8960
 NUM_KEY_VALUE_HEADS=2
-MAX_POSITION_EMBEDDINGS=131072
+MAX_POSITION_EMBEDDINGS=32768
 EXTRA_VOCAB_SIZE=293
 RMS_NORM_EPS=1e-6
 gqa_options=" \
@@ -102,6 +102,7 @@ te_options=" \
 
 load_options=" \
         --load $PRETRAIN_CHECKPOINT_PATH"
+
 
 # ==============================
 # FlashAttention Or FusedAttention
@@ -284,7 +285,6 @@ megatron_options="  \
         --norm-epsilon ${RMS_NORM_EPS} \
         --use-rotary-position-embeddings \
         --position-embedding-type rope \
-        --untie-embeddings-and-output-weights \
         --disable-bias-linear \
         --add-qkv-bias \
         --rotary-percent 1.0 \
@@ -292,6 +292,7 @@ megatron_options="  \
         --rotary-seq-len-interpolation-factor 1 \
         --no-save-optim \
         "
+        # --untie-embeddings-and-output-weights \
 # ==============================
 # Tranin!
 # ==============================

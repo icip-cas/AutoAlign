@@ -14,6 +14,7 @@ PR=$6
 USE_TE=$7
 MG2HF=$8
 HF_CKPT_PATH=${9}
+
 CURRENT_DIR="$( cd "$( dirname "$0" )" && pwd )"
 MEGATRON_PATH=$( dirname $(dirname $( dirname ${CURRENT_DIR})))
 export PYTHONPATH=$PYTHONPATH:${MEGATRON_PATH}:${MEGATRON_PATH}/Megatron-LM-240718
@@ -51,7 +52,7 @@ gqa_options=" \
 		    --group-query-attention \
 		    --num-query-groups ${NUM_KEY_VALUE_HEADS}"
 
-tie_option=""
+tie_option="--untie-embeddings-and-output-weights"
 cpu_options=""
 
 elif [ $MODEL_SIZE = 3B ]; then

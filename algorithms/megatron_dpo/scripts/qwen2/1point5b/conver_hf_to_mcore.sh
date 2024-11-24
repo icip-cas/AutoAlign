@@ -1,9 +1,9 @@
 export CUDA_VISIBLE_DEVICES=0
-cd /share/zhangqingyu/code/auto-alignment/algorithms/megatron_dpo/toolkits/model_checkpoints_convertor/qwen
+cd /toolkits/model_checkpoints_convertor/qwen
 bash hf2mcore_qwen2_convertor.sh \
 1.5B \
-/share/zhangqingyu/hf_models/Qwen2-1.5B \
-/share/zhangqingyu/mg_models/Qwen2-1.5B-hf-to-mcore-te-tp2-pp2  \
+/share/zhangqingyu/hf_models/Qwen2.5-1.5B \
+/share/zhangqingyu/mg_models/Qwen2.5-1.5B-hf-to-mcore-te-tp2-pp2  \
 2  \
 2  \
 1 \

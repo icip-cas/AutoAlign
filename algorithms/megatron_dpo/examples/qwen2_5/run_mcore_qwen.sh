@@ -3,7 +3,7 @@ set -e
 ENV=$1
 CURRENT_DIR="$( cd "$( dirname "$0" )" && pwd )"
 MEGATRON_PATH=$( dirname $( dirname ${CURRENT_DIR}))
-export PYTHONPATH=${MEGATRON_PATH}:${MEGATRON_PATH}/PAI-Megatron-LM-240718:$PYTHONPATH
+export PYTHONPATH=${MEGATRON_PATH}:${MEGATRON_PATH}/Megatron-LM-240718:$PYTHONPATH
 export CUDA_DEVICE_MAX_CONNECTIONS=1
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
@@ -17,12 +17,12 @@ if [ -z ${MP_AC_LAYERS} ];then
 fi
 
 if [ $ENV = dsw ]; then
-    export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+    export CUDA_VISIBLE_DEVICES=0,1,5,7
     MASTER_ADDR=localhost
     MASTER_PORT=$(shuf -n 1 -i 10000-65535)
     NNODES=1
     NODE_RANK=0
-    GPUS_PER_NODE=8
+    GPUS_PER_NODE=4
 elif [ $ENV = dlc ]; then
     NNODES=${WORLD_SIZE}
     NODE_RANK=${RANK}
@@ -80,6 +80,7 @@ WARMUP_TOKENS=${24}
 OUTPUT_BASEPATH=${25}
 ### OTHERS ###
 
+
 if [ $FL = true ]; then
     export NVTE_FLASH_ATTN=1 NVTE_FUSED_ATTN=0
 elif [ $FL = false ]; then
@@ -117,7 +118,7 @@ gqa_options=" \
 		    --group-query-attention \
 		    --num-query-groups ${NUM_KEY_VALUE_HEADS}"
 
-tie_option=""
+tie_option="--untie-embeddings-and-output-weights"
 
 elif [ $MODEL_SIZE = 3B ]; then
 

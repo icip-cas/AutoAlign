@@ -9,4 +9,3 @@ bash hf2mcore_qwen2.5_convertor.sh \
 fp32 \
 true \
 false \
-/share/zhangqingyu/hf_models/Qwen2.5-1.5B

@@ -507,14 +507,13 @@ def save_mgmodel(mgmodel, args):
     tracker_filepath = os.path.join(args.save, 'latest_checkpointed_iteration.txt')
     with open(tracker_filepath, "w") as f:
         f.write("release")
-
     head_dim = args.hidden_size // args.num_attention_heads
     group_per_split = args.num_query_groups // args.target_tensor_model_parallel_size
     full_model = mgmodel.state_dict_for_save_checkpoint()
     num_layers = args.num_layers // args.pipeline_model_parallel_size
-    for k in list(full_model.keys()):
-        if full_model[k] is None or "_extra_state" in k:
-            full_model.pop(k)
+    # for k in list(full_model.keys()):
+    #     if full_model[k] is None or "_extra_state" in k:
+    #         full_model.pop(k)
 
     if args.num_experts is not None:
         pattern = r'local_experts\.(\d+)\.'
