@@ -1,34 +1,23 @@
-# Copyright (c) 2024 Alibaba PAI and Nvidia Megatron-LM Team.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 
 import logging
-import math
 from typing import Dict, Literal, Optional, Tuple, Union
-from torch import Tensor
+
 import torch
+from torch import Tensor
 
 from megatron.core import InferenceParams, parallel_state, tensor_parallel
 from megatron.core.dist_checkpointing.mapping import ShardedStateDict
 from megatron.core.models.common.embeddings.language_model_embedding import LanguageModelEmbedding
-from megatron.core.models.common.embeddings.rotary_pos_embedding import RotaryEmbedding
 from megatron.core.models.common.language_module.language_module import LanguageModule
+from megatron.core.models.common.embeddings.rotary_pos_embedding import RotaryEmbedding
 from megatron.core.packed_seq_params import PackedSeqParams
 from megatron.core.transformer.enums import AttnMaskType, ModelType
 from megatron.core.transformer.spec_utils import ModuleSpec
 from megatron.core.transformer.transformer_config import TransformerConfig
 
 from .transformer_block import TransformerBlock
+
 
 class GPTModel(LanguageModule):
     """GPT Transformer language model.
@@ -60,9 +49,7 @@ class GPTModel(LanguageModule):
         fp16_lm_cross_entropy: bool = False,
         parallel_output: bool = True,
         share_embeddings_and_output_weights: bool = False,
-        position_embedding_type: Literal[
-            "learned_absolute", "rope"
-        ] = "learned_absolute",
+        position_embedding_type: Literal['learned_absolute', 'rope'] = 'learned_absolute',
         rotary_percent: float = 1.0,
         rotary_base: int = 10000,
         seq_len_interpolation_factor: Optional[float] = None,
@@ -86,6 +73,8 @@ class GPTModel(LanguageModule):
         # These 2 attributes are needed for TensorRT-LLM export.
         self.max_position_embeddings = max_sequence_length
         self.rotary_percent = rotary_percent
+        self.rotary_base = rotary_base
+        self.seq_len_interpolation_factor = seq_len_interpolation_factor
 
         if self.pre_process:
             self.embedding = LanguageModelEmbedding(
@@ -95,7 +84,7 @@ class GPTModel(LanguageModule):
                 position_embedding_type=position_embedding_type,
             )
 
-        if self.position_embedding_type == "rope":
+        if self.position_embedding_type == 'rope':
             self.rotary_pos_emb = RotaryEmbedding(
                 kv_channels=self.config.kv_channels,
                 rotary_percent=rotary_percent,
@@ -202,6 +191,7 @@ class GPTModel(LanguageModule):
         # Run decoder.
         hidden_states = self.decoder(
             hidden_states=decoder_input,
+            position_ids=position_ids,
             attention_mask=attention_mask,
             inference_params=inference_params,
             rotary_pos_emb=rotary_pos_emb,

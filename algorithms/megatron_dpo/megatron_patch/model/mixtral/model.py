@@ -1,4 +1,4 @@
-# Copyright (c) 2024 Alibaba PAI and Nvidia Megatron-LM Team.
+# Copyright (c) 2023 Alibaba PAI and Nvidia Megatron-LM Team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,11 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
-import math
-from typing import Dict, Literal, Optional, Tuple, Union
+from typing import Literal, Optional
 from torch import Tensor
-import torch
 
 from megatron.core import InferenceParams, parallel_state, tensor_parallel
 from megatron.core.dist_checkpointing.mapping import ShardedStateDict
@@ -26,9 +23,10 @@ from megatron.core.models.common.language_module.language_module import Language
 from megatron.core.packed_seq_params import PackedSeqParams
 from megatron.core.transformer.enums import AttnMaskType, ModelType
 from megatron.core.transformer.spec_utils import ModuleSpec
+from megatron.core.transformer.transformer_block import TransformerBlock
 from megatron.core.transformer.transformer_config import TransformerConfig
+from megatron.core.utils import make_tp_sharded_tensor_for_checkpoint
 
-from .transformer_block import TransformerBlock
 
 class GPTModel(LanguageModule):
     """GPT Transformer language model.
@@ -60,9 +58,7 @@ class GPTModel(LanguageModule):
         fp16_lm_cross_entropy: bool = False,
         parallel_output: bool = True,
         share_embeddings_and_output_weights: bool = False,
-        position_embedding_type: Literal[
-            "learned_absolute", "rope"
-        ] = "learned_absolute",
+        position_embedding_type: Literal['learned_absolute', 'rope'] = 'learned_absolute',
         rotary_percent: float = 1.0,
         rotary_base: int = 10000,
         seq_len_interpolation_factor: Optional[float] = None,
@@ -83,10 +79,6 @@ class GPTModel(LanguageModule):
         # TODO: remove this dependency ?
         self.model_type = ModelType.encoder_or_decoder
 
-        # These 2 attributes are needed for TensorRT-LLM export.
-        self.max_position_embeddings = max_sequence_length
-        self.rotary_percent = rotary_percent
-
         if self.pre_process:
             self.embedding = LanguageModelEmbedding(
                 config=self.config,
@@ -95,11 +87,10 @@ class GPTModel(LanguageModule):
                 position_embedding_type=position_embedding_type,
             )
 
-        if self.position_embedding_type == "rope":
+        if self.position_embedding_type == 'rope':
             self.rotary_pos_emb = RotaryEmbedding(
                 kv_channels=self.config.kv_channels,
                 rotary_percent=rotary_percent,
-                rotary_interleaved=self.config.rotary_interleaved,
                 seq_len_interpolation_factor=seq_len_interpolation_factor,
                 rotary_base=rotary_base,
             )
@@ -114,20 +105,6 @@ class GPTModel(LanguageModule):
 
         # Output
         if post_process:
-            if self.config.defer_embedding_wgrad_compute:
-                # The embedding activation buffer preserves a reference to the input activations
-                # of the final embedding projection layer GEMM. It will hold the activations for
-                # all the micro-batches of a global batch for the last pipeline stage. Once we are
-                # done with all the back props for all the microbatches for the last pipeline stage,
-                # it will be in the pipeline flush stage. During this pipeline flush we use the
-                # input activations stored in embedding activation buffer and gradient outputs stored
-                # in gradient buffer to calculate the weight gradients for the embedding final linear layer.
-                self.embedding_activation_buffer = []
-                self.grad_output_buffer = []
-            else:
-                self.embedding_activation_buffer = None
-                self.grad_output_buffer = None
-
             self.output_layer = tensor_parallel.ColumnParallelLinear(
                 config.hidden_size,
                 self.vocab_size,
@@ -138,12 +115,10 @@ class GPTModel(LanguageModule):
                 gather_output=not self.parallel_output,
                 skip_weight_param_allocation=self.pre_process
                 and self.share_embeddings_and_output_weights,
-                embedding_activation_buffer=self.embedding_activation_buffer,
-                grad_output_buffer=self.grad_output_buffer,
             )
 
-        if self.pre_process or self.post_process:
-            self.setup_embeddings_and_output_layer()
+        if self.share_embeddings_and_output_weights and (self.pre_process or self.post_process):
+            self.initialize_last_stage_with_word_embeddings()
 
     def set_input_tensor(self, input_tensor: Tensor) -> None:
         """Sets input tensor to the model.
@@ -177,6 +152,20 @@ class GPTModel(LanguageModule):
         processing layer (optional).
 
         It either returns the Loss values if labels are given  or the final hidden units
+
+        Args:
+            input_ids (Tensor): Batch of input token IDs.
+            position_ids (Tensor): Batch of positional encodings corresponding to `input_ids`.
+            attention_mask (Tensor): Mask to avoid attention on padding token indices in `input_ids`.
+            decoder_input (Tensor, optional): Optional pre-calculated embeddings passed directly to the decoder.
+            labels (Tensor, optional): Target output token IDs for supervised training.
+            inference_params (InferenceParams, optional): Parameters for controlling inference behavior.
+            packed_seq_params (PackedSeqParams, optional): Parameters for processing packed sequences.
+            extra_block_kwargs (dict, optional): Additional keyword arguments to pass to the transformer blocks.
+
+        Returns:
+            Tensor: If `labels` is not provided, the method returns the logits tensor of shape [batch_size, seq_length, vocab_size].
+                    If `labels` is provided, it returns the loss value as a tensor.
         """
         # If decoder_input is provided (not None), then input_ids and position_ids are ignored.
         # Otherwise, apply embedding layer on input_ids and position_ids to get decoder_input.
@@ -226,27 +215,73 @@ class GPTModel(LanguageModule):
 
         return loss
 
-    def sharded_state_dict(
-        self, prefix: str = '', sharded_offsets: tuple = (), metadata: Optional[Dict] = None
-    ) -> ShardedStateDict:
-        """ Sharded state dict implementation for GPTModel backward-compatibility (removing extra state).
+    def sharded_state_dict(self, prefix: str = '', sharded_offsets: tuple = ()) -> ShardedStateDict:
+        """
+        Returns a sharded state dictionary for distributed training, where model parameters
+        are partitioned across different devices or processes.
 
         Args:
-            prefix (str): Module name prefix.
-            sharded_offsets (tuple): PP related offsets, expected to be empty at this module level.
-            metadata (Optional[Dict]): metadata controlling sharded state dict creation.
+            prefix (str, optional): A prefix to prepend to each key in the state dictionary.
+                                    This can be used to distinguish parameters of different
+                                    model components when combining state dictionaries.
+            sharded_offsets (tuple, optional): Offsets for sharding the state dictionary. It
+                                                typically contains the start index for each shard
+                                                and the overall size of the model parameter. It
+                                                should be empty for this model as offsets are not
+                                                expected.
 
         Returns:
-            ShardedStateDict: sharded state dict for the GPTModel
+            ShardedStateDict: A dictionary containing model parameters with keys prepended by `prefix`.
+                              The parameters are sharded according to the tensor parallelism configuration.
         """
-        sharded_state_dict = super().sharded_state_dict(prefix, sharded_offsets, metadata)
-        output_layer_extra_state_key = f'{prefix}output_layer._extra_state'
+        assert not sharded_offsets, "Unexpected sharded offsets"
+        sharded_state_dict = {}
 
-        # Old GPT checkpoints only stored the output layer weight key. So we remove the _extra_state key
-        # but check that it doesn't contain any data anyway
-        output_extra_state = sharded_state_dict.pop(output_layer_extra_state_key, None)
-        assert not (
-            output_extra_state and output_extra_state.data
-        ), f'Expected output layer extra state to be empty, got: {output_extra_state}'
+        if self.pre_process:
+            embedding_prefix = f'{prefix}embedding.'
+            embedding_sharded_state_dict = self.embedding.sharded_state_dict(
+                prefix=embedding_prefix
+            )
+            sharded_state_dict.update(embedding_sharded_state_dict)
+
+        decoder_prefix = f'{prefix}decoder.'
+        decoder_sharded_state_dict = self.decoder.sharded_state_dict(prefix=decoder_prefix)
+        sharded_state_dict.update(decoder_sharded_state_dict)
+
+        if self.post_process:
+            output_layer_prefix = f'{prefix}output_layer.'
+            output_layer_key = f'{output_layer_prefix}weight'
+            if self.share_embeddings_and_output_weights:
+                if not self.pre_process:
+                    # when sharing embeddings with last stage, we need to use the weights from the first stage
+                    # on pipeline first rank, word embeddings are saved to {prefix}embedding.word_embeddings.weight
+                    tensor = self.shared_embedding_or_output_weight()
+                    first_stage_word_emb_key = f'{prefix}embedding.word_embeddings.weight'
+                    last_stage_word_emb_replica_id = (
+                        1,  # copy of first stage embedding
+                        0,
+                        parallel_state.get_data_parallel_rank(with_context_parallel=True),
+                    )
+
+                    sharded_output_layer_tensor = make_tp_sharded_tensor_for_checkpoint(
+                        tensor=tensor,
+                        key=first_stage_word_emb_key,
+                        replica_id=last_stage_word_emb_replica_id,
+                        allow_shape_mismatch=True,
+                    )
+
+                    sharded_state_dict[output_layer_key] = sharded_output_layer_tensor
+
+            else:
+                output_layer_state_dict = self.output_layer.state_dict(
+                    prefix=output_layer_prefix, keep_vars=True
+                )
+                output_layer_tensor = output_layer_state_dict[output_layer_key]
+                # independent output layer
+                sharded_output_layer_tensor = make_tp_sharded_tensor_for_checkpoint(
+                    tensor=output_layer_tensor, key=output_layer_key, allow_shape_mismatch=True,
+                )
+
+                sharded_state_dict[output_layer_key] = sharded_output_layer_tensor
 
         return sharded_state_dict
