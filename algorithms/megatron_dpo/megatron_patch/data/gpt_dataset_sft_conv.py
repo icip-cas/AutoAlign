@@ -92,7 +92,7 @@ class GPTDataset_SFT_Conv(torch.utils.data.Dataset):
     
         self.data_idx = np.tile(shuffled_documents, self.args.epochs)
 
-        if self.args.shuffle_all_epoch:
+        if self.args.shuffle_all_epochs:
             # Shuffle across all epochs
             perm = self.numpy_random_state.permutation(len(self.data_idx))
             self.data_idx = self.data_idx[perm]

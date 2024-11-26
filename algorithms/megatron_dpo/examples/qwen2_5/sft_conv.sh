@@ -12,29 +12,37 @@ export CUDA_DEVICE_MAX_CONNECTIONS=1
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 cd ../qwen2
  
-DATASET_PATH=/share/zhangqingyu/data/sft/sharegpt_formatted_data-evol-gpt4_conversations_maxlen_8192
-VALID_DATASET_PATH=/share/zhangqingyu/data/sft/sharegpt_formatted_data-evol-gpt4_conversations_maxlen_8192
-PRETRAIN_CHECKPOINT_PATH=/share/zhangqingyu/mg_models/Qwen2.5-1.5B-hf-to-mcore-te-tp2-pp2
-OUTPUT_BASEPATH=/share/zhangqingyu/checkpoint/sft/output_mcore_qwen2_5_1point5_ct_tp2_pp2
+DATASET_PATH=/ciphome/zhangqingyu2023/code/auto-alignment/algorithms/megatron_dpo/data/sft/sharegpt_formatted_data-evol-gpt4_conversations_maxlen_8192
+VALID_DATASET_PATH=/ciphome/zhangqingyu2023/code/auto-alignment/algorithms/megatron_dpo/data/sft/sharegpt_formatted_data-evol-gpt4_conversations_maxlen_8192
+PRETRAIN_CHECKPOINT_PATH=/ciphome/zhangqingyu2023/mg_models/Qwen2.5-7B-hf-to-mcore-te-tp2-pp2
+OUTPUT_BASEPATH=/ciphome/zhangqingyu2023/mg_models/Qwen2.5-7B-hf-to-mcore-te-tp2-pp2
 
 
 # ==============================
 # 算力资源配置
 # ==============================
 export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+# MASTER_ADDR=12.12.11.14
 MASTER_ADDR=localhost
-MASTER_PORT=$(shuf -n 1 -i 10000-65535)
+# MASTER_PORT=$(shuf -n 1 -i 10000-65535)
+MASTER_PORT=29500
 NNODES=1
 NODE_RANK=0
 GPUS_PER_NODE=8
 
+# export NCCL_SOCKET_IFNAME=bond0
+# export NCCL_IB_DISABLE=1
+
+# export NCCL_IB_DISABLE=0
+# export NCCL_IB_HCA=mlx5_0
+# unset NCCL_SOCKET_IFNAME
 
 # ==============================
 # 训练超参数设置
 # ==============================
-MODEL_SIZE=1.5B
-BATCH_SIZE=1
-GLOBAL_BATCH_SIZE=16
+MODEL_SIZE=7B
+BATCH_SIZE=2
+GLOBAL_BATCH_SIZE=32
 LR=1e-5
 MIN_LR=1e-6
 SEQ_LEN=8192
@@ -63,14 +71,15 @@ dataset_option=" \
     --data-path ${DATASET_PATH} \
     --split 100,0,0 \
     --dataset mmap  \
-    --epochs 1 "
+    --shuffle-all-epochs \
+    --epochs 3"
 
 
 # ==============================
 # SFT
 # ==============================
 SFT=True
-SAVE_INTERVAL=100
+SAVE_INTERVAL=10
 
 TRAIN_ITERS=10000
 LR_WARMUP_ITERS=10
@@ -207,9 +216,6 @@ fi
 te_options=" \
         --transformer-impl transformer_engine"
 
-load_options=" \
-        --load $PRETRAIN_CHECKPOINT_PATH"
-
 
 # ==============================
 # FlashAttention Or FusedAttention
@@ -341,10 +347,12 @@ SAVED_PRETRAIN_CHECKPOINT_PATH="${OUTPUT_BASEPATH}/checkpoint/${NAME}"
 
 mkdir -p ${SAVED_PRETRAIN_CHECKPOINT_PATH}
 find ${PRETRAIN_CHECKPOINT_PATH} -maxdepth 1 -type f -name "*.json" -print0 | xargs -0 cp -t ${SAVED_PRETRAIN_CHECKPOINT_PATH}
-
+find ${PRETRAIN_CHECKPOINT_PATH} -maxdepth 1 -type f -name "merge*" -print0 | xargs -0 cp -t ${SAVED_PRETRAIN_CHECKPOINT_PATH}
 # ==============================
 # 模型完整配置
 # ==============================
+load_options=" \
+        --load $PRETRAIN_CHECKPOINT_PATH"
 megatron_options="  \
         --save ${SAVED_PRETRAIN_CHECKPOINT_PATH} \
         --lr ${LR} \
@@ -381,8 +389,6 @@ megatron_options="  \
         --tensor-model-parallel-size ${TP} \
         --pipeline-model-parallel-size ${PP} \
         --context-parallel-size ${CP} \
-        --no-load-optim \
-        --no-load-rng \
         --num-workers 8 \
         --extra-vocab-size ${EXTRA_VOCAB_SIZE} \
         --patch-tokenizer-type Qwen2Tokenizer \
@@ -396,8 +402,10 @@ megatron_options="  \
         --rotary-percent 1.0 \
         --rotary-base 1000000 \
         --rotary-seq-len-interpolation-factor 1 \
-        --no-save-optim \
         "
+# --no-save-optim \
+# --no-load-optim \
+# --no-load-rng \
 
 # ==============================
 # Tranin!
