@@ -10,12 +10,13 @@ cd ${CURRENT_DIR}
 export PYTHONPATH=${CURRENT_DIR}:${MEGATRON_PATH}:${MEGATRON_PATH}/Megatron-LM-240718:$PYTHONPATH
 export CUDA_DEVICE_MAX_CONNECTIONS=1
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+export OMP_NUM_THREADS=1
 cd ../qwen2
  
-DATASET_PATH=/ciphome/zhangqingyu2023/code/auto-alignment/algorithms/megatron_dpo/data/sft/sharegpt_formatted_data-evol-gpt4_conversations_maxlen_8192
-VALID_DATASET_PATH=/ciphome/zhangqingyu2023/code/auto-alignment/algorithms/megatron_dpo/data/sft/sharegpt_formatted_data-evol-gpt4_conversations_maxlen_8192
-PRETRAIN_CHECKPOINT_PATH=/ciphome/zhangqingyu2023/mg_models/Qwen2.5-7B-hf-to-mcore-te-tp2-pp2
-OUTPUT_BASEPATH=/ciphome/zhangqingyu2023/mg_models/Qwen2.5-7B-hf-to-mcore-te-tp2-pp2
+DATASET_PATH=/ciphome/zhangqingyu2023/data/sft/InfInstruct-Gen_infinite_9m_conversations_maxlen_4096
+VALID_DATASET_PATH=/ciphome/zhangqingyu2023/data/sft/InfInstruct-Gen_infinite_9m_conversations_maxlen_4096
+PRETRAIN_CHECKPOINT_PATH=/ciphome/zhangqingyu2023/mg_models/Qwen2.5-7B-hf-to-mcore-te-tp2-pp1
+OUTPUT_BASEPATH=/ciphome/zhangqingyu2023/checkpoint/sft/Qwen2.5-7B-hf-to-mcore-te-tp2-pp1/debug
 
 
 # ==============================
@@ -27,7 +28,7 @@ MASTER_ADDR=localhost
 # MASTER_PORT=$(shuf -n 1 -i 10000-65535)
 MASTER_PORT=29500
 NNODES=1
-NODE_RANK=0
+NODE_RANK=$1
 GPUS_PER_NODE=8
 
 # export NCCL_SOCKET_IFNAME=bond0
@@ -41,24 +42,25 @@ GPUS_PER_NODE=8
 # 训练超参数设置
 # ==============================
 MODEL_SIZE=7B
-BATCH_SIZE=2
-GLOBAL_BATCH_SIZE=32
-LR=1e-5
-MIN_LR=1e-6
-SEQ_LEN=8192
-PAD_LEN=8192
+BATCH_SIZE=4
+GLOBAL_BATCH_SIZE=512
+LR=5e-6
+MIN_LR=0.0
+SEQ_LEN=4096
+PAD_LEN=4096
 
 
 # ==============================
 # 并行设置
 # ==============================
 TP=2
-PP=2
+PP=1
 SP=true
 CP=1
 if [ $SP = true ] && [ $TP -gt 1 ]; then
     sp_options=" \
-		    --sequence-parallel"
+		    --sequence-parallel \
+            --tp-comm-overlap "
 elif [ $SP = false ]; then
     sp_options=" \
                     "
@@ -71,19 +73,17 @@ dataset_option=" \
     --data-path ${DATASET_PATH} \
     --split 100,0,0 \
     --dataset mmap  \
-    --shuffle-all-epochs \
     --epochs 3"
 
-
+# --shuffle-all-epochs \
 # ==============================
 # SFT
 # ==============================
 SFT=True
-SAVE_INTERVAL=10
+SAVE_INTERVAL=5000
 
 TRAIN_ITERS=10000
-LR_WARMUP_ITERS=10
-LR_DECAY_ITERS=$(( ${TRAIN_ITERS} - ${LR_WARMUP_ITERS}))
+LR_WARMUP_FRACTION=$(echo "${GLOBAL_BATCH_SIZE} * 0.00001" | bc -l)
 PREFIX="sft-mcore-qwen2_5-${MODEL_SIZE}-lr-${LR}-minlr-${MIN_LR}-bs-${BATCH_SIZE}-gbs-${GLOBAL_BATCH_SIZE}-seqlen-${SEQ_LEN}"
 sft_option=" \
         --eod-mask-loss \
@@ -288,14 +288,11 @@ fi
 # ==============================
 TP_COMM_OVERLAP=$(( ($TP > 1) ? 1 : 0 ))
 comm_overlap_option="\
-    --overlap-grad-reduce \
-    --overlap-param-gather"
+    --overlap-grad-reduce"
 
 if [ $TP_COMM_OVERLAP -eq 1 ]; then
     comm_overlap_option="\
-        --tp-comm-overlap \
-        --overlap-grad-reduce \
-        --overlap-param-gather"
+        --overlap-grad-reduce "
 fi
 
 
@@ -311,7 +308,8 @@ fi
 
 if [ $DO = true ]; then
     do_options=" \
-		    --use-distributed-optimizer"
+		    --use-distributed-optimizer \
+            --overlap-param-gather"
 
 elif [ $DO = false ]; then
     do_options=" \
@@ -365,7 +363,7 @@ megatron_options="  \
         --init-method-std 0.008 \
         --attention-dropout 0.0 \
         --hidden-dropout 0.0 \
-        --lr-warmup-iters ${LR_WARMUP_ITERS} \
+        --lr-warmup-fraction ${LR_WARMUP_FRACTION} \
         --train-iters ${TRAIN_ITERS} \
         --micro-batch-size ${BATCH_SIZE} \
         --global-batch-size ${GLOBAL_BATCH_SIZE} \
