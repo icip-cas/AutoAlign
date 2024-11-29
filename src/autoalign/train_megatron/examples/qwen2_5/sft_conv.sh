@@ -15,6 +15,8 @@ cd ../qwen2
  
 DATASET_PATH=/ciphome/zhangqingyu2023/data/sft/InfInstruct-Gen_infinite_9m_conversations_maxlen_4096
 VALID_DATASET_PATH=/ciphome/zhangqingyu2023/data/sft/InfInstruct-Gen_infinite_9m_conversations_maxlen_4096
+# DATASET_PATH=/data/sft/sharegpt_formatted_data-evol-gpt4_conversations_maxlen_8192
+# VALID_DATASET_PATH=data/sft/sharegpt_formatted_data-evol-gpt4_conversations_maxlen_8192
 PRETRAIN_CHECKPOINT_PATH=/ciphome/zhangqingyu2023/mg_models/Qwen2.5-7B-hf-to-mcore-te-tp2-pp1
 OUTPUT_BASEPATH=/ciphome/zhangqingyu2023/checkpoint/sft/Qwen2.5-7B-hf-to-mcore-te-tp2-pp1/debug
 
@@ -55,7 +57,7 @@ PAD_LEN=4096
 # ==============================
 TP=2
 PP=1
-SP=true
+SP=false
 CP=1
 if [ $SP = true ] && [ $TP -gt 1 ]; then
     sp_options=" \
@@ -89,6 +91,119 @@ sft_option=" \
         --eod-mask-loss \
         --train-mode sft"
 
+
+
+# ==============================
+# FlashAttention Or FusedAttention
+# ==============================
+FL=true
+if [ $FL = true ]; then
+    export NVTE_FLASH_ATTN=1 NVTE_FUSED_ATTN=0
+elif [ $FL = false ]; then
+    export NVTE_FLASH_ATTN=0 NVTE_FUSED_ATTN=1
+fi
+
+# ==============================
+# 精度配置: fp16, bf16, fp8
+# ==============================
+PR=bf16
+if [ $PR = fp16 ]; then
+    pr_options=" \
+		    --fp16 \
+            --apply-query-key-layer-scaling"
+    export NVTE_APPLY_QK_LAYER_SCALING=1
+elif [ $PR = bf16 ]; then
+    pr_options=" \
+        --bf16"
+elif [ $PR = fp8 ]; then
+    pr_options=" \
+        --bf16 \
+        --fp8-format hybrid \
+        --fp8-amax-compute-algo max \
+        --fp8-amax-history-len 1024"
+fi
+
+
+# ==============================
+# 激活检查点模式: sel, full, offload, false
+# ==============================
+MP_AC_LAYERS=1
+AC=none
+if [ $AC = full ]; then
+    _check=$(( ($NUM_LAYERS / $PP) % ${MP_AC_LAYERS} ))
+    if [ $_check != 0 ]; then
+        echo "the num layers per pp rank must be a multiple of the recompute layers."
+        exit -1
+    fi
+    activation_checkpoint_options=" \
+        --recompute-method uniform \
+        --recompute-num-layers ${MP_AC_LAYERS} \
+        --recompute-granularity full"
+elif [ $AC = sel ]; then
+    activation_checkpoint_options=" \
+        --recompute-activations"
+elif [ $AC = none ]; then
+    activation_checkpoint_options=" \
+    "
+elif [ $AC = offload ]; then
+    activation_checkpoint_options=" \
+        --cpu-offloading \
+        --cpu-offloading-num-layers ${MP_AC_LAYERS}"
+    if [ $TP_COMM_OVERLAP -eq 1 ]; then
+        echo "Disable --overlap-grad-reduce and --overlap-param-gather when cpu offloading is on..."
+        comm_overlap_option="\
+            --tp-comm-overlap"
+    else
+        echo "Disable --overlap-grad-reduce and --overlap-param-gather when cpu offloading is on..."
+        comm_overlap_option=""
+    fi
+fi
+
+# ==============================
+# 优化TP通信
+# ==============================
+TP_COMM_OVERLAP=$(( ($TP > 1) ? 1 : 0 ))
+comm_overlap_option="\
+    --overlap-grad-reduce"
+
+if [ $TP_COMM_OVERLAP -eq 1 ]; then
+    comm_overlap_option="\
+        --overlap-grad-reduce "
+fi
+
+
+# ==============================
+# 分布式优化器配置
+# ==============================
+DO=true
+OPTIMIZER_OFFLOAD=false
+if [ $OPTIMIZER_OFFLOAD != false ] && [ $DO = false ]; then
+    echo "Offload optimizer is valid only if \$DO=true"
+    DO=true
+fi
+
+if [ $DO = true ]; then
+    do_options=" \
+		    --use-distributed-optimizer \
+            --overlap-grad-reduce"
+
+elif [ $DO = false ]; then
+    do_options=" \
+                    "
+fi
+
+if [ $OPTIMIZER_OFFLOAD = 'static' ]; then
+    offload_option=" \
+        --optimizer hybridadam \
+        --optimizer-offload-policy static \
+        --optimizer-offload-fraction 1.0"
+elif [ $OPTIMIZER_OFFLOAD = 'auto' ]; then
+    offload_option=" \
+        --optimizer hybridadam \
+        --optimizer-offload-policy auto"
+else
+    offload_option=""
+fi
 
 # ==============================
 # 模型架构配置
@@ -215,120 +330,6 @@ fi
 
 te_options=" \
         --transformer-impl transformer_engine"
-
-
-# ==============================
-# FlashAttention Or FusedAttention
-# ==============================
-FL=true
-if [ $FL = true ]; then
-    export NVTE_FLASH_ATTN=1 NVTE_FUSED_ATTN=0
-elif [ $FL = false ]; then
-    export NVTE_FLASH_ATTN=0 NVTE_FUSED_ATTN=1
-fi
-
-# ==============================
-# 精度配置: fp16, bf16, fp8
-# ==============================
-PR=bf16
-if [ $PR = fp16 ]; then
-    pr_options=" \
-		    --fp16 \
-            --apply-query-key-layer-scaling"
-    export NVTE_APPLY_QK_LAYER_SCALING=1
-elif [ $PR = bf16 ]; then
-    pr_options=" \
-        --bf16"
-elif [ $PR = fp8 ]; then
-    pr_options=" \
-        --bf16 \
-        --fp8-format hybrid \
-        --fp8-amax-compute-algo max \
-        --fp8-amax-history-len 1024"
-fi
-
-
-# ==============================
-# 激活检查点模式: sel, full, offload, false
-# ==============================
-MP_AC_LAYERS=1
-AC=none
-if [ $AC = full ]; then
-    _check=$(( ($NUM_LAYERS / $PP) % ${MP_AC_LAYERS} ))
-    if [ $_check != 0 ]; then
-        echo "the num layers per pp rank must be a multiple of the recompute layers."
-        exit -1
-    fi
-    activation_checkpoint_options=" \
-        --recompute-method uniform \
-        --recompute-num-layers ${MP_AC_LAYERS} \
-        --recompute-granularity full"
-elif [ $AC = sel ]; then
-    activation_checkpoint_options=" \
-        --recompute-activations"
-elif [ $AC = none ]; then
-    activation_checkpoint_options=" \
-    "
-elif [ $AC = offload ]; then
-    activation_checkpoint_options=" \
-        --cpu-offloading \
-        --cpu-offloading-num-layers ${MP_AC_LAYERS}"
-    if [ $TP_COMM_OVERLAP -eq 1 ]; then
-        echo "Disable --overlap-grad-reduce and --overlap-param-gather when cpu offloading is on..."
-        comm_overlap_option="\
-            --tp-comm-overlap"
-    else
-        echo "Disable --overlap-grad-reduce and --overlap-param-gather when cpu offloading is on..."
-        comm_overlap_option=""
-    fi
-fi
-
-# ==============================
-# 优化TP通信
-# ==============================
-TP_COMM_OVERLAP=$(( ($TP > 1) ? 1 : 0 ))
-comm_overlap_option="\
-    --overlap-grad-reduce"
-
-if [ $TP_COMM_OVERLAP -eq 1 ]; then
-    comm_overlap_option="\
-        --overlap-grad-reduce "
-fi
-
-
-# ==============================
-# 分布式优化器配置
-# ==============================
-DO=true
-OPTIMIZER_OFFLOAD=false
-if [ $OPTIMIZER_OFFLOAD != false ] && [ $DO = false ]; then
-    echo "Offload optimizer is valid only if \$DO=true"
-    DO=true
-fi
-
-if [ $DO = true ]; then
-    do_options=" \
-		    --use-distributed-optimizer \
-            --overlap-param-gather"
-
-elif [ $DO = false ]; then
-    do_options=" \
-                    "
-fi
-
-if [ $OPTIMIZER_OFFLOAD = 'static' ]; then
-    offload_option=" \
-        --optimizer hybridadam \
-        --optimizer-offload-policy static \
-        --optimizer-offload-fraction 1.0"
-elif [ $OPTIMIZER_OFFLOAD = 'auto' ]; then
-    offload_option=" \
-        --optimizer hybridadam \
-        --optimizer-offload-policy auto"
-else
-    offload_option=""
-fi
-
 
 
 # ==============================

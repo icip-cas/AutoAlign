@@ -266,6 +266,7 @@ class Attention(MegatronModule, ABC):
         # =====================
         # Get the query, key and value tensors based on the type of attention -
         # self or cross attn.
+
         query, key, value = self.get_query_key_value_tensors(hidden_states, key_value_states)
 
         # ===================================================
@@ -291,9 +292,12 @@ class Attention(MegatronModule, ABC):
                 cu_seqlens_kv = packed_seq_params.cu_seqlens_kv
             else:
                 cu_seqlens_q = cu_seqlens_kv = None
+            q_pos_emb = q_pos_emb[: query.size(0)]
+            k_pos_emb = k_pos_emb[: key.size(0)]
             query = apply_rotary_pos_emb(
                 query, q_pos_emb, config=self.config, cu_seqlens=cu_seqlens_q,
             )
+    
             key = apply_rotary_pos_emb(
                 key, k_pos_emb, config=self.config, cu_seqlens=cu_seqlens_kv,
             )
@@ -471,7 +475,9 @@ class SelfAttention(Attention):
         Derives `query`, `key` and `value` tensors from `hidden_states`.
         """
         # Attention heads [sq, b, h] --> [sq, b, ng * (np/ng + 2) * hn)]
+
         mixed_qkv, _ = self.linear_qkv(hidden_states)
+        
 
         # [sq, b, hp] --> [sq, b, ng, (np/ng + 2) * hn]
         new_tensor_shape = mixed_qkv.size()[:-1] + (
@@ -513,7 +519,7 @@ class SelfAttention(Attention):
 
         if self.config.test_mode:
             self.run_realtime_tests()
-
+        
         return query, key, value
 
 

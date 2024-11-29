@@ -31,7 +31,7 @@ class GPTDataset_SFT_Conv(torch.utils.data.Dataset):
         self.sft_conv_idx = self._initialize_and_shuffle_indices(documents)
             
         
-        self.cur_tokenizer = build_tokenizer(self.args)
+        self.cur_tokenizer = get_tokenizer()
         self.mask_id = self.cur_tokenizer.vocab_size + 1
     
         if hasattr(self.cur_tokenizer, 'pad_token_id'):

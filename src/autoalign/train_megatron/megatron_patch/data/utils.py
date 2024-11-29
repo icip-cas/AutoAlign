@@ -252,6 +252,7 @@ def get_batch_on_this_tp_rank_idxmap_dpo(data_iterator):
     args = get_args()
     tokenizer = get_tokenizer()
     mask_id = tokenizer.vocab_size + 1
+    pad_id = tokenizer.pad_token_id if hasattr(tokenizer, 'pad_token_id') else 0
     def _broadcast(item):
         if item is None:
             return
@@ -285,11 +286,22 @@ def get_batch_on_this_tp_rank_idxmap_dpo(data_iterator):
         # Stack chosen and rejected data
         tokens = torch.cat([chosen_tokens, rejected_tokens], dim=0)
         labels = torch.cat([chosen_labels, rejected_labels], dim=0)
-
         
+        
+        pad_mask = tokens == pad_id  # (batch_size, seq_length)
+        seq_lengths = (~pad_mask).sum(dim=1)
+        cur_max_seq_length = seq_lengths.max()
+        
+        tokens = tokens[:, :cur_max_seq_length]
+        labels = labels[:, :cur_max_seq_length]
 
-        # NOTE: assert lengths of tokens/labels are sequence-length
-        assert args.seq_length == labels.shape[-1]
+        cur_max_seq_length = torch.tensor(
+            cur_max_seq_length,
+            dtype=torch.long,
+            device=torch.cuda.current_device()
+        )
+        _broadcast(cur_max_seq_length)
+
         
         # Set up loss mask
         loss_mask = torch.ones_like(labels, dtype=torch.float)
@@ -333,32 +345,61 @@ def get_batch_on_this_tp_rank_idxmap_dpo(data_iterator):
 
 
     else:
-
+        cur_max_seq_length_tensor = torch.empty(
+            1,
+            dtype=torch.long,
+            device=torch.cuda.current_device()
+        )
+        _broadcast(cur_max_seq_length_tensor)
+        cur_max_seq_length = cur_max_seq_length_tensor.item()
+        
         batch_size = args.micro_batch_size * 2  # Double the batch size for chosen and rejected
-        tokens = torch.empty((batch_size, args.seq_length), dtype=torch.int64,
-                             device=torch.cuda.current_device())
-        labels = torch.empty((batch_size, args.seq_length), dtype=torch.int64,
-                             device=torch.cuda.current_device())
-        loss_mask = torch.empty((batch_size, args.seq_length), dtype=torch.float32,
-                                device=torch.cuda.current_device())
+        tokens = torch.empty(
+            (batch_size, cur_max_seq_length),
+            dtype=torch.int64,
+            device=torch.cuda.current_device()
+        )
+        labels = torch.empty(
+            (batch_size, cur_max_seq_length),
+            dtype=torch.int64,
+            device=torch.cuda.current_device()
+        )
+        loss_mask = torch.empty(
+            (batch_size, cur_max_seq_length),
+            dtype=torch.float32,
+            device=torch.cuda.current_device()
+        )
+        
         
         attention_mask = None
         if args.create_attention_mask_in_dataloader:
-            attention_mask = torch.empty((1, 1, args.seq_length, args.seq_length), dtype=torch.bool,
-                                        device=torch.cuda.current_device())
-        position_ids = torch.empty((batch_size, args.seq_length), dtype=torch.int64,
-                                   device=torch.cuda.current_device())
+            attention_mask = torch.empty(
+                (1, 1, cur_max_seq_length, cur_max_seq_length),
+                dtype=torch.bool,
+                device=torch.cuda.current_device()
+            )
+        position_ids = torch.empty(
+            (batch_size, cur_max_seq_length),
+            dtype=torch.int64,
+            device=torch.cuda.current_device()
+        )
 
         if args.pipeline_model_parallel_size == 1:
-            for tensor in [tokens, labels, loss_mask, attention_mask]:
-                _broadcast(tensor)
+            _broadcast(tokens)
+            _broadcast(labels)
+            _broadcast(loss_mask)
+            _broadcast(attention_mask)
+
         elif mpu.is_pipeline_first_stage():
             labels = None
             loss_mask = None
+
             _broadcast(tokens)
             _broadcast(attention_mask)
+
         elif mpu.is_pipeline_last_stage():
             tokens = None
+
             _broadcast(labels)
             _broadcast(loss_mask)
             _broadcast(attention_mask)
@@ -369,16 +410,15 @@ def get_batch_on_this_tp_rank_idxmap_dpo(data_iterator):
             'labels': labels,
             'loss_mask': loss_mask,
             'attention_mask': attention_mask,
-            'position_ids': position_ids,
+            'position_ids': position_ids
         }
-
-
+        
     return batch
-
 def get_batch_on_this_tp_rank_idxmap_sft_conv(data_iterator):
     args = get_args()
     tokenizer = get_tokenizer()
     mask_id = tokenizer.vocab_size + 1
+    pad_id = tokenizer.pad_token_id if hasattr(tokenizer, 'pad_token_id') else 0
     def _broadcast(item):
         if item is None:
             return
@@ -390,10 +430,25 @@ def get_batch_on_this_tp_rank_idxmap_sft_conv(data_iterator):
             data = data_iterator
         else:
             data = next(data_iterator)
-            
+        
         # Process conv data 
         conv_tokens = data['conv_text'].long()
         conv_label = data['conv_label'].long()
+        
+        pad_mask = conv_tokens == pad_id  # (batch_size, seq_length)
+        seq_lengths = (~pad_mask).sum(dim=1)
+        cur_max_seq_length = seq_lengths.max()
+        # cur_max_seq_length = (torch.ceil(cur_max_seq_length.float() / args.tensor_model_parallel_size) * args.tensor_model_parallel_size).long()
+        
+        conv_tokens = conv_tokens[:, :cur_max_seq_length]
+        conv_label = conv_label[:, :cur_max_seq_length]
+
+        cur_max_seq_length = torch.tensor(
+            cur_max_seq_length,
+            dtype=torch.long,
+            device=torch.cuda.current_device()
+        )
+        _broadcast(cur_max_seq_length)
         
         # Create labels by shifting tokens
         conv_labels = torch.roll(conv_label, shifts=-1, dims=1)
@@ -401,13 +456,9 @@ def get_batch_on_this_tp_rank_idxmap_sft_conv(data_iterator):
         # Set the last token of each sequence to pad_token_id
         conv_labels[:, -1] = mask_id
         
-        # Stack chosen and rejected data
         tokens = conv_tokens
         labels = conv_labels
 
-        # NOTE: assert lengths of tokens/labels are sequence-length
-        assert args.seq_length == labels.shape[-1]
-        
         # Set up loss mask
         loss_mask = torch.ones_like(labels, dtype=torch.float)
         loss_mask[labels == mask_id] = 0.0
@@ -449,31 +500,61 @@ def get_batch_on_this_tp_rank_idxmap_sft_conv(data_iterator):
 
 
     else:
+        cur_max_seq_length_tensor = torch.empty(
+            1,
+            dtype=torch.long,
+            device=torch.cuda.current_device()
+        )
+        _broadcast(cur_max_seq_length_tensor)
+        cur_max_seq_length = cur_max_seq_length_tensor.item()
+  
         batch_size = args.micro_batch_size 
-        tokens = torch.empty((batch_size, args.seq_length), dtype=torch.int64,
-                             device=torch.cuda.current_device())
-        labels = torch.empty((batch_size, args.seq_length), dtype=torch.int64,
-                             device=torch.cuda.current_device())
-        loss_mask = torch.empty((batch_size, args.seq_length), dtype=torch.float32,
-                                device=torch.cuda.current_device())
+        tokens = torch.empty(
+            (batch_size, cur_max_seq_length),
+            dtype=torch.int64,
+            device=torch.cuda.current_device()
+        )
+        labels = torch.empty(
+            (batch_size, cur_max_seq_length),
+            dtype=torch.int64,
+            device=torch.cuda.current_device()
+        )
+        loss_mask = torch.empty(
+            (batch_size, cur_max_seq_length),
+            dtype=torch.float32,
+            device=torch.cuda.current_device()
+        )
+        
         
         attention_mask = None
         if args.create_attention_mask_in_dataloader:
-            attention_mask = torch.empty((1, 1, args.seq_length, args.seq_length), dtype=torch.bool,
-                                        device=torch.cuda.current_device())
-        position_ids = torch.empty((batch_size, args.seq_length), dtype=torch.int64,
-                                   device=torch.cuda.current_device())
+            attention_mask = torch.empty(
+                (1, 1, cur_max_seq_length, cur_max_seq_length),
+                dtype=torch.bool,
+                device=torch.cuda.current_device()
+            )
+        position_ids = torch.empty(
+            (batch_size, cur_max_seq_length),
+            dtype=torch.int64,
+            device=torch.cuda.current_device()
+        )
 
         if args.pipeline_model_parallel_size == 1:
-            for tensor in [tokens, labels, loss_mask, attention_mask]:
-                _broadcast(tensor)
+            _broadcast(tokens)
+            _broadcast(labels)
+            _broadcast(loss_mask)
+            _broadcast(attention_mask)
+
         elif mpu.is_pipeline_first_stage():
             labels = None
             loss_mask = None
+
             _broadcast(tokens)
             _broadcast(attention_mask)
+
         elif mpu.is_pipeline_last_stage():
             tokens = None
+
             _broadcast(labels)
             _broadcast(loss_mask)
             _broadcast(attention_mask)
@@ -484,8 +565,7 @@ def get_batch_on_this_tp_rank_idxmap_sft_conv(data_iterator):
             'labels': labels,
             'loss_mask': loss_mask,
             'attention_mask': attention_mask,
-            'position_ids': position_ids,
+            'position_ids': position_ids
         }
-
-
+        
     return batch

@@ -1,8 +1,8 @@
-cd /share/zhangqingyu/code/auto-alignment/algorithms/megatron_dpo/examples/qwen2
+cd examples/qwen2
 sh run_mcore_qwen_dpo.sh  \
 dsw  \
 1.5B   \
-4   \
+1   \
 32 \
 1e-5   \
 1e-6   \
@@ -10,7 +10,7 @@ dsw  \
 2048 \
 bf16  \
 2  \
-2  \
+1  \
 1 \
 1 \
 false \
@@ -20,9 +20,9 @@ ture \
 false   \
 false \
 100000  \
-/share/zhangqingyu/data/dpo/ultrafeedback_binarized_conversations_maxlen_2048   \
-/share/zhangqingyu/data/dpo/ultrafeedback_binarized_conversations_maxlen_2048  \
-/share/zhangqingyu/mg_models/Qwen2.5-1.5B-hf-to-mcore-te-tp2-pp2 \
+/ciphome/zhangqingyu2023/data/dpo/ultrafeedback_binarized_conversations_maxlen_2048   \
+/ciphome/zhangqingyu2023/data/dpo/ultrafeedback_binarized_conversations_maxlen_2048  \
+/ciphome/zhangqingyu2023/mg_models/Qwen2-1.5B-hf-to-mcore-te-tp2-pp1 \
 1000000000  \
 100   \
-/share/zhangqingyu/mg_models/Qwen2.5-1.5B-hf-to-mcore-te-tp2-pp2
+/ciphome/zhangqingyu2023/mg_models/Qwen2-1.5B-hf-to-mcore-te-tp2-pp1

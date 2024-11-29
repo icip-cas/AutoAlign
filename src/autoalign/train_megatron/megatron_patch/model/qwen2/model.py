@@ -199,6 +199,7 @@ class GPTModel(LanguageModule):
             )
             rotary_pos_emb = self.rotary_pos_emb(rotary_seq_len)
 
+
         # Run decoder.
         hidden_states = self.decoder(
             hidden_states=decoder_input,
@@ -208,6 +209,7 @@ class GPTModel(LanguageModule):
             packed_seq_params=packed_seq_params,
             **(extra_block_kwargs or {}),
         )
+
 
         if not self.post_process:
             return hidden_states

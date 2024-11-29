@@ -127,7 +127,7 @@ def get_patch_args(parser):
     group.add_argument(
         "--epochs",
         type=int,
-        default=1,
+        default=3,
         help="Number of finetunning epochs. Zero results in " "evaluation only.",
     )
     group.add_argument('--shuffle-all-epochs', 
