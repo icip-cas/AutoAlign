@@ -23,14 +23,14 @@ OUTPUT_BASEPATH=/ciphome/zhangqingyu2023/checkpoint/sft/Qwen2.5-7B-hf-to-mcore-t
 # ==============================
 # 算力资源配置
 # ==============================
-export CUDA_VISIBLE_DEVICES=6,7
+export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 # MASTER_ADDR=12.12.11.14
 MASTER_ADDR=localhost
-# MASTER_PORT=$(shuf -n 1 -i 10000-65535)
-MASTER_PORT=29500
+MASTER_PORT=$(shuf -n 1 -i 10000-65535)
+# MASTER_PORT=29500
 NNODES=1
 NODE_RANK=$1
-GPUS_PER_NODE=2
+GPUS_PER_NODE=8
 
 # export NCCL_SOCKET_IFNAME=bond0
 # export NCCL_IB_DISABLE=1

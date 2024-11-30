@@ -11,62 +11,7 @@ This repository contains scripts and instructions for training LLM  using Megatr
 
 ### Environment Configuration 🔧
 ```bash
-# Python packages: Use pip (e.g., torch)
-# System packages: Use conda (e.g., CUDA)
-
-# Activate conda
-source ~/miniconda3/bin/activate
-
-# Create environment
-conda create -n mg-re python==3.10
-
-# Activate environment
-conda activate mg-re
-
-# Install CUDA
-# Available versions: https://anaconda.org/nvidia/cuda
-# Search available CUDA versions:
-# conda search -c nvidia/label/cuda-12.1.1 cuda 
-
-conda install -c nvidia/label/cuda-12.1.1 --override-channels cuda=12.1.1
-# Alternative: conda install nvidia/label/cuda-12.1.1::cuda=12.1.1
-
-# Install cuDNN (required for transformer_engine)
-conda install cudnn
-
-# Install PyTorch
-# Available versions: https://pytorch.org/get-started/previous-versions/
-pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-
-# Install build tools
-python3 -m pip install -U -i https://pypi.tuna.tsinghua.edu.cn/simple pip packaging ninja psutil
-
-# Install Apex
-git clone https://github.com/NVIDIA/apex apex_cu121
-cd apex_cu121
-pip install -v --disable-pip-version-check --no-cache-dir --no-build-isolation --config-settings "--build-option=--cpp_ext" --config-settings "--build-option=--cuda_ext" ./
-cd ..
-
-# Install Flash Attention
-git clone -b v2.4.2 https://github.com/Dao-AILab/flash-attention flash-attention_cu121_242
-cd flash-attention_cu121
-python setup.py install
-cd ..
-
-# Install Transformer Engine
-git clone --branch stable --recursive https://github.com/NVIDIA/TransformerEngine.git transformer_engine_cu121
-cd transformer_engine_cu121
-export NVTE_FRAMEWORK=pytorch
-pip install .
-
-# Install other dependencies
-pip install six transformers datasets pybind11
-
-# Clone training repository
-git clone https://github.com/jerryli1981/PAI-Megatron-LM-240718.git Megatron-LM-240718
-cd Megatron-LM-240718
-git checkout 7765c381d5af76f97834934a67b1e43afece02ad
-cp Megatron-LM-240718 src/autoalign/train_megatron
+bash install.sh
 ```
 
 ## Training Pipeline 🔄
