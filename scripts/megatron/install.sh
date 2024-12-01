@@ -194,7 +194,6 @@ BASE_PATH=${CURRENT_PATH%$INTERSECTION*}$INTERSECTION
 
 MEGATRON_DIR="$BASE_PATH/src/autoalign/train_megatron"
 echo -e "${BOLD}Copying Megatron files to $MEGATRON_DIR...${NC}"
-mkdir -p "$MEGATRON_DIR"
 cp -r Megatron-LM-240718 "$MEGATRON_DIR/"
 if [ $? -ne 0 ]; then
     print_error "Failed to copy Megatron-LM files"
