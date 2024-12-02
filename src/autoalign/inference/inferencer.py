@@ -27,10 +27,6 @@ class HFInferencer:
 
     def inference(self, prompt: str, **kwargs):
 
-        print(
-            self.tokenizer.convert_ids_to_tokens(self.tokenizer([prompt]).input_ids[0])
-        )
-
         device = self.model.device
         inputs = self.tokenizer([prompt], return_tensors="pt").to(device)
 
