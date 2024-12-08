@@ -27,9 +27,9 @@ from megatron.training.utils import (
 )
 from megatron_patch.arguments import get_patch_args
 from megatron_patch.data import build_pretrain_dataset_from_original
-from megatron_patch.data.gpt_dataset_sft_conv import build_train_valid_test_datasets_sft_conv
-from megatron_patch.data.utils import get_batch_on_this_tp_rank_idxmap_sft_conv
-from megatron_patch.training_sft import sft
+from megatron_patch_local.data.gpt_dataset_sft_conv import build_train_valid_test_datasets_sft_conv
+from megatron_patch_local.data.utils import get_batch_on_this_tp_rank_idxmap_sft_conv
+from megatron_patch_local.training_sft import sft
 from megatron_patch.model.qwen2.layer_specs import (
     get_gpt_layer_local_spec,
     get_gpt_layer_with_transformer_engine_spec,

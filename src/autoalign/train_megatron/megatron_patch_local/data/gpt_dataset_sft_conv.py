@@ -3,8 +3,8 @@ from functools import lru_cache
 import numpy as np
 import sys
 import torch
-from megatron_patch.tokenizer import build_tokenizer,get_tokenizer
-from megatron_patch.data.indexed_dataset_sft_conv import MMapIndexedDataset_SFT_Conv
+from megatron_patch.tokenizer import get_tokenizer
+from megatron_patch_local.data.indexed_dataset_sft_conv import MMapIndexedDataset_SFT_Conv
 from megatron.training import get_args
 
 def print_rank_0(message):

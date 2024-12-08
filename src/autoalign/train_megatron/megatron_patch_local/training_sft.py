@@ -65,8 +65,8 @@ from megatron.training.initialize import (
 
 from megatron.training.memory_tracer.memstats_collector import MemStatsCollector
 from megatron.training.optimizer_param_scheduler import OptimizerParamScheduler
-from megatron_patch.data.indexed_dataset_sft_conv import conv_idx_file_path
-from megatron_patch.data.gpt_dataset_sft_conv import _get_train_valid_test_split_
+from megatron_patch_local.data.indexed_dataset_sft_conv import conv_idx_file_path
+from megatron_patch_local.data.gpt_dataset_sft_conv import _get_train_valid_test_split_
 
 from megatron.training import one_logger_utils
 
