@@ -1,5 +1,5 @@
 # Copyright (c) 2023, NVIDIA CORPORATION.  All rights reserved.
-"""DPO GPT."""
+"""DPO"""
 
 import os
 from functools import partial
@@ -8,37 +8,25 @@ from typing import Union
 import torch
 import torch._dynamo
 from megatron.core import mpu
-from megatron.core.datasets.blended_megatron_dataset_builder import (
-    BlendedMegatronDatasetBuilder,
-)
-from megatron.core.datasets.gpt_dataset import (
-    GPTDataset,
-    GPTDatasetConfig,
-    MockGPTDataset,
-)
-from megatron.core.datasets.utils import get_blend_from_list
 from megatron.core.enums import ModelType
 from megatron.training import get_args, get_timers, print_rank_0
 from megatron.training.arguments import core_transformer_config_from_args
 from megatron.training.utils import (
     average_losses_across_data_parallel_group,
-    get_batch_on_this_cp_rank,
-    get_batch_on_this_tp_rank,
 )
 from megatron_patch.arguments import get_patch_args
-from megatron_patch.data import build_pretrain_dataset_from_original
 from megatron_patch_local.training_dpo import dpo
 from megatron_patch.model.qwen2.layer_specs import (
     get_gpt_layer_local_spec,
     get_gpt_layer_with_transformer_engine_spec,
 )
 
-from megatron_patch.model.qwen2.model import GPTModel
+
 from megatron_patch.model.qwen2.transformer_config import Qwen2TransformerConfig
-from megatron_patch.tokenizer import build_tokenizer, get_tokenizer
+from megatron_patch.tokenizer import build_tokenizer
 from megatron_patch_local.data.gpt_dataset_dpo import build_train_valid_test_datasets_dpo
 from megatron_patch_local.data.utils import get_batch_on_this_tp_rank_idxmap_dpo
-from megatron_patch_local.model.qwen2.model_dpo import GPTModel_DPO
+from megatron_patch_local.model.qwen2.model_dpo import GPTModelDPO
 
 from megatron.core.packed_seq_params import PackedSeqParams
 
@@ -47,7 +35,7 @@ torch._dynamo.config.suppress_errors = True
 
 def model_provider(
     pre_process=True, post_process=True
-) -> Union[GPTModel_DPO]:
+) -> Union[GPTModelDPO]:
 
     args = get_args()
     build_tokenizer(args)
@@ -67,7 +55,7 @@ def model_provider(
             args.num_experts, args.moe_grouped_gemm, args.qk_layernorm
         )
 
-    model = GPTModel_DPO(
+    model = GPTModelDPO(
         config=config,
         transformer_layer_spec=transformer_layer_spec,
         vocab_size=args.padded_vocab_size,
@@ -119,15 +107,6 @@ def loss_func(loss_mask: torch.Tensor, output_tensor: torch.Tensor):
     """
     args = get_args()
     loss, metrics = output_tensor
-    # loss_mask = loss_mask.view(-1).float()
-    # if args.context_parallel_size > 1:
-    #     loss = torch.cat(
-    #         [torch.sum(losses.view(-1) * loss_mask).view(1), loss_mask.sum().view(1)]
-    #     )
-    #     torch.distributed.all_reduce(loss, group=mpu.get_context_parallel_group())
-    #     loss = loss[0] / loss[1]
-    # else:
-    #     loss = torch.sum(losses.view(-1) * loss_mask) / loss_mask.sum()
 
     # Check individual rank losses are not NaN prior to DP all-reduce.
     if args.check_for_nan_in_loss_and_grad:
@@ -143,7 +122,7 @@ def loss_func(loss_mask: torch.Tensor, output_tensor: torch.Tensor):
     return loss * args.context_parallel_size, {"lm loss": averaged_loss[0]}
 
 
-def forward_step(data_iterator, model: GPTModel_DPO):
+def forward_step(data_iterator, model: GPTModelDPO):
     """Forward training step.
 
     Args:

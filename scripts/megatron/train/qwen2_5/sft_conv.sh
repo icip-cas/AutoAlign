@@ -17,19 +17,19 @@ cd examples/qwen2
 # /ciphome/zhangqingyu2023/data/sft/InfInstruct-Gen_infinite_9m_conversations_maxlen_4096
 DATASET_PATH=/ciphome/zhangqingyu2023/data/sft/InfInstruct-Gen_infinite_2m_conversations_maxlen_4096
 VALID_DATASET_PATH=/ciphome/zhangqingyu2023/data/sft/InfInstruct-Gen_infinite_2m_conversations_maxlen_4096
-PRETRAIN_CHECKPOINT_PATH=/ciphome/zhangqingyu2023/mg_models/Qwen2.5-7B-hf-to-mcore-te-tp2-pp1
-OUTPUT_BASEPATH=/ciphome/zhangqingyu2023/checkpoint/sft/Qwen2.5-7B-hf-to-mcore-te-tp2-pp1-2m
+PRETRAIN_CHECKPOINT_PATH=/ciphome/zhangqingyu2023/mg_models/Qwen2.5-7B-hf-to-mcore-te-tp4-pp1
+OUTPUT_BASEPATH=/ciphome/zhangqingyu2023/checkpoint/sft/Qwen2.5-7B-hf-to-mcore-te-tp4-pp1-2m-debug
 
 
 # ==============================
 # 算力资源配置
 # ==============================
 export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
-MASTER_ADDR=12.12.11.14
-# MASTER_ADDR=localhost
-# MASTER_PORT=$(shuf -n 1 -i 10000-65535)
-MASTER_PORT=29500
-NNODES=2
+# MASTER_ADDR=12.12.11.14
+MASTER_ADDR=localhost
+MASTER_PORT=$(shuf -n 1 -i 10000-65535)
+# MASTER_PORT=29500
+NNODES=1
 NODE_RANK=$1
 GPUS_PER_NODE=8
 
