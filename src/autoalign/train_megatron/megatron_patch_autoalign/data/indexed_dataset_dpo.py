@@ -47,7 +47,7 @@ def rejected_label_file_path(prefix_path):
 def rejected_idx_file_path(prefix_path):
     return prefix_path + "_rejected.idx"
 
-class MMapIndexedDataset_DPO(torch.utils.data.Dataset):
+class MMapIndexedDatasetDPO(torch.utils.data.Dataset):
     class Index(object):# after the class inited, it can read three information about (sizes pointer doc_idx) from idx files that set up the index of dataset
         _HDR_MAGIC = b'MMIDIDX\x00\x00'
 
@@ -370,7 +370,7 @@ class MMapIndexedDataset_DPO(torch.utils.data.Dataset):
         )
 
 
-class MMapIndexedDatasetBuilder_DPO(object):
+class MMapIndexedDatasetBuilderDPO(object):
     def __init__(self, out_file, dtype=np.int64):
         self._data_file = open(out_file + "_input.bin", 'wb')  
         self._lable_file = open(out_file +"_label.bin",'wb')
@@ -390,7 +390,7 @@ class MMapIndexedDatasetBuilder_DPO(object):
 
     def merge_file_(self, another_file):
         # Concatenate index
-        index = MMapIndexedDataset_DPO.Index(index_file_path(another_file))
+        index = MMapIndexedDatasetDPO.Index(index_file_path(another_file))
         assert index.dtype == self._dtype
 
         offset = len(self._sizes)
@@ -405,12 +405,12 @@ class MMapIndexedDatasetBuilder_DPO(object):
         self._data_file.close()
         self._lable_file.close()
 
-        with MMapIndexedDataset_DPO.Index.writer(index_file_path(index_file), self._dtype) as index:
+        with MMapIndexedDatasetDPO.Index.writer(index_file_path(index_file), self._dtype) as index:
                 index.write(self._sizes, self._doc_idx)
 
 def make_dpo_builder(out_file,impl,vocab_size=None):
     if impl == 'mmap':
-        return MMapIndexedDatasetBuilder_DPO(
+        return MMapIndexedDatasetBuilderDPO(
             out_file,
             dtype=best_fitting_dtype(vocab_size)
             )

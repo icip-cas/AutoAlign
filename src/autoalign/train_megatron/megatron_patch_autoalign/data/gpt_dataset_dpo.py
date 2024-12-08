@@ -4,7 +4,7 @@ import numpy as np
 import sys
 import torch
 from megatron_patch.tokenizer import build_tokenizer, get_tokenizer
-from megatron_patch.data.indexed_dataset_dpo import MMapIndexedDataset_DPO
+from indexed_dataset_dpo import MMapIndexedDatasetDPO
 from megatron.training import get_args
 
 def print_rank_0(message):
@@ -14,7 +14,7 @@ def print_rank_0(message):
             print(message, flush=True)
     else:
         print(message, flush=True)
-class GPTDataset_DPO(torch.utils.data.Dataset):
+class GPTDatasetDPO(torch.utils.data.Dataset):
 
     def __init__(self, 
                  name, 
@@ -30,7 +30,7 @@ class GPTDataset_DPO(torch.utils.data.Dataset):
         self.dpo_idx = self._initialize_and_shuffle_indices(documents)
             
         
-        self.cur_tokenizer = build_tokenizer(self.args)
+        self.cur_tokenizer = get_tokenizer(self.args)
         self.mask_id = self.cur_tokenizer.vocab_size + 1
     
         if hasattr(self.cur_tokenizer, 'pad_token_id'):
@@ -143,10 +143,10 @@ def _get_train_valid_test_split_(splits_string, size):
 
 
 def make_indexed_dataset_dpo(path, impl, skip_warmup=False):
-    if not MMapIndexedDataset_DPO.exists(path):
+    if not MMapIndexedDatasetDPO.exists(path):
         raise FileNotFoundError("Dataset not found: {}".format(path))
-    elif impl == "mmap" and MMapIndexedDataset_DPO.exists(path):
-        return MMapIndexedDataset_DPO(path, skip_warmup=skip_warmup)
+    elif impl == "mmap" and MMapIndexedDatasetDPO.exists(path):
+        return MMapIndexedDatasetDPO(path, skip_warmup=skip_warmup)
     print_rank_0(f"Unknown dataset implementation: {impl}")
     return None
 
@@ -187,7 +187,7 @@ def _build_train_valid_test_datasets_dpo(
         dataset = None
         if splits[index+1] > splits[index]:
             documents = np.arange(start=splits[index], stop=splits[index+1], step=1, dtype=np.int32)
-            dataset = GPTDataset_DPO(name, documents, indexed_dataset,
+            dataset = GPTDatasetDPO(name, documents, indexed_dataset,
                                  seq_length, seed)
         return dataset
     
@@ -216,19 +216,4 @@ def build_train_valid_test_datasets_dpo(
             seq_length,
             seed,
         )
-
-if __name__ == "__main__" :
-    train_dataset, valid_dataset, test_dataset = build_train_valid_test_datasets_dpo(
-        data_prefix=("auto-alignment/algorithms/megatron_dpo/data/dummy_dpo_conversations_maxlen_2048",),
-        data_impl="mmap",
-        splits_string="99,1,1",
-        seq_length=2048,
-        seed=42
-    )
-    
-    for pair_data in train_dataset :
-        print(pair_data["chosen_text"])
-        print(pair_data["chosen_label"])
-        print(pair_data["rejected_text"])
-        print(pair_data["rejected_label"])
     

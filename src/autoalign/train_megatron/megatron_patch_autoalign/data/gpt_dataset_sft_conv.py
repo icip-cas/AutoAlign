@@ -4,7 +4,7 @@ import numpy as np
 import sys
 import torch
 from megatron_patch.tokenizer import get_tokenizer
-from megatron_patch_local.data.indexed_dataset_sft_conv import MMapIndexedDataset_SFT_Conv
+from indexed_dataset_sft_conv import MMapIndexedDatasetSFTConv
 from megatron.training import get_args
 
 def print_rank_0(message):
@@ -137,10 +137,10 @@ def _get_train_valid_test_split_(splits_string, size):
 
 
 def make_indexed_dataset_sft_conv(path, impl, skip_warmup=False):
-    if not MMapIndexedDataset_SFT_Conv.exists(path):
+    if not MMapIndexedDatasetSFTConv.exists(path):
         raise FileNotFoundError("Dataset not found: {}".format(path))
-    elif impl == "mmap" and MMapIndexedDataset_SFT_Conv.exists(path):
-        return MMapIndexedDataset_SFT_Conv(path, skip_warmup=skip_warmup)
+    elif impl == "mmap" and MMapIndexedDatasetSFTConv.exists(path):
+        return MMapIndexedDatasetSFTConv(path, skip_warmup=skip_warmup)
     print_rank_0(f"Unknown dataset implementation: {impl}")
     return None
 
@@ -211,17 +211,4 @@ def build_train_valid_test_datasets_sft_conv(
             seed,
         )
 
-if __name__ == "__main__" :
-    train_dataset, valid_dataset, test_dataset = build_train_valid_test_datasets_sft_conv(
-        data_prefix=("/share/zhangqingyu/data/sft/sharegpt_formatted_data-evol-gpt4_conversations_maxlen_2048_conv.idx",),
-        data_impl="mmap",
-        splits_string="99,1,1",
-        seq_length=2048,
-        seed=42
-    )
-    
-    for pair_data in train_dataset :
-        print(pair_data["conv_text"])
-        print(pair_data["conv_label"])
-        break
     
