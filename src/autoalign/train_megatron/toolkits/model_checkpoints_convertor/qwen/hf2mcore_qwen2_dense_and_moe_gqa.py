@@ -19,9 +19,7 @@ from functools import partial
 from megatron.training.utils import get_ltor_masks_and_position_ids
 import sys
 
-path_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
-sys.path.append(os.path.join(path_dir, "examples"))
-from qwen2.pretrain_qwen import model_provider
+from megatron_pai.examples.qwen2.pretrain_qwen import model_provider
 from megatron_patch.arguments import get_patch_args
 
 torch.backends.cudnn.deterministic = True

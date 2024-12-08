@@ -235,16 +235,12 @@ PATCH_PACKAGE_NAME="megatron_pai"
 PATCH_INSTALL_PATH="$SITE_PACKAGES/$PATCH_PACKAGE_NAME"
 
 print_section "COPYING Pai-Megatron-Patch TO site-packages"
-
-
 if [ -d "$PATCH_INSTALL_PATH" ]; then
     print_section "Removing existing Pai-Megatron-Patch in site-packages"
     rm -rf "$PATCH_INSTALL_PATH"
 fi
 
-
 mkdir -p "$PATCH_INSTALL_PATH"
-
 
 cp -r Pai-Megatron-Patch/* "$PATCH_INSTALL_PATH/"
 if [ $? -ne 0 ]; then
@@ -252,7 +248,23 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+find "$PATCH_INSTALL_PATH" -type d -exec touch {}/__init__.py \;
 
+PATCH_PACKAGE_NAME="megatron_patch"
+PATCH_INSTALL_PATH="$SITE_PACKAGES/$PATCH_PACKAGE_NAME"
+print_section "COPYING Pai-Megatron-Patch/megatron_patch TO site-packages"
+
+if [ -d "$PATCH_INSTALL_PATH" ]; then
+    print_section "Removing existing Pai-Megatron-Patch/megatron_patch in site-packages"
+    rm -rf "$PATCH_INSTALL_PATH"
+fi
+
+mkdir -p "$PATCH_INSTALL_PATH"
+cp -r Pai-Megatron-Patch/megatron_patch/* "$PATCH_INSTALL_PATH/"
+if [ $? -ne 0 ]; then
+    print_error "Failed to copy Pai-Megatron-Patch to site-packages"
+    exit 1
+fi
 
 find "$PATCH_INSTALL_PATH" -type d -exec touch {}/__init__.py \;
 print_success "Pai-Megatron-Patch has been manually installed to site-packages"
