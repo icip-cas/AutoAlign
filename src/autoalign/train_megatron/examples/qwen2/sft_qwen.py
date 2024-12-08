@@ -8,25 +8,15 @@ from typing import Union
 import torch
 import torch._dynamo
 from megatron.core import mpu
-from megatron.core.datasets.blended_megatron_dataset_builder import (
-    BlendedMegatronDatasetBuilder,
-)
-from megatron.core.datasets.gpt_dataset import (
-    GPTDataset,
-    GPTDatasetConfig,
-    MockGPTDataset,
-)
+
 from megatron.core.datasets.utils import get_blend_from_list
 from megatron.core.enums import ModelType
 from megatron.training import get_args, get_timers, print_rank_0
 from megatron.training.arguments import core_transformer_config_from_args
 from megatron.training.utils import (
     average_losses_across_data_parallel_group,
-    get_batch_on_this_cp_rank,
-    get_batch_on_this_tp_rank,
 )
 from megatron_patch.arguments import get_patch_args
-from megatron_patch.data import build_pretrain_dataset_from_original
 from megatron_patch_local.data.gpt_dataset_sft_conv import build_train_valid_test_datasets_sft_conv
 from megatron_patch_local.data.utils import get_batch_on_this_tp_rank_idxmap_sft_conv
 from megatron_patch_local.training_sft import sft

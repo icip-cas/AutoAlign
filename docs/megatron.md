@@ -1,6 +1,6 @@
 # Megatron Training Pipeline 🚀
 
-This repository contains scripts and instructions for training LLM  using Megatron-LM.
+This repository is based on [alibaba/Pai-Megatron-Patch](https://github.com/alibaba/Pai-Megatron-Patch.git) for secondary development, thanks to the original author's work. This project is used to support Alignment such as SFT and DPO etc. Currently, the operation flow of SFT is as follows, and the detailed introduction of DPO is coming soon.
 
 ## Environment Setup 🛠️
 
@@ -11,7 +11,7 @@ This repository contains scripts and instructions for training LLM  using Megatr
 
 ### Environment Configuration 🔧
 ```bash
-bash install.sh
+bash scripts/megatron/env_install.sh
 ```
 
 ## Training Pipeline 🔄
@@ -24,25 +24,15 @@ All scripts should be executed from the `megatron/` directory.
 export CUDA_VISIBLE_DEVICES=0
 cd ../../src/autoalign/train_megatron/toolkits/model_checkpoints_convertor/qwen
 bash hf2mcore_qwen2.5_convertor.sh \
-    1.5B \
-    ${HF_MODEL_PATH} \
-    ${OUTPUT_MG_MODEL_PATH} \
-    2 \
-    2 \
-    bf16 \
-    true \
-    false
+    1.5B \ # Model size selection (1.5B)
+    ${HF_MODEL_PATH} \ # HF model path
+    ${OUTPUT_MG_MODEL_PATH} \ # Output Megatron model path
+    2 \ # TP (Tensor Parallelism)
+    2 \ # PP (Pipeline Parallelism)
+    bf16 \ # Precision (bf16)
+    true \ # USE_TE (default:true)
+    false # MG2HF (default:false)
 ```
-
-Parameters explained:
-- Model size selection (1.5B)
-- HF model path
-- Output Megatron model path
-- TP (Tensor Parallelism)
-- PP (Pipeline Parallelism)
-- Precision (bf16)
-- USE_TE (true)
-- MG2HF (false)
 
 ### 2. Data Preprocessing 📊
 
@@ -50,12 +40,12 @@ Parameters explained:
 export PYTHONPATH=$(dirname $(dirname $(pwd))):$PYTHONPATH
 cd ../../src/autoalign/train_megatron/toolkits/sft_conv_data_preprocessing
 bash run_build_idxmap_sft_conv_dataset.sh \
-    ${INPUT_JSON_PATH} \
-    conversations \
-    Qwen2Tokenizer \
-    8192 \
-    ${OUTPUT_TOKENIZED_PATH} \
-    ${HF_MODEL_PATH}
+    ${INPUT_JSON_PATH} \ # Input JSON path
+    conversations \ # Key for conversation data
+    Qwen2Tokenizer \ # Tokenizer class
+    8192 \ # Sequence length
+    ${OUTPUT_TOKENIZED_PATH} \ # Output tokenized data path
+    ${HF_MODEL_PATH} \ # HF model path
 ```
 
 Required data format:
@@ -120,15 +110,15 @@ dataset_option=" \
 export CUDA_VISIBLE_DEVICES=0
 cd toolkits/model_checkpoints_convertor/qwen
 bash hf2mcore_qwen2.5_convertor.sh \
-    1.5B \
-    ${MG_CHECKPOINT_PATH} \
-    ${OUTPUT_HF_PATH} \
-    2 \
-    2 \
-    fp32 \
-    true \
-    true \
-    ${ORIGINAL_HF_PATH}
+    1.5B \ # Model size selection (1.5B)
+    ${MG_CHECKPOINT_PATH} \ # Megatron model path
+    ${OUTPUT_HF_PATH} \ # Output HF model path
+    2 \ # TP (Tensor Parallelism)
+    2 \ # PP (Pipeline Parallelism)
+    fp32 \ # Precision (fp32)
+    true \ # USE_TE (default:true)
+    true \ # MG2HF (default:false)
+    ${ORIGINAL_HF_PATH} # Original HF model path
 ```
 
 ## Troubleshooting 🔧
