@@ -177,29 +177,85 @@ fi
 cd ..
 print_success "Transformer Engine installation completed"
 
-# Setup Megatron-LM
-print_section "7. SETTING UP MEGATRON-LM"
-git clone https://github.com/jerryli1981/PAI-Megatron-LM-240718.git Megatron-LM-240718
+# Setup Megatron-LM by cloning and copying to site-packages
+git clone https://github.com/jerryli1981/PAI-Megatron-LM-240718.git Megatron-LM
 if [ $? -ne 0 ]; then
-    print_error "Failed to clone Megatron-LM"
+    print_error "Failed to clone Megatron-LM repository"
     exit 1
 fi
-cd Megatron-LM-240718
+cd Megatron-LM
 git checkout 7765c381d5af76f97834934a67b1e43afece02ad
 cd ..
 
-# Copy Megatron files
-INTERSECTION="auto-alignment"
-BASE_PATH=${CURRENT_PATH%$INTERSECTION*}$INTERSECTION
+# 获取 site-packages 目录
+SITE_PACKAGES=$(python -c "import site; print(site.getsitepackages()[0])")
 
-MEGATRON_DIR="$BASE_PATH/src/autoalign/train_megatron"
-echo -e "${BOLD}Copying Megatron files to $MEGATRON_DIR...${NC}"
-cp -r Megatron-LM-240718 "$MEGATRON_DIR/"
+# 定义 Megatron-LM 的目标安装路径
+MEGATRON_PACKAGE_NAME="megatron"
+MEGATRON_INSTALL_PATH="$SITE_PACKAGES/$MEGATRON_PACKAGE_NAME"
+
+print_section "COPYING Megatron-LM TO site-packages"
+
+# 如果目标路径已存在，先移除
+if [ -d "$MEGATRON_INSTALL_PATH" ]; then
+    print_section "Removing existing Megatron-LM in site-packages"
+    rm -rf "$MEGATRON_INSTALL_PATH"
+fi
+
+# 创建 Megatron-LM 包目录
+mkdir -p "$MEGATRON_INSTALL_PATH"
+
+# 复制 Megatron-LM 代码到 site-packages
+mv Megatron-LM/megatron/* "$MEGATRON_INSTALL_PATH/"
 if [ $? -ne 0 ]; then
-    print_error "Failed to copy Megatron-LM files"
+    print_error "Failed to copy Megatron-LM to site-packages"
     exit 1
 fi
-print_success "Megatron-LM setup completed"
+
+# 确保 Megatron-LM 包具有 __init__.py 文件
+touch "$MEGATRON_INSTALL_PATH/__init__.py"
+
+rm -rf Megatron-LM
+print_success "Megatron-LM has been manually installed to site-packages"
+
+
+# Clone and install Pai-Megatron-Patch by copying to site-packages
+print_section "8. CLONING AND INSTALLING PAI-MEGATRON-PATCH MANUALLY"
+
+git clone https://github.com/alibaba/Pai-Megatron-Patch.git Pai-Megatron-Patch
+if [ $? -ne 0 ]; then
+    print_error "Failed to clone Pai-Megatron-Patch repository"
+    exit 1
+fi
+cd Pai-Megatron-Patch
+git checkout 9b88cc46653e2c4f7f99529f86f8737ac1da9e9a
+cd ..
+
+# 定义 Pai-Megatron-Patch 的目标安装路径
+PATCH_PACKAGE_NAME="megatron_patch"
+PATCH_INSTALL_PATH="$SITE_PACKAGES/$PATCH_PACKAGE_NAME"
+
+print_section "COPYING Pai-Megatron-Patch TO site-packages"
+
+# 如果目标路径已存在，先移除
+if [ -d "$PATCH_INSTALL_PATH" ]; then
+    print_section "Removing existing Pai-Megatron-Patch in site-packages"
+    rm -rf "$PATCH_INSTALL_PATH"
+fi
+
+# 创建 Pai-Megatron-Patch 包目录
+mkdir -p "$PATCH_INSTALL_PATH"
+
+# 复制 Pai-Megatron-Patch 代码到 site-packages
+cp -r Pai-Megatron-Patch/* "$PATCH_INSTALL_PATH/"
+if [ $? -ne 0 ]; then
+    print_error "Failed to copy Pai-Megatron-Patch to site-packages"
+    exit 1
+fi
+
+# 确保 Pai-Megatron-Patch 包具有 __init__.py 文件
+touch "$PATCH_INSTALL_PATH/__init__.py"
+print_success "Pai-Megatron-Patch has been manually installed to site-packages"
 
 # Cleanup
 cd ..

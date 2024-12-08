@@ -12,23 +12,24 @@ export CUDA_DEVICE_MAX_CONNECTIONS=1
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 export OMP_NUM_THREADS=1
 cd examples/qwen2
- 
 
-DATASET_PATH=/ciphome/zhangqingyu2023/code/auto-alignment/src/autoalign/train_megatron/data/sft/sharegpt_formatted_data-evol-gpt4_conversations_maxlen_8192
-VALID_DATASET_PATH=/ciphome/zhangqingyu2023/code/auto-alignment/src/autoalign/train_megatron/data/sft/sharegpt_formatted_data-evol-gpt4_conversations_maxlen_8192
+# /ciphome/zhangqingyu2023/code/auto-alignment/algorithms/megatron_dpo/data/sft/sharegpt_formatted_data-evol-gpt4_conversations_maxlen_8192
+# /ciphome/zhangqingyu2023/data/sft/InfInstruct-Gen_infinite_9m_conversations_maxlen_4096
+DATASET_PATH=/ciphome/zhangqingyu2023/data/sft/InfInstruct-Gen_infinite_2m_conversations_maxlen_4096
+VALID_DATASET_PATH=/ciphome/zhangqingyu2023/data/sft/InfInstruct-Gen_infinite_2m_conversations_maxlen_4096
 PRETRAIN_CHECKPOINT_PATH=/ciphome/zhangqingyu2023/mg_models/Qwen2.5-7B-hf-to-mcore-te-tp2-pp1
-OUTPUT_BASEPATH=/ciphome/zhangqingyu2023/checkpoint/sft/Qwen2.5-7B-hf-to-mcore-te-tp2-pp1/debug
+OUTPUT_BASEPATH=/ciphome/zhangqingyu2023/checkpoint/sft/Qwen2.5-7B-hf-to-mcore-te-tp2-pp1-2m
 
 
 # ==============================
 # 算力资源配置
 # ==============================
 export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
-# MASTER_ADDR=12.12.11.14
-MASTER_ADDR=localhost
-MASTER_PORT=$(shuf -n 1 -i 10000-65535)
-# MASTER_PORT=29500
-NNODES=1
+MASTER_ADDR=12.12.11.14
+# MASTER_ADDR=localhost
+# MASTER_PORT=$(shuf -n 1 -i 10000-65535)
+MASTER_PORT=29500
+NNODES=2
 NODE_RANK=$1
 GPUS_PER_NODE=8
 
@@ -43,8 +44,8 @@ GPUS_PER_NODE=8
 # 训练超参数设置
 # ==============================
 MODEL_SIZE=7B
-BATCH_SIZE=2
-GLOBAL_BATCH_SIZE=64
+BATCH_SIZE=4
+GLOBAL_BATCH_SIZE=512
 LR=5e-6
 MIN_LR=0.0
 SEQ_LEN=4096
@@ -400,10 +401,11 @@ megatron_options="  \
         --rotary-percent 1.0 \
         --rotary-base 1000000 \
         --rotary-seq-len-interpolation-factor 1 \
+        --no-save-optim \
+        --no-load-optim \
+        --no-load-rng \
         "
-# --no-save-optim \
-# --no-load-optim \
-# --no-load-rng \
+
 
 # ==============================
 # Tranin!
