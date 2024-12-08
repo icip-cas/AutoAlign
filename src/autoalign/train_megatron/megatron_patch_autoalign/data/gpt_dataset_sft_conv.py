@@ -15,7 +15,7 @@ def print_rank_0(message):
     else:
         print(message, flush=True)
         
-class GPTDataset_SFT_Conv(torch.utils.data.Dataset):
+class GPTDatasetSFTConv(torch.utils.data.Dataset):
 
     def __init__(self, 
                  name, 
@@ -181,7 +181,7 @@ def _build_train_valid_test_datasets_sft_conv(
         dataset = None
         if splits[index+1] > splits[index]:
             documents = np.arange(start=splits[index], stop=splits[index+1], step=1, dtype=np.int32)
-            dataset = GPTDataset_SFT_Conv(name, documents, indexed_dataset,
+            dataset = GPTDatasetSFTConv(name, documents, indexed_dataset,
                                  seq_length, seed)
         return dataset
     
