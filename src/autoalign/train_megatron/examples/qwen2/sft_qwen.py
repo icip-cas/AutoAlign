@@ -17,9 +17,9 @@ from megatron.training.utils import (
     average_losses_across_data_parallel_group,
 )
 from megatron_patch.arguments import get_patch_args
-from megatron_patch_local.data.gpt_dataset_sft_conv import build_train_valid_test_datasets_sft_conv
-from megatron_patch_local.data.utils import get_batch_on_this_tp_rank_idxmap_sft_conv
-from megatron_patch_local.training_sft import sft
+from megatron_patch_autoalign.data.gpt_dataset_sft_conv import build_train_valid_test_datasets_sft_conv
+from megatron_patch_autoalign.data.utils import get_batch_on_this_tp_rank_idxmap_sft_conv
+from megatron_patch_autoalign.training_sft import sft
 from megatron_patch.model.qwen2.layer_specs import (
     get_gpt_layer_local_spec,
     get_gpt_layer_with_transformer_engine_spec,

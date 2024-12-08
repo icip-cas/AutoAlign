@@ -15,7 +15,7 @@ from megatron.training.utils import (
     average_losses_across_data_parallel_group,
 )
 from megatron_patch.arguments import get_patch_args
-from megatron_patch_local.training_dpo import dpo
+from megatron_patch_autoalign.training_dpo import dpo
 from megatron_patch.model.qwen2.layer_specs import (
     get_gpt_layer_local_spec,
     get_gpt_layer_with_transformer_engine_spec,
@@ -24,9 +24,9 @@ from megatron_patch.model.qwen2.layer_specs import (
 
 from megatron_patch.model.qwen2.transformer_config import Qwen2TransformerConfig
 from megatron_patch.tokenizer import build_tokenizer
-from megatron_patch_local.data.gpt_dataset_dpo import build_train_valid_test_datasets_dpo
-from megatron_patch_local.data.utils import get_batch_on_this_tp_rank_idxmap_dpo
-from megatron_patch_local.model.qwen2.model_dpo import GPTModelDPO
+from megatron_patch_autoalign.data.gpt_dataset_dpo import build_train_valid_test_datasets_dpo
+from megatron_patch_autoalign.data.utils import get_batch_on_this_tp_rank_idxmap_dpo
+from megatron_patch_autoalign.model.qwen2.model_dpo import GPTModelDPO
 
 from megatron.core.packed_seq_params import PackedSeqParams
 

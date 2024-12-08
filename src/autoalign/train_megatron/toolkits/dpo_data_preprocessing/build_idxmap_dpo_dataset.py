@@ -33,7 +33,7 @@ from datetime import datetime
 import torch
 
 from megatron_patch.tokenizer import build_tokenizer
-from megatron_patch_local.data.indexed_dataset_dpo import make_dpo_builder
+from megatron_patch_autoalign.data.indexed_dataset_dpo import make_dpo_builder
 from collections import defaultdict
 from src.autoalign.conversation import TEMPLATES, Role
 
