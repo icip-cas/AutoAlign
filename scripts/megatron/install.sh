@@ -50,7 +50,7 @@ if ! command -v gcc >/dev/null 2>&1; then
     print_error "gcc is not installed. Installing gcc..."
     conda install -y 'gcc<13' -c conda-forge
     conda install -y 'gxx<13' -c conda-forge
-    if [ $? -ne 0 ]; then
+    if [ $? -ne 0 ]; thenfrom megatron_pai import megatron_patch as megatron_patc
         print_error "gcc installation failed"
         exit 1
     fi
@@ -187,32 +187,31 @@ cd Megatron-LM
 git checkout 7765c381d5af76f97834934a67b1e43afece02ad
 cd ..
 
-# 获取 site-packages 目录
+
 SITE_PACKAGES=$(python -c "import site; print(site.getsitepackages()[0])")
 
-# 定义 Megatron-LM 的目标安装路径
+
 MEGATRON_PACKAGE_NAME="megatron"
 MEGATRON_INSTALL_PATH="$SITE_PACKAGES/$MEGATRON_PACKAGE_NAME"
 
 print_section "COPYING Megatron-LM TO site-packages"
 
-# 如果目标路径已存在，先移除
+
 if [ -d "$MEGATRON_INSTALL_PATH" ]; then
     print_section "Removing existing Megatron-LM in site-packages"
     rm -rf "$MEGATRON_INSTALL_PATH"
 fi
 
-# 创建 Megatron-LM 包目录
+
 mkdir -p "$MEGATRON_INSTALL_PATH"
 
-# 复制 Megatron-LM 代码到 site-packages
-mv Megatron-LM/megatron/* "$MEGATRON_INSTALL_PATH/"
+
+cp -r Megatron-LM/megatron/* "$MEGATRON_INSTALL_PATH/"
 if [ $? -ne 0 ]; then
     print_error "Failed to copy Megatron-LM to site-packages"
     exit 1
 fi
 
-# 确保 Megatron-LM 包具有 __init__.py 文件
 touch "$MEGATRON_INSTALL_PATH/__init__.py"
 
 rm -rf Megatron-LM
@@ -231,30 +230,31 @@ cd Pai-Megatron-Patch
 git checkout 9b88cc46653e2c4f7f99529f86f8737ac1da9e9a
 cd ..
 
-# 定义 Pai-Megatron-Patch 的目标安装路径
-PATCH_PACKAGE_NAME="megatron_patch"
+
+PATCH_PACKAGE_NAME="megatron_pai"
 PATCH_INSTALL_PATH="$SITE_PACKAGES/$PATCH_PACKAGE_NAME"
 
 print_section "COPYING Pai-Megatron-Patch TO site-packages"
 
-# 如果目标路径已存在，先移除
+
 if [ -d "$PATCH_INSTALL_PATH" ]; then
     print_section "Removing existing Pai-Megatron-Patch in site-packages"
     rm -rf "$PATCH_INSTALL_PATH"
 fi
 
-# 创建 Pai-Megatron-Patch 包目录
+
 mkdir -p "$PATCH_INSTALL_PATH"
 
-# 复制 Pai-Megatron-Patch 代码到 site-packages
+
 cp -r Pai-Megatron-Patch/* "$PATCH_INSTALL_PATH/"
 if [ $? -ne 0 ]; then
     print_error "Failed to copy Pai-Megatron-Patch to site-packages"
     exit 1
 fi
 
-# 确保 Pai-Megatron-Patch 包具有 __init__.py 文件
-touch "$PATCH_INSTALL_PATH/__init__.py"
+
+
+find "$PATCH_INSTALL_PATH" -type d -exec touch {}/__init__.py \;
 print_success "Pai-Megatron-Patch has been manually installed to site-packages"
 
 # Cleanup
