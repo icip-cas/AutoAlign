@@ -24,15 +24,15 @@ import os
 import sys
 from tqdm import tqdm
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                             os.path.pardir)))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),os.path.pardir)))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir)))
 from tqdm import tqdm
 import numpy as np
 import time
 from datetime import datetime
 import torch
 
-from megatron_patch.tokenizer import build_tokenizer
+from megatron_pai.megatron_patch.tokenizer import build_tokenizer
 from megatron_patch.data.indexed_dataset_sft_conv import make_sft_conv_builder
 from collections import defaultdict
 from src.autoalign.conversation import TEMPLATES, Role

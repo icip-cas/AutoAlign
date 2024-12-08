@@ -46,7 +46,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-flash-attn = [
+train = [
   "flash-attn>=2.0"
 ]
 eval = [
