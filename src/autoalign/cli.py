@@ -34,7 +34,6 @@ def run_distributed_task(file, args):
         f"--master_addr {master_addr} --master_port {master_port} "
         f"{file} {' '.join(args)}"
     )
-    logger.info(f"Running command: {command}")
     process = subprocess.run(command, shell=True)
     sys.exit(process.returncode)
 
