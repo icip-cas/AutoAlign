@@ -1,121 +1,109 @@
 #!/bin/bash
 set -e
-
-# ==============================
-# 路径设置
-# ==============================
-
-SRC_TRAIN_MEGATRON_PATH=$(dirname $(dirname $(pwd)))/src/autoalign/train_megatron
-cd ${SRC_TRAIN_MEGATRON_PATH}
-export PYTHONPATH=${SRC_TRAIN_MEGATRON_PATH}:${SRC_TRAIN_MEGATRON_PATH}/Megatron-LM-240718:$PYTHONPATH
 export CUDA_DEVICE_MAX_CONNECTIONS=1
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 export OMP_NUM_THREADS=1
-cd examples/qwen2
 
-# /ciphome/zhangqingyu2023/code/auto-alignment/algorithms/megatron_dpo/data/sft/sharegpt_formatted_data-evol-gpt4_conversations_maxlen_8192
-# /ciphome/zhangqingyu2023/data/sft/InfInstruct-Gen_infinite_9m_conversations_maxlen_4096
-DATASET_PATH=/ciphome/zhangqingyu2023/data/sft/InfInstruct-Gen_infinite_2m_conversations_maxlen_4096
-VALID_DATASET_PATH=/ciphome/zhangqingyu2023/data/sft/InfInstruct-Gen_infinite_2m_conversations_maxlen_4096
-PRETRAIN_CHECKPOINT_PATH=/ciphome/zhangqingyu2023/mg_models/Qwen2.5-7B-hf-to-mcore-te-tp4-pp1
-OUTPUT_BASEPATH=/ciphome/zhangqingyu2023/checkpoint/sft/Qwen2.5-7B-hf-to-mcore-te-tp4-pp1-2m-debug
+# ==============================
+# Path Configuration
+# ==============================
+ROOT=${ROOT:-"../../../autoalign"}
+SRC_TRAIN_MEGATRON_PATH="${ROOT}/src/autoalign/train_megatron"
+DATASET_PATH=${DATASET_PATH:-"${ROOT}/data/sft/"}
+VALID_DATASET_PATH=${VALID_DATASET_PATH:-"${ROOT}/data/sft/"}
+PRETRAIN_CHECKPOINT_PATH=${PRETRAIN_CHECKPOINT_PATH:-"${ROOT}/mg_models/"}
+OUTPUT_BASEPATH=${OUTPUT_BASEPATH:-"${ROOT}/checkpoint/sft/"}
+cd "${SRC_TRAIN_MEGATRON_PATH}/examples/qwen2"
+
+# ==============================
+# Compute Resources Configuration
+# ==============================
+export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0,1,2,3,4,5,6,7}
+
+MASTER_ADDR=${MASTER_ADDR:-"localhost"}
+MASTER_PORT=${MASTER_PORT:-$(shuf -n 1 -i 10000-65535)}
+NNODES=${NNODES:-1}
+NODE_RANK=${NODE_RANK:-0}
+GPUS_PER_NODE=${GPUS_PER_NODE:-8}
+
 
 
 # ==============================
-# 算力资源配置
+# Training Hyperparameters
 # ==============================
-export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
-# MASTER_ADDR=12.12.11.14
-MASTER_ADDR=localhost
-MASTER_PORT=$(shuf -n 1 -i 10000-65535)
-# MASTER_PORT=29500
-NNODES=1
-NODE_RANK=$1
-GPUS_PER_NODE=8
-
-# export NCCL_SOCKET_IFNAME=bond0
-# export NCCL_IB_DISABLE=1
-
-# export NCCL_IB_DISABLE=0
-# export NCCL_IB_HCA=mlx5_0
-# unset NCCL_SOCKET_IFNAME
-
-# ==============================
-# 训练超参数设置
-# ==============================
-MODEL_SIZE=7B
-BATCH_SIZE=4
-GLOBAL_BATCH_SIZE=512
-LR=5e-6
-MIN_LR=0.0
-SEQ_LEN=4096
-PAD_LEN=4096
+MODEL_SIZE=${MODEL_SIZE:-"7B"}
+BATCH_SIZE=${BATCH_SIZE:-4}
+GLOBAL_BATCH_SIZE=${GLOBAL_BATCH_SIZE:-512}
+LR=${LR:-5e-6}
+MIN_LR=${MIN_LR:-0.0}
+SEQ_LEN=${SEQ_LEN:-4096}
+PAD_LEN=${PAD_LEN:-4096}
 
 
 # ==============================
-# 并行设置
+# Parallelism Configuration
 # ==============================
-TP=2
-PP=1
-SP=false
-CP=1
-if [ $SP = true ] && [ $TP -gt 1 ]; then
+TP=${TP:-2}
+PP=${PP:-1}
+SP=${SP:-false}
+CP=${CP:-1}
+
+if [ "$SP" = true ] && [ "$TP" -gt 1 ]; then
     sp_options=" \
-		    --sequence-parallel \
-            --tp-comm-overlap "
-elif [ $SP = false ]; then
-    sp_options=" \
-                    "
+        --sequence-parallel \
+        --tp-comm-overlap "
+elif [ "$SP" = false ]; then
+    sp_options=""
 fi
 
 # ==============================
-# 数据集配置
+# Dataset Configuration
 # ==============================
 dataset_option=" \
     --data-path ${DATASET_PATH} \
     --split 100,0,0 \
     --dataset mmap  \
-    --epochs 3"
+    --epochs ${EPOCHS:-3}"
 
-# --shuffle-all-epochs \
-# ==============================
-# SFT
-# ==============================
-SFT=True
-SAVE_INTERVAL=5000
 
-TRAIN_ITERS=10000
+# ==============================
+# SFT Settings
+# ==============================
+SFT=${SFT:-True}
+SAVE_INTERVAL=${SAVE_INTERVAL:-5000}
+
+TRAIN_ITERS=${TRAIN_ITERS:-10000}
 LR_WARMUP_FRACTION=$(echo "${GLOBAL_BATCH_SIZE} * 0.00001" | bc -l)
 PREFIX="sft-mcore-qwen2_5-${MODEL_SIZE}-lr-${LR}-minlr-${MIN_LR}-bs-${BATCH_SIZE}-gbs-${GLOBAL_BATCH_SIZE}-seqlen-${SEQ_LEN}"
 sft_option=" \
-        --eod-mask-loss \
-        --train-mode sft"
+    --eod-mask-loss \
+    --train-mode sft"
 
 
 
 # ==============================
 # FlashAttention Or FusedAttention
 # ==============================
-FL=true
-if [ $FL = true ]; then
+FL=${FL:-true}
+if [ "$FL" = true ]; then
     export NVTE_FLASH_ATTN=1 NVTE_FUSED_ATTN=0
-elif [ $FL = false ]; then
+elif [ "$FL" = false ]; then
     export NVTE_FLASH_ATTN=0 NVTE_FUSED_ATTN=1
 fi
 
 # ==============================
-# 精度配置: fp16, bf16, fp8
+# Precision Configuration: fp16, bf16, fp8
 # ==============================
-PR=bf16
-if [ $PR = fp16 ]; then
+PR=${PR:-"bf16"}
+if [ "$PR" = "fp16" ]; then
     pr_options=" \
-		    --fp16 \
-            --apply-query-key-layer-scaling"
+        --fp16 \
+        --apply-query-key-layer-scaling"
     export NVTE_APPLY_QK_LAYER_SCALING=1
-elif [ $PR = bf16 ]; then
+elif [ "$PR" = "bf16" ]; then
     pr_options=" \
         --bf16"
-elif [ $PR = fp8 ]; then
+elif [ "$PR" = "fp8" ]; then
     pr_options=" \
         --bf16 \
         --fp8-format hybrid \
@@ -125,79 +113,76 @@ fi
 
 
 # ==============================
-# 激活检查点模式: sel, full, offload, false
+# Activation Checkpointing Mode: sel, full, offload, none
 # ==============================
-MP_AC_LAYERS=1
-AC=none
-if [ $AC = full ]; then
-    _check=$(( ($NUM_LAYERS / $PP) % ${MP_AC_LAYERS} ))
-    if [ $_check != 0 ]; then
-        echo "the num layers per pp rank must be a multiple of the recompute layers."
-        exit -1
+AC=${AC:-"none"}
+MP_AC_LAYERS=${MP_AC_LAYERS:-1}
+
+if [ "$AC" = "full" ]; then
+    _check=$(( (NUM_LAYERS / PP) % MP_AC_LAYERS ))
+    if [ "$_check" -ne 0 ]; then
+        echo "The number of layers per PP rank must be a multiple of the recompute layers."
+        exit 1
     fi
     activation_checkpoint_options=" \
         --recompute-method uniform \
         --recompute-num-layers ${MP_AC_LAYERS} \
         --recompute-granularity full"
-elif [ $AC = sel ]; then
+elif [ "$AC" = "sel" ]; then
     activation_checkpoint_options=" \
         --recompute-activations"
-elif [ $AC = none ]; then
-    activation_checkpoint_options=" \
-    "
-elif [ $AC = offload ]; then
+elif [ "$AC" = "offload" ]; then
     activation_checkpoint_options=" \
         --cpu-offloading \
         --cpu-offloading-num-layers ${MP_AC_LAYERS}"
-    if [ $TP_COMM_OVERLAP -eq 1 ]; then
-        echo "Disable --overlap-grad-reduce and --overlap-param-gather when cpu offloading is on..."
+    if [ "$TP_COMM_OVERLAP" -eq 1 ]; then
+        echo "Disable --overlap-grad-reduce and --overlap-param-gather when CPU offloading is on..."
         comm_overlap_option="\
             --tp-comm-overlap"
     else
-        echo "Disable --overlap-grad-reduce and --overlap-param-gather when cpu offloading is on..."
+        echo "Disable --overlap-grad-reduce and --overlap-param-gather when CPU offloading is on..."
         comm_overlap_option=""
     fi
+else
+    activation_checkpoint_options=""
 fi
 
 # ==============================
-# 优化TP通信
+# Optimize TP Communication
 # ==============================
-TP_COMM_OVERLAP=$(( ($TP > 1) ? 1 : 0 ))
-comm_overlap_option="\
-    --overlap-grad-reduce"
+TP_COMM_OVERLAP=$(( TP > 1 ? 1 : 0 ))
+comm_overlap_option="--overlap-grad-reduce"
 
-if [ $TP_COMM_OVERLAP -eq 1 ]; then
-    comm_overlap_option="\
-        --overlap-grad-reduce "
+if [ "$TP_COMM_OVERLAP" -eq 1 ]; then
+    comm_overlap_option="--overlap-grad-reduce"
 fi
 
 
 # ==============================
-# 分布式优化器配置
+# Distributed Optimizer Configuration
 # ==============================
-DO=true
-OPTIMIZER_OFFLOAD=false
-if [ $OPTIMIZER_OFFLOAD != false ] && [ $DO = false ]; then
+DO=${DO:-true}
+OPTIMIZER_OFFLOAD=${OPTIMIZER_OFFLOAD:-false}
+
+if [ "$OPTIMIZER_OFFLOAD" != false ] && [ "$DO" = false ]; then
     echo "Offload optimizer is valid only if \$DO=true"
     DO=true
 fi
 
-if [ $DO = true ]; then
+if [ "$DO" = true ]; then
     do_options=" \
-		    --use-distributed-optimizer \
-            --overlap-grad-reduce"
-
-elif [ $DO = false ]; then
-    do_options=" \
-                    "
+        --use-distributed-optimizer \
+        --overlap-grad-reduce"
+else
+    do_options=""
 fi
 
-if [ $OPTIMIZER_OFFLOAD = 'static' ]; then
+if [ "$OPTIMIZER_OFFLOAD" = "static" ]; then
     offload_option=" \
         --optimizer hybridadam \
         --optimizer-offload-policy static \
         --optimizer-offload-fraction 1.0"
-elif [ $OPTIMIZER_OFFLOAD = 'auto' ]; then
+elif [ "$OPTIMIZER_OFFLOAD" = "auto" ]; then
     offload_option=" \
         --optimizer hybridadam \
         --optimizer-offload-policy auto"
@@ -206,7 +191,7 @@ else
 fi
 
 # ==============================
-# 模型架构配置
+# Modle Size Configuration
 # ==============================
 if [ $MODEL_SIZE = 0.5B ]; then
 
@@ -333,7 +318,7 @@ te_options=" \
 
 
 # ==============================
-# 创建checkpoint目录
+# Output Configuration
 # ==============================
 NAME="${PREFIX}-pr-${PR}-tp-${TP}-pp-${PP}-cp-${CP}-ac-${AC}-do-${DO}-sp-${SP}-ti-${TRAIN_ITERS}-wi-${LR_WARMUP_ITERS}"
 mkdir -p "${OUTPUT_BASEPATH}/tensorboard/"
