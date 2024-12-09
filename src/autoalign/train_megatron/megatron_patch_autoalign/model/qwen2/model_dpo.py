@@ -60,11 +60,6 @@ class GPTModelDPO(LanguageModule):
         beta: float = 0.1,
         label_smoothing: float = 0,
         loss_type: str ='sigmoid',
-        ftx_gamma: float = 0.,
-        model_using: str = 'both',
-        forward_without_loss = False,
-        dpo_loss_of_orion = False,
-        orpo_loss = False,
     ) -> None:
         super().__init__(config=config)
         args = get_args()
@@ -79,11 +74,6 @@ class GPTModelDPO(LanguageModule):
         self.beta = beta
         self.label_smoothing = label_smoothing
         self.loss_type = loss_type
-        self.ftx_gamma = ftx_gamma
-        self.model_using = model_using
-        self.forward_without_loss = forward_without_loss
-        self.dpo_loss_of_orion = dpo_loss_of_orion
-        self.orpo_loss = orpo_loss
         self.tokenizer = get_tokenizer()
         
         self.policy_model = GPTModel(
@@ -141,7 +131,6 @@ class GPTModelDPO(LanguageModule):
             self.policy_model.set_input_tensor(None)
             self.ref_model.set_input_tensor(None)
         else:
-            # print("input_Tesor", input_tensor[0].shape) # seq_len, 2*micro_batch_size, hidden_size
             policy_, ref_ = input_tensor[0].chunk(2, dim=1)
             self.policy_model.set_input_tensor(policy_)
             self.ref_model.set_input_tensor(ref_)
@@ -191,9 +180,6 @@ class GPTModelDPO(LanguageModule):
             if labels is None:
                 return torch.stack([logits.transpose(0,1).contiguous(), ref_logits.transpose(0,1).contiguous()]), {}
 
-            if self.forward_without_loss:
-                return self.margin_or_lopp(labels, logits, ref_logits), {}
-
             ret, metrics = self.dpo(labels, logits, ref_logits)
             return ret, metrics
 
@@ -205,12 +191,7 @@ class GPTModelDPO(LanguageModule):
         
         state_dict_['ref_model'] = self.ref_model.state_dict_for_save_checkpoint(
             prefix=prefix, keep_vars=keep_vars)
-        
-        # # Save word_embeddings.
-        # if self.post_process and not self.untie_embeddings_and_output_weights:
-        #     state_dict_[self._word_embeddings_for_head_key] = \
-        #         self.policy_model.word_embeddings.state_dict(prefix=prefix,
-        #                                             keep_vars=keep_vars)
+    
     
         return state_dict_
     
@@ -221,8 +202,6 @@ class GPTModelDPO(LanguageModule):
             policy_state_dict = ref_state_dict = state_dict
         else: # for resume condition when policy param has been trained and both policy and ref param has been saved
             ref_model = state_dict.pop('ref_model')
-            # print('state_dict keys:', state_dict['language_model'].keys())
-            # print('ref_model keys:', ref_model['language_model'].keys())
             policy_state_dict, ref_state_dict = state_dict, ref_model
         
 
@@ -232,27 +211,18 @@ class GPTModelDPO(LanguageModule):
         if self.post_process and not self.untie_embeddings_and_output_weights: # all reduce embedding grad will call self.word_embeddings
             self.word_embeddings = self.policy_model.word_embeddings
         
-        # for name, param in self.policy_model.named_parameters():
-        #     ref_param = self.ref_model.state_dict()[name]
-            # if not torch.equal(param.data, ref_param.data):
-            #     print(f"Parameter {name} is different between policy and ref models.")
-            # else:
-            #     print(f"Checked {name}")
         
         return [],[]
     
     def get_batch_logps(self, logits, labels, average_log_prob=False):
         # Save the original batch size and sequence length
 
-        
         batch_size, seq_length, vocab_size = logits.size()
         
         mask_id = self.tokenizer.vocab_size + 1 
         loss_mask = (labels != mask_id).float() 
         
         loss_mask = loss_mask.view(batch_size * seq_length) 
-        
-
         
         # Flatten logits and labels
         logits = logits.reshape(batch_size * seq_length, vocab_size)
@@ -314,28 +284,8 @@ class GPTModelDPO(LanguageModule):
 
         # Compute log probabilities
         logps = self.get_batch_logps(logits, labels)
-        
-        # batch_size, seq_length, vocab_size = logits.size()
-        # logits = logits.reshape(batch_size * seq_length, vocab_size)
-        # labels = labels.reshape(batch_size * seq_length)
-        # mask_id = self.tokenizer.vocab_size + 1 
-        # loss_mask = (labels != mask_id).float() 
-        # per_token_logps_sft = (-1 * tensor_parallel.vocab_parallel_cross_entropy(logits, labels)).detach()  # Detach from computation graph
-        # loss_mask = loss_mask.view(batch_size * seq_length)  # Flatten loss mask to match flattened logits
-        # # Apply loss mask and compute the average SFT loss over all valid tokens
-        # policy_sft_loss = -(per_token_logps_sft * loss_mask).sum() / loss_mask.sum()  # Total masked loss divided by number of valid tokens
-        
         ref_logps = self.get_batch_logps(ref_logits, labels)
         
-        # batch_size, seq_length, vocab_size = ref_logits.size()
-        # ref_logits = ref_logits.reshape(batch_size * seq_length, vocab_size)
-        # labels = labels.reshape(batch_size * seq_length)
-        # mask_id = self.tokenizer.vocab_size + 1 
-        # loss_mask = (labels != mask_id).float() 
-        # per_token_logps_sft = (-1 * tensor_parallel.vocab_parallel_cross_entropy(ref_logits, labels)).detach()  # Detach from computation graph
-        # loss_mask = loss_mask.view(batch_size * seq_length)  # Flatten loss mask to match flattened logits
-        # # Apply loss mask and compute the average SFT loss over all valid tokens
-        # ref_sft_loss = -(per_token_logps_sft * loss_mask).sum() / loss_mask.sum()  # Total masked loss divided by number of valid tokens
 
         # Split log probabilities into chosen and rejected parts
         policy_chosen_logps, policy_rejected_logps = logps.chunk(2, dim=0)
@@ -352,30 +302,6 @@ class GPTModelDPO(LanguageModule):
 
         reward_accuracies = (chosen_rewards > rejected_rewards).float()
         
-        # Additional loss calculations if needed
-        if self.orpo_loss:
-            chosen_labels, _ = labels.chunk(2, dim=0)
-            loss_mask = (chosen_labels != -100)
-            policy_chosen_logps = policy_chosen_logps / loss_mask.sum(-1)
-            policy_rejected_logps = policy_rejected_logps / loss_mask.sum(-1)
-            log_odds = (policy_chosen_logps - policy_rejected_logps) \
-                    - (torch.log1p(-torch.exp(policy_chosen_logps)) - torch.log1p(-torch.exp(policy_rejected_logps)))
-            odds_ratio_loss = -F.logsigmoid(log_odds)
-            losses = -policy_chosen_logps + self.ftx_gamma * odds_ratio_loss
-            reward_accuracies = (policy_chosen_logps > policy_rejected_logps).float()
-            
-        elif self.dpo_loss_of_orion:
-            sft_loss = 0.0
-            if self.ftx_gamma > 1e-6:
-                chosen_labels, _ = labels.chunk(2, dim=0)
-                loss_mask = (chosen_labels != -100)
-                sft_loss = -policy_chosen_logps / loss_mask.sum(-1)
-                losses = losses * (1 - self.ftx_gamma) + self.ftx_gamma * sft_loss
-            else:
-                if self.ftx_gamma > 1e-6:
-                    chosen_labels, _ = labels.chunk(2, dim=0)
-                    loss_mask = (chosen_labels != -100)
-                    losses += self.ftx_gamma * policy_chosen_logps / loss_mask.sum(-1)
 
         # Prepare metrics
         metrics = {
@@ -387,34 +313,8 @@ class GPTModelDPO(LanguageModule):
             "dpo-metrics/logps-rejected": policy_rejected_logps.detach().mean().float(),
             "dpo-metrics/logits-chosen": policy_chosen_logits_mean,
             "dpo-metrics/logits-rejected": policy_rejected_logits_mean,
-            # "dpo-metrics/policy-sft-loss": policy_sft_loss.item(),
-            # "dpo-metrics/ref-sft-loss": ref_sft_loss.item(),
         }
-
-
-        if self.dpo_loss_of_orion:
-            metrics["dpo-metrics/sft_loss"] = sft_loss
-        if self.orpo_loss:
-            metrics["dpo-metrics/odds_ratio_loss"] = odds_ratio_loss.mean().float()
-            metrics["dpo-metrics/log_odds"] = log_odds.mean().float()
 
         return losses, metrics
         
     
-    def margin_or_logps(self, labels, logits, ref_logits):
-        # DPO logits abn logps
-        logps = None
-        if self.policy_model:
-            logits = self.convert_logits(logits, labels)
-            logps = self.get_batch_logps(logits, labels)
-
-        ref_logps = None
-        if self.ref_model:
-            ref_logits = self.convert_logits(ref_logits, labels)
-            ref_logps = self.get_batch_logps(ref_logits, labels)
-
-        if logps is None:
-            return ref_logps
-        if ref_logps is None:
-            return logps
-        return logps - ref_logps

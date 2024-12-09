@@ -38,38 +38,6 @@ def get_patch_args(parser):
         default='sigmoid',
         help="Type of loss function to use",
     )
-
-    group.add_argument(
-        "--ftx-gamma",
-        type=float,
-        default=0.,
-        help="Gamma value for FTX optimization",
-    )
-
-    group.add_argument(
-        "--model-using",
-        type=str,
-        default='both',
-        help="Specify which model to use, e.g., 'both', 'one', 'two'",
-    )
-
-    group.add_argument(
-        "--forward-without-loss",
-        action="store_true",
-        help="Whether to perform forward pass without loss computation",
-    )
-
-    group.add_argument(
-        "--dpo-loss-of-orion",
-        action="store_true",
-        help="Enable DPO loss of Orion",
-    )
-
-    group.add_argument(
-        "--orpo-loss",
-        action="store_true",
-        help="Enable ORPO loss calculation",
-    )
     
     for action in vars(group)["_actions"]:
         if isinstance(action, argparse._StoreAction):
