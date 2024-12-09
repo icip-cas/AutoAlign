@@ -46,6 +46,8 @@ bash run_build_idxmap_sft_conv_dataset.sh \
     8192 \ # Sequence length
     ${OUTPUT_TOKENIZED_PATH} \ # Output tokenized data path
     ${HF_MODEL_PATH} \ # HF model path
+    ${EXTRA_VOCAB_SIZE} \ # Extra vocab size
+    ${TEMPLATE} # Chat Template 
 ```
 
 Required data format:

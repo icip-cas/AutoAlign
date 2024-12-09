@@ -11,6 +11,8 @@ tokenizer=$3
 seq_len=$4
 output_data_path=$5
 load_dir=$6
+extra_vocab_size=$7
+template=$8
 
 if [ $tokenizer = "Qwen2Tokenizer" ]; then
   python build_idxmap_dpo_dataset.py \
@@ -24,8 +26,9 @@ if [ $tokenizer = "Qwen2Tokenizer" ]; then
   --model-max-length ${seq_len} \
   --workers 256 \
   --chunk-size 32 \
-  --extra-vocab-size 293 \
-  --dataset-impl mmap 
+  --extra-vocab-size ${extra_vocab_size} \
+  --dataset-impl mmap \
+  --template ${template}
 
 elif [ $tokenizer = "LLama3Tokenizer" ]; then
   python build_idxmap_dpo_dataset.py \

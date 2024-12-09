@@ -6,6 +6,8 @@ TOKENIZER=${TOKENIZER:-"Qwen2Tokenizer"}
 SEQ_LEN=${SEQ_LEN:-4096}
 OUTPUT_DATA_PREFIX=${OUTPUT_DATA_PREFIX:-"${ROOT}/data/sft/dummy"}
 HF_MODEL_PATH=${HF_MODEL_PATH:-"${ROOT}/hf_models/Qwen2.5-7B"}
+EXTRA_VOCAB_SIZE=${EXTRA_VOCAB_SIZE:-421}
+TEMPLATE=${TEMPLATE:-"chatml-idsys"}
 cd ${SRC_PATH}
 
 bash run_build_idxmap_sft_conv_dataset.sh \
@@ -14,4 +16,6 @@ bash run_build_idxmap_sft_conv_dataset.sh \
     ${TOKENIZER} \
     ${SEQ_LEN} \
     ${OUTPUT_DATA_PREFIX} \
-    ${HF_MODEL_PATH}
+    ${HF_MODEL_PATH} \
+    ${EXTRA_VOCAB_SIZE} \
+    ${TEMPLATE}
