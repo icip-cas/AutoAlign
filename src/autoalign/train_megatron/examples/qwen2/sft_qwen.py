@@ -16,7 +16,7 @@ from megatron.training.arguments import core_transformer_config_from_args
 from megatron.training.utils import (
     average_losses_across_data_parallel_group,
 )
-from megatron_patch.arguments import get_patch_args
+
 from megatron_patch_autoalign.data.gpt_dataset_sft_conv import build_train_valid_test_datasets_sft_conv
 from megatron_patch_autoalign.data.utils import get_batch_on_this_tp_rank_idxmap_sft_conv
 from megatron_patch_autoalign.training_sft import sft
@@ -27,6 +27,7 @@ from megatron_patch.model.qwen2.layer_specs import (
 from megatron_patch.model.qwen2.model import GPTModel
 from megatron_patch.model.qwen2.transformer_config import Qwen2TransformerConfig
 from megatron_patch.tokenizer import build_tokenizer, get_tokenizer
+from megatron_patch_autoalign.arguments import get_patch_args
 from megatron.core.packed_seq_params import PackedSeqParams
 
 torch._dynamo.config.suppress_errors = True
