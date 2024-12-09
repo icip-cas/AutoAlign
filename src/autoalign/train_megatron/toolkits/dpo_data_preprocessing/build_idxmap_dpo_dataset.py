@@ -23,7 +23,7 @@ import multiprocessing
 import os
 import sys
 from tqdm import tqdm
-
+from typing import Dict, Any
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),
                                              os.path.pardir)))
 from tqdm import tqdm
@@ -35,10 +35,72 @@ import torch
 from megatron_patch.tokenizer import build_tokenizer
 from megatron_patch_autoalign.data.indexed_dataset_dpo import make_dpo_builder
 from collections import defaultdict
-from src.autoalign.conversation import TEMPLATES, Role
 
+from src.autoalign.conversation import TEMPLATES, Role, Conversation, IGNORED_TOKEN_ID
 
-Chat_Template = TEMPLATES['chatml-idsys']
+class ConversationDPO(Conversation):
+    def fill_in_messages(
+        self, conv: Dict[str, Any], replace_conv_system_message: bool = True
+    ):
+        """Fill in conversation messages from an external source."""
+        self.messages.clear()  # Clear existing messages
+
+        # Handle system message
+        first_message = conv[0]
+        if (
+            first_message["from"] == Role.SYSTEM.value and replace_conv_system_message
+        ):  # Use the system message from the conversation
+            self._set_system_message(first_message["value"])
+        else:
+            self._set_system_message(
+                self._system_message
+            )  # Use the current system message
+
+        # Fill in other messages
+        for message_dict in conv:
+            role_str, message_str = message_dict["from"], message_dict["value"]
+            try:
+                role = Role(role_str)
+                if role != Role.SYSTEM:  # We've already handled the system message
+                    self.messages.append((role, message_str))
+            except ValueError:
+                raise ValueError(
+                    f"Invalid role: {role_str}. Must be one of {', '.join([r.value for r in Role])}"
+                )
+    def _generate_labels(self, tokenized_conversation, tokenizer, model_max_length, mask_id=IGNORED_TOKEN_ID):
+        if self.template.strategy:
+            return self.template.strategy.generate_labels(
+                self.messages,
+                tokenized_conversation,
+                tokenizer,
+                self.template.get_attributes(),
+            )
+        labels = [mask_id] * len(tokenized_conversation.input_ids)
+        cur_inst = ""
+        for role, message in self.messages:
+            if role in [Role.SYSTEM, Role.HUMAN]:
+                cur_inst += (
+                    self.template.role_starts[role]
+                    + message
+                    + self.template.role_ends[role]
+                )
+            else:
+                cur_inst += self.template.role_starts[role]
+                start_idx = len(tokenizer(cur_inst, padding='do_not_pad', truncation=True, max_length=model_max_length).input_ids) - self.template.offset
+                end_idx = len(
+                    tokenizer(
+                        cur_inst + message + self.template.role_ends[role],
+                        padding='do_not_pad',
+                        truncation=True, 
+                        max_length=model_max_length
+                    ).input_ids
+                )
+                labels[start_idx:end_idx] = tokenized_conversation.input_ids[
+                    start_idx:end_idx
+                ]
+                cur_inst += message + self.template.role_ends[role]
+
+        return labels
 
 
 def custom_print(*args):
@@ -47,9 +109,6 @@ def custom_print(*args):
     BLUE = '\033[94m'
     END = '\033[0m'  
     print(f"{BLUE}[{current_time}] [INFO]{END} {formatted_message}")
-
-custom_print("Chat Template:\n",Chat_Template.get_attributes())
-
 
 class Encoder(object):
     def __init__(self, args):
@@ -62,84 +121,50 @@ class Encoder(object):
     def encode(self, json_line):
 
         # return doc, bytes_processed, tokens_processed, doc is a dic contain data and label
-        if self.args.conversations: # multi lable mask
-            return conv_encoder_provider(json_line)
-        elif self.args.sft: # single lable mask
-            return sft_encode_provide(json_line)
-        elif self.args.dpo: # include prompt chosen rejected data
+        if self.args.dpo: # include prompt chosen rejected data
             return dpo_encode_provide(json_line)
         else :
-            raise ValueError("This script only supports SFT And DPO format data. Please ensure that either --conversations/--sft/--dpo is passed.")
+            raise ValueError("Only supports DPO format data. Please ensure that either --conversations/--dpo is passed.")
         
 def dpo_encode_provide(json_line): # chatlm conversations templates
-    
+    args = get_args()
+    template = args.template
+    chosen_ids = {}
+    rejected_ids = {}
     chosen_data = json_line['chosen']
     rejected_data = json_line['rejected']
-    sys_starts = Chat_Template.role_starts[Role.SYSTEM]
-    sys_ends = Chat_Template.role_ends[Role.SYSTEM]
+
+    Chat_Template = TEMPLATES[template]
+    conversation = ConversationDPO(Chat_Template)
+
+    conversation.fill_in_messages(chosen_data)
+    chosen_conversation_str = conversation.get_conversation_str()
+    chosen_data_len = len(chosen_conversation_str.encode('utf-8'))
+    chosen_doc_ids = Encoder.tokenizer(chosen_conversation_str,padding='do_not_pad',truncation=True, max_length=args.model_max_length)
+    chosen_ids_len = len(chosen_doc_ids.input_ids)
+    chosen_doc_lable_ids = conversation._generate_labels(
+        chosen_ids, Encoder.tokenizer, args.model_max_length, mask_id=Encoder.mask_id
+    )
     
-    user_starts = Chat_Template.role_starts[Role.HUMAN]
-    user_ends = Chat_Template.role_ends[Role.HUMAN]
+    assert len(chosen_doc_ids.input_ids) == len(chosen_doc_lable_ids )
+    chosen_ids[args.json_keys[0]] = {}
+    chosen_ids[args.json_keys[0]]["data"] = chosen_doc_ids.input_ids
+    chosen_ids[args.json_keys[0]]["label"] = chosen_doc_lable_ids 
     
-    assistant_starts = Chat_Template.role_starts[Role.ASSISTANT]
-    assistant_ends = Chat_Template.role_ends[Role.ASSISTANT]
+    conversation.fill_in_messages(rejected_data)
+    rejected_conversation_str = conversation.get_conversation_str()
+    rejected_data_len = len(rejected_conversation_str.encode('utf-8'))
+    rejected_doc_ids = Encoder.tokenizer(rejected_conversation_str,padding='do_not_pad',truncation=True, max_length=args.model_max_length)
+    rejected_ids_len = len(rejected_doc_ids.input_ids)
+    rejected_doc_lable_ids = conversation._generate_labels(
+        rejected_ids, Encoder.tokenizer, args.model_max_length, mask_id=Encoder.mask_id
+    )
     
-    def process_dialogue(json_line):
-        args = get_args()
-        ids = {}
-        processed_text = ""
-        num_begin_mask_id = 0
-        assert type(json_line) == list
-        doc_ids = []
-        doc_lable_ids = []
-        
-        if json_line[0]["from"]=='system':
-            sys_mess = json_line[0]["value"]
-            system_message = f"{sys_starts}{sys_mess}{sys_ends}"
-            json_line = json_line[1:]
-        else:
-            system_message = sys_starts + Chat_Template.default_system_message + sys_ends
-        
-        conv_len = len(json_line)
-        assert conv_len % 2 == 0
-        tmp_tokens = Encoder.tokenizer.tokenize(system_message)
-        doc_ids = doc_ids + tmp_tokens
-        doc_lable_ids = doc_lable_ids + [Encoder.mask_id] * len(tmp_tokens)
-        num_begin_mask_id += len(tmp_tokens)
-        
-        for idx, item in enumerate(json_line):
-            processed_text += item["value"]
-            assert item["from"] in ["human","gpt"]
-            assert item["from"] == json_line[(idx + 2)% conv_len]["from"]
-            if item["from"] == "human":
-                tmp = user_starts +item["value"] + user_ends
-                tmp_tokens = Encoder.tokenizer.tokenize(tmp)
-                doc_ids = doc_ids + tmp_tokens
-                if args.mask:
-                    doc_lable_ids = doc_lable_ids + [Encoder.mask_id] * len(tmp_tokens)
-                else:
-                    doc_lable_ids = doc_lable_ids + tmp_tokens
-            else:
-                tmp = assistant_starts + item["value"] + assistant_ends
-                tmp_tokens = Encoder.tokenizer.tokenize(tmp)
-                doc_ids = doc_ids + tmp_tokens 
-                doc_lable_ids = doc_lable_ids + tmp_tokens
-        
-        assert len(doc_ids) == len(doc_lable_ids)
-        if len(doc_ids) > args.model_max_length :
-            doc_ids = doc_ids[:args.model_max_length]
-            doc_lable_ids = doc_lable_ids[:args.model_max_length]
-        if num_begin_mask_id  >= args.model_max_length :
-            doc_lable_ids = []
-            doc_ids =[]
-        ids[args.json_keys[0]] = {}
-        ids[args.json_keys[0]]["data"] = doc_ids
-        ids[args.json_keys[0]]["label"] = doc_lable_ids 
-        return ids, len(processed_text.encode('utf-8')), len(doc_ids)
+    assert len(rejected_doc_ids.input_ids) == len(rejected_doc_lable_ids )
+    rejected_ids[args.json_keys[0]] = {}
+    rejected_ids[args.json_keys[0]]["data"] = rejected_doc_ids.input_ids
+    rejected_ids[args.json_keys[0]]["label"] = rejected_doc_lable_ids
     
-    
-    chosen_ids, chosen_data_len, chosen_ids_len = process_dialogue(chosen_data)
-    rejected_ids, rejected_data_len, rejected_ids_len = process_dialogue(rejected_data)
 
     ids = {
         'chosen': chosen_ids,
@@ -157,120 +182,12 @@ def dpo_encode_provide(json_line): # chatlm conversations templates
     
     return ids, processed_text_lens, processed_ids_lens
 
-def conv_encoder_provider(json_line): # llama2 conversations templates from fastchat.conversation.py
-    args = get_args()
-    ids = {}
-    processed_text = ""
-    num_begin_mask_id = 0
-    assert type(json_line) == dict
-    doc_ids = []
-    doc_lable_ids = []
-
-    json_line = json_line["conversations"]
-    
-
-    if json_line[0]["from"]=='system':
-        sys_mess = json_line[0]["value"]
-        system_message = f"[INST] <<SYS>>\n{sys_mess}\n<</SYS>>\n\n"
-        json_line = json_line[1:]
-    else:
-        system_message = "[INST] "
-    
-    conv_len = len(json_line)
-    tmp_tokens = Encoder.tokenizer.tokenize(system_message)
-    tmp_tokens = tmp_tokens [1:]
-    doc_ids = doc_ids + tmp_tokens
-    doc_lable_ids = doc_lable_ids + [Encoder.mask_id] * len(tmp_tokens)
-    num_begin_mask_id += len(tmp_tokens)
-    
-    for idx,item in enumerate(json_line):
-        processed_text += item["value"]
-        assert item["from"] in ["human","gpt"]
-        assert item["from"] == json_line[(idx + 2)% conv_len]["from"]
-        if item["from"] == "human":
-            if idx == 0 :
-                tmp = item["value"] + " "
-                tmp_tokens = Encoder.tokenizer.tokenize(tmp)
-                tmp_tokens = tmp_tokens [1:]
-                doc_ids = doc_ids + tmp_tokens
-                if args.mask:
-                    doc_lable_ids = doc_lable_ids + [Encoder.mask_id] * len(tmp_tokens)
-                    num_begin_mask_id += len(tmp_tokens)
-                else:
-                    doc_lable_ids = doc_lable_ids + tmp_tokens
-            else :
-                tmp = "[INST]"+item["value"] + " "
-                tmp_tokens = Encoder.tokenizer.tokenize(tmp)
-                tmp_tokens = tmp_tokens [1:]
-                doc_ids = doc_ids + tmp_tokens
-                if args.mask:
-                    doc_lable_ids = doc_lable_ids + [Encoder.mask_id] * len(tmp_tokens)
-                else:
-                    doc_lable_ids = doc_lable_ids + tmp_tokens
-        else:
-            tmp = "[/INST]"+ item["value"] +" </s><s>"
-            tmp_tokens = Encoder.tokenizer.tokenize(tmp)
-            tmp_tokens = tmp_tokens [1:]
-            doc_ids = doc_ids + tmp_tokens 
-            doc_lable_ids = doc_lable_ids + tmp_tokens
-    
-    assert len(doc_ids) == len(doc_lable_ids)
-    if len(doc_ids) > args.model_max_length :
-        doc_ids = doc_ids[:args.model_max_length]
-        doc_lable_ids = doc_lable_ids[:args.model_max_length]
-    if num_begin_mask_id  >= args.model_max_length :
-        doc_lable_ids = []
-        doc_ids =[]
-    ids[args.json_keys[0]] = {}
-    ids[args.json_keys[0]]["data"] = doc_ids
-    ids[args.json_keys[0]]["label"] = doc_lable_ids 
-    return ids,len(processed_text.encode('utf-8')),len(doc_ids)
-
-def sft_encode_provide(json_line): # sft
-    args = get_args()
-    ids = {}
-    processed_text = ""
-    assert type(json_line) == dict
-    doc_ids = []
-    doc_lable_ids = []
-
-    total_prompt,prompt_no_output = json_line["prompt"],json_line["prompt_no_output"]
-    processed_text += total_prompt
-    sentence_ids_total = Encoder.tokenizer.tokenize(total_prompt)
-    sentence_ids_no_output = Encoder.tokenizer.tokenize(prompt_no_output)
-    len_mask = len(sentence_ids_no_output)
-
-    sentence_ids_total = np.array(sentence_ids_total)
-    sentence_ids_label = sentence_ids_total.copy()
-
-    assert len_mask > 0,"{} need mask".format(json_line)
-    if args.mask:
-        sentence_ids_label[:len_mask] = Encoder.mask_id
-
-    sentence_ids_label = sentence_ids_label.tolist()
-    sentence_ids_total = sentence_ids_total.tolist()
-
-    if len(sentence_ids_total) > 0:
-        doc_ids.append(sentence_ids_total)
-        doc_lable_ids.append(sentence_ids_label)
-    if len(doc_ids) > 0 and Encoder.args.append_eod:
-        doc_ids[-1].append(Encoder.tokenizer.eod)
-        doc_lable_ids[-1].append(Encoder.tokenizer.eod)  
-
-    if len_mask >= args.model_max_length:
-        doc_lable_ids = []
-        doc_ids =[]
-    ids["prompt"] = {}
-    ids["prompt"]["data"] = doc_ids
-    ids["prompt"]["label"] = doc_lable_ids
-    return ids,len(processed_text.encode('utf-8')),len(doc_ids)
-
             
 def get_args():
     parser = argparse.ArgumentParser()
     group = parser.add_argument_group(title='input data') 
     group.add_argument("--conversations", action="store_true", help="Utilize conversations instructions to finetune the model.")
-    group.add_argument("--sft", action="store_true", help="Utilize instructions to finetune the model.")
+    group.add_argument("--template", type=str, default="chatml-idsys", help="Template to use for the conversation data.")
     group.add_argument("--dpo", action="store_true", help="Utilize dpo algorithm to alignment the model.")
     group.add_argument('--input', type=str,
                        help='Path to input JSON')
@@ -380,14 +297,10 @@ def main():
 
     if args.test_tokenize:
         test_doc, _, _= encoder.encode(filtered_fin[1])
-        if args.dpo :
-            custom_print("decode tokenized chosen data: ",Encoder.tokenizer.detokenize(test_doc['chosen'][key]['data']))
-            custom_print("tokenized chosen label: ",test_doc['chosen'][key]['label'])
-            custom_print("decode tokenized rejected data: ",Encoder.tokenizer.detokenize(test_doc['rejected'][key]['data']))
-            custom_print("tokenized rejected label: ",test_doc['rejected'][key]['label'])
-        else:
-            custom_print("decode tokenized data: ",Encoder.tokenizer.detokenize(test_doc[key]['data']))
-            custom_print("tokenized label: ",test_doc[key]['label'])
+        custom_print("decode tokenized chosen data: ",Encoder.tokenizer.detokenize(test_doc['chosen'][key]['data']))
+        custom_print("tokenized chosen label: ",test_doc['chosen'][key]['label'])
+        custom_print("decode tokenized rejected data: ",Encoder.tokenizer.detokenize(test_doc['rejected'][key]['data']))
+        custom_print("tokenized rejected label: ",test_doc['rejected'][key]['label'])
     else:
         for data_class in ['chosen','rejected'] :
             output_bin_files[data_class][key] = "{}_{}_maxlen_{}_{}".format(args.output_prefix,
