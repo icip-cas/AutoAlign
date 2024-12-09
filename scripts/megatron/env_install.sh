@@ -50,7 +50,7 @@ if ! command -v gcc >/dev/null 2>&1; then
     print_error "gcc is not installed. Installing gcc..."
     conda install -y 'gcc<13' -c conda-forge
     conda install -y 'gxx<13' -c conda-forge
-    if [ $? -ne 0 ]; thenfrom megatron_pai import megatron_patch as megatron_patc
+    if [ $? -ne 0 ]; then
         print_error "gcc installation failed"
         exit 1
     fi
