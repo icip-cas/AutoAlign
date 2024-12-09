@@ -13,7 +13,7 @@ This repository is based on [alibaba/Pai-Megatron-Patch](https://github.com/alib
 ```bash
 bash scripts/megatron/env_install.sh
 ```
-
+> You can also refer to the docker images(`dsw-registry.cn-wulanchabu.cr.aliyuncs.com/pai/pai-megatron-patch:24.07`)  provided in the Pai-Megatron-Patch repository.
 ## Training Pipeline 🔄
 
 All scripts should be executed from the `megatron/` directory.
