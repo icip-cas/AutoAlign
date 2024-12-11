@@ -1,4 +1,16 @@
 # Copyright (c) 2023, NVIDIA CORPORATION.  All rights reserved.
+
+# Additional modifications and contributions by AutoAlign Team:
+# - Added support for multi-turn dialogue training with SFT (Supervised Fine-Tuning).
+# - Integrated DPO (Direct Preference Optimization) for alignment training.
+
+# Copyright (c) 2024 AutoAlign Team.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+
 """SFT"""
 
 import os
