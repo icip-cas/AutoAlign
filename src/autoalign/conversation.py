@@ -480,7 +480,7 @@ TEMPLATES = {
         stop_str="<|user|>",
     ),
     "deepseek-coder-v1.5": ConversationTemplate(
-        name="glm-4-chat",
+        name="deepseek-coder-v1.5",
         role_starts={
             Role.SYSTEM: "",
             Role.HUMAN: "### Instruction:\n",
