@@ -479,4 +479,23 @@ TEMPLATES = {
         offset=0,
         stop_str="<|user|>",
     ),
+    "deepseek-coder-v1.5": ConversationTemplate(
+        # Not fully implemented
+        name="glm-4-chat",
+        role_starts={
+            Role.SYSTEM: "",
+            Role.HUMAN: "### Instruction:\n",
+            Role.ASSISTANT: "### Response:\n",
+        },
+        role_ends={
+            Role.SYSTEM: "",
+            Role.HUMAN: "\n",
+            Role.ASSISTANT: "\n<|EOT|>\n",
+        },
+        default_system_message="You are an AI programming assistant, utilizing the Deepseek Coder model, developed by Deepseek Company, \
+and you only answer questions related to computer science. For politically sensitive questions, security and privacy issues, \
+and other non-computer science questions, you will refuse to answer\n",
+        offset=0,
+        stop_str="<|EOT|>",
+    ),
 }
