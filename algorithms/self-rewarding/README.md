@@ -30,7 +30,7 @@ IFT script is in the folder of `scripts/ift.sh`. You need to set the following p
 # Assume you are at the folder of self-rewarding
 export DATA_PATH=data/seed.json
 export CONV_TEMPLATE=llama-3-instruct
-export OUTPUT_DIR=saved_models/llama3-8b-ift-temp
+export OUTPUT_DIR=saved_models/llama3-8b-ift
 export MODEL_PATH=/mnt/userdata/hf_models/NousResearch/Meta-Llama-3-8B
 bash scripts/ift.sh
 ```
@@ -50,49 +50,18 @@ bash scripts/eft_data_prepare.sh
 # Assume you are at the folder of self-rewarding
 export DATA_PATH=data/seed.json
 export CONV_TEMPLATE=llama-3-instruct
-export OUTPUT_DIR=saved_models/llama3-8b-ift-temp
+export OUTPUT_DIR=saved_models/llama3-8b-eft
 export MODEL_PATH=/mnt/userdata/hf_models/NousResearch/Meta-Llama-3-8B
-bash scripts/ift.sh
+bash scripts/eft.sh
 ```
 ## Inference iter1
 
 ## DPO iter1
-export DATA_PATH=/share/xudong2022/auto-alignment/algorithms/self-rewarding/data/eft_iter2/preference_data.json
-export CONV_TEMPLATE=llama-3-instruct
-export OUTPUT_DIR=/share/xudong2022/llama_3_8b_oasst_seed_data_eft_dpo_iter2
-export MODEL_PATH=/share/xudong2022/llama_3_8b_oasst_seed_data_eft_dpo_iter1
+
 ## Inference iter2
 
 ## DPO iter2
 
-export DATA_PATH=exp/llama3-8b/eft/iter1/preference_data.json
-export CONV_TEMPLATE=llama-3-instruct
-export OUTPUT_DIR=saved_models/llama3-8b-eft-dpoiter1
-export MODEL_PATH=saved_models/llama3-8b-eft
-
-## Evaluation
-
-## Inference
-
-Here we use a weak instruction-following model (i.e., Qwen2-7B) for context distillation:
-
-```bash
-# inference with the postive and negative prompts
-export TEMPLATE_NAME="chatml"
-export MODEL_NAME="qwen2-7b"
-export SAVED_MODEL_PATH="./pretrained_models/Qwen2-7B"
-source inference_for_rlcd.sh
-bash prepare_for_dpo.sh
-```
-We notice a large number of responses may be identical. A model optimized for system messages might perform better. To avoid model collapse, we filter out contrastive pairs with the same response.
-
-## Learning
-
-After we get the contrastive pairs, we can start training!
-
-```bash
-bash train_dpo.sh
-```
 
 ## Evaluation
 
@@ -100,14 +69,15 @@ bash train_dpo.sh
 
 ## Reference Performance
 
-| Model | Dataset / Algorithm |	MT-Bench | MATH | GSM-8K | HumanEval | MBPP | HumanEval-CN | MBPP-CN | MMLU	| GPQA | CMMLU |C-Eval
+| Model | Dataset / Algorithm |	MT-Bench | IFEval-Pr.(S) | IFEval-Ins.(S) | IFEval-Pr.(L) | IFEval-Ins.(L) | ARC-e | ARC-c | Hellaswag | SIQA | PIQA | GSM8K | MMLU | OpenBookQA | NQ
 | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
-| Qwen-2-7b | Base | 5.03 | 41.3 |	79.76 | 61.59 | 51 | 60.37 | 48.4 |	62.4 |	31.31 |	67.72 |	42.66
-| Qwen-2-7b | Instruct | 8.15	| 25.38 | 81.35	|51.22 | 48.6 | 61.59 | 24.2 | 64.1 | 31.82 | 62.24	| 46.04
-| Qwen-2-7b | Ultrachat | 7.34 | 37.98 | 77.41 |	20.73 |	34.6 | 11.59 | 32.8 | 61.35 | 31.31 | 72.23 | 63.18
-| Qwen-2-7b | rlcd_sys | 7.29	|	20.76 | 52.31 |	35.98 | 36 | 29.88 | 35.4 | 52.89 | 21.21 | 68.98 | 71.35
+| LLama-3-8b | Base(M0) | 1.86 | 23.48 | 35.61 | 26.43 | 39.45 | 69.84 | 45.42 | 74.68 | 46.67 | 80.96 | 55.95 | 66.62 | 50.6 | 16.09
+| LLama-3-8b | IFT(SFT-baseline) | 5.46 | 36.6 | 47.12 | 41.59 | 52.76 | 74.43 | 47.46 | 76.99 | 49.23 | 82.81 | 57.24 | 66.36 | 52.6 | 29.58
+| LLama-3-8b | EFT(M1) | 5.48 | 35.86 | 48.2 | 40.85	| 53.12 | 70.9 | 47.8 | 75.4 | 47.75 | 81.94 | 57.77 | 66.27 | 52 | 29.94
+| LLama-3-8b | Self-Rewarding-iter1(M2) | 5.54	| 36.41 | 48.44 |	41.77 | 53.72 | 70.9 | 47.8 | 75.41 | 47.8 | 81.99 | 57.62 | 66.22 | 52.2 | 29.86
+| LLama-3-8b | Self-Rewarding-iter1(M3) | 5.58	| 36.78 | 48.68 | 41.96 | 53.84 | 71.08 | 48.14	| 75.41 | 47.75 |	81.83	| 57.62 | 66.27 | 52.2 | 29.81
 
-In our reproduction, we can obtain a model with MT-Bench performance approximately equal to that of a model trained on Ultrachat.
+In our reproduction, we can obtain a model with MT-Bench and performance continuincreasing
 
 ## Citation
 
