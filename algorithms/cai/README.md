@@ -9,6 +9,7 @@ hh-rlhf中red team数据:https://huggingface.co/datasets/Anthropic/hh-rlhf/tree/
 sft中使用的helpful数据ultrachat_90k:https://hf-mirror.com/datasets/HuggingFaceH4/ultrachat_200k
 
 cai流程：
+
 1.将query输入给模型生成response，然后输入带有query、response对话上下文的critique prompt让模型输出response的critique，最后将上面的两次对话都放在revision prompt前引导模型根据critique对response进行改写，生成revision数据。注意模型生成response、critique、revision时使用few shot。
 
 2.对revision数据进行过滤后，用<query, revision>数据混合helpful数据对模型进行sft微调。
@@ -18,6 +19,7 @@ cai流程：
 4.最后利用<query, chosen, rejected>对模型进行dpo微调。
 
 注意事项：
+
 1.在第一步中直接输入query生成response时，为了让response尽可能越狱，不套用模板,且temperature设为0.7。后面引导模型输出critique和revision时，这两步需要套用模板，temperature设为0。
 
 2.生成的revision数据，很可能会受到few shot中示例的影响，导致revision数据出现few shot示例中的内容，甚至出现revision只是重复few shot示例的语句，产生噪声数据，所以将revision数据中有关few shot示例的所有数据都过滤掉。
