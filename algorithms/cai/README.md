@@ -1,61 +1,46 @@
 ## CAI
-Building weakly supervised annotation data in the style of the Constitution class.
 
-References:
+cai论文:
+https://arxiv.org/pdf/2212.08073
 
-HF team's ConstitutionAI experiment blog: https://huggingface.co/blog/constitutional_ai
+数据来源:
+hh-rlhf中red team数据:https://huggingface.co/datasets/Anthropic/hh-rlhf/tree/main/red-team-attempts
 
-Original Constitution from ConstitutionAI: https://raw.githubusercontent.com/anthropics/ConstitutionalHarmlessnessPaper/main/prompts/CritiqueRevisionInstructions.json
+sft中使用的helpful数据ultrachat_90k:https://hf-mirror.com/datasets/HuggingFaceH4/ultrachat_200k
 
-HF's revised anthropic Constitution: https://github.com/huggingface/llm-swarm/blob/main/examples/constitutional-ai/constitution_anthropic.json
+cai流程：
+1.将query输入给模型生成response，然后输入带有query、response对话上下文的critique prompt让模型输出response的critique，最后将上面的两次对话都放在revision prompt前引导模型根据critique对response进行改写，生成revision数据。注意模型生成response、critique、revision时使用few shot。
 
-These perference pairs can be collected by running the following scripts:
+2.对revision数据进行过滤后，用<query, revision>数据混合helpful数据对模型进行sft微调。
 
-```bash
-# stage 0: assign constitution
-export PROMPTS_FILE="../../data/train/ultrafeedback_ata.json"
-export OUTPUT_DIR="./outputs"
-export OUTPUT_FILE_NAME="ultrafeedback_ata_stage0.json"
-export STAGE=0
-source prepare_for_stage.sh
+3.使用sft微调后的模型，对query进行temperature参数分别为0、1的两次采样，得到两个response。通过prompt引导模型对两个response进行judge。注意judge时为了避免位置偏差的影响，将两个response依次放在prompt中的首个选项，共judge两次。每次judge，把模型判断更好的response的得分加一，最终得分高的response作为chosen，得分低的response作为rejected。如果两个response得分一样，就将此条数据舍弃。注意模型进行judge时使用few shot。
 
-```
+4.最后利用<query, chosen, rejected>对模型进行dpo微调。
 
-```bash
-# stage 1: generate vanilla response
-export TEMPLATE_NAME="chatml"
-export MODEL_NAME="qwen2-7b"
-export SAVED_MODEL_PATH="./pretrained_models/Qwen2-7B"
+注意事项：
+1.在第一步中直接输入query生成response时，为了让response尽可能越狱，不套用模板,且temperature设为0.7。后面引导模型输出critique和revision时，这两步需要套用模板，temperature设为0。
 
-export C_PROMPTS_FILE="${OUTPUT_DIR}/${OUTPUT_FILE_NAME}"
-export OUTPUT_FILE_NAME="ultrafeedback_ata_stage1.json"
-export START_STAGE=1
-source prepare_for_stage.sh
-```
+2.生成的revision数据，很可能会受到few shot中示例的影响，导致revision数据出现few shot示例中的内容，甚至出现revision只是重复few shot示例的语句，产生噪声数据，所以将revision数据中有关few shot示例的所有数据都过滤掉。
 
-```bash
-# stage 2: generate cretique
-export LAST_STAGE_OUTPUT="${OUTPUT_DIR}/${MODEL_NAME}/${MODEL_NAME}_cai_stage${START_STAGE}_${OUTPUT_FILE_NAME}"
-export OUTPUT_FILE_NAME="ultrafeedback_ata_stage2.json"
-export START_STAGE=2
-source prepare_for_stage.sh
-```
+3.进行sft微调时，不能只使用<query, revision>数据，不然会导致模型过拟合。所以要混合helpful数据，我们这里设置helpful数据数量是<query, revision>数据的2.5倍。
 
-```bash
-# stage 3: generate revision response
-export LAST_STAGE_OUTPUT="${OUTPUT_DIR}/${MODEL_NAME}/${MODEL_NAME}_cai_stage${START_STAGE}_${OUTPUT_FILE_NAME}"
-export OUTPUT_FILE_NAME="ultrafeedback_ata_stage3.json"
-export START_STAGE=3
-source prepare_for_stage.sh
-```
+4.模型在judge时，要套用模板，提高模型judge能力，否则模型可能根本不进行judge。
 
-```bash
-# format chosen and rejected data
-source prepare_for_dpo.sh
-```
+``` bash
+export PROMPTS_FILE="poison_en.json"
+export POSITVE_CHAT_FILE="ultra_90k.json"
+export OUTPUT_DIR="./outputs/"
+export MODEL_NAME="mistral_7b_v0.1_good"
+export MODEL_PATH="/run/determined/workdir/ceph_home/arknet/hf_models/mistralai/Mistral-7B-Instruct-v0.1"
+export OUTPUT_CHOSEN_FILE_NAME="${MODEL_NAME}_poison_en_chosen.json"
+export OUTPUT_REJECTED_FILE_NAME="${MODEL_NAME}_poison_en_rejected.json"
+export OUTPUT_CAI_FILE_NAME="${MODEL_NAME}_cai_poison_en.json"
+export OUTPUT_SFT_FILE_NAME="${MODEL_NAME}_sft_poison_en.json"
+export OUTPUT_DPO_FILE_NAME="${MODEL_NAME}_dpo_poison_en.json"
+export SAVE_MODEL_DIR="./saved_models/"
+export SFT_MODEL_NAME="${MODEL_NAME}_sft_poison_en"
+export DPO_MODEL_NAME="${MODEL_NAME}_sft_dpo_poison_en"
+export CONV_TEMPLATE="mistral-instruct"
 
-Then start training!
-
-```bash
-bash train_dpo.sh
+bash cai.sh
 ```
