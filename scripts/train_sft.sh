@@ -1,3 +1,5 @@
+unset SETUPTOOLS_USE_DISTUTILS
+export OMP_NUM_THREADS=4
 autoalign-cli sft \
     --model_name_or_path ${MODEL_PATH:-"Qwen2/Qwen2-7B"}  \
     --data_path ${DATA_PATH:-"data/dummy_sft.json"} \

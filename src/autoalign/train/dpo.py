@@ -110,7 +110,7 @@ def run_dpo():
     trainer = DPOTrainer(
         model,
         model_refer,
-        tokenizer=tokenizer,
+        processing_class=tokenizer,
         args=training_args,
         train_dataset=dataset,
     )
