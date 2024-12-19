@@ -286,14 +286,11 @@ class MultiProcessVllmInferencer:
 
         self.sampling_params = SamplingParams(
             max_tokens=max_new_tokens,
-            use_beam_search=(not do_sample) and (not num_beams == 1),
             best_of=num_beams,
             temperature=temperature,
             top_p=top_p,
             top_k=top_k,
-            length_penalty=1.0,
-            frequency_penalty=frequency_penalty,
-            early_stopping=False,
+            frequency_penalty=frequency_penalty
         )
 
         self.use_ray = False
