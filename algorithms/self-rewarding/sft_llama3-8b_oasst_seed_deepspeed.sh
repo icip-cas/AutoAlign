@@ -1,9 +1,0 @@
-export DATA_PATH=algorithms/self-rewarding/data/oasst1/train_eft_data.json
-export CONV_TEMPLATE=llama-3-instruct
-export OUTPUT_DIR=/mnt/userdata/data6/xudong2022/fastalign/saved_models/llama_3_8b_oasst_seed_data_eft
-export MODEL_PATH=/mnt/userdata/data6/xudong2022/fastalign/saved_models/llama_3_8b_oasst_seed_data
-export GA=32
-export DS_CONFIG=configs/zero2.json
-export TRAIN_BATCH_SIZE=1
-export REPORT_TO=wandb
-bash scripts/train_sft.sh

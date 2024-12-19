@@ -106,8 +106,57 @@ bash scripts/dpo_iter2.sh
 2. Use `autoalign-cli eval` to evaluate on subjective datasets: MT-Bench and Alpaca-Eval
 3. Evaluation split of EFT data is used to judge the ability of LLM-as-a-judge.
 
+We have implemented an integrated evaluation python script at `src/eval.py`.
+
+### Objective Evaluation
+For opencompass (objective evaluation), here is an example:
+```bash
+# Assume you are at the folder of self-rewarding
+export MODEL_PATH=saved_models/llama3-8b-eft-dpo-iter2
+export TEMPLATE_NAME=llama-3-instruct
+export MODEL_NAME=llama3-8b-eft-dpo-iter2
+export EVAL_TYPE=objective
+bash scripts/run_eval.sh
+```
+Note: For this part of the dataset and each model, the results shown in the next section are the **better ones** between those with the dialogue embedded in the template and those without template. The above script is evaluation with template, while the following script has no template.
+
+```bash
+# Assume you are at the folder of self-rewarding
+export MODEL_PATH=saved_models/llama3-8b-eft-dpo-iter2
+export TEMPLATE_NAME=None
+export MODEL_NAME=llama3-8b-eft-dpo-iter2
+export EVAL_TYPE=objective
+bash scripts/run_eval.sh
+```
+The result can be find in the newest subfolder in `outputs/{MODEL_NAME}` relative to the root folder of self-rewarding.
+
+### Subjective Evaluation
+For subjective evaluation, here is an example:
+```bash
+# Assume you are at the folder of self-rewarding
+export MODEL_PATH=saved_models/llama3-8b-eft-dpo-iter2
+export TEMPLATE_NAME=llama-3-instruct
+export MODEL_NAME=llama3-8b-eft-dpo-iter2
+export EVAL_TYPE=subjective
+bash scripts/run_eval.sh
+```
+The answer file can be find in the newest subfolder in `data/alpaca/{MODEL_NAME}/{MODEL_NAME}.jsonl` or  `data/eval/mt-bench/model_answer/{MODEL_NAME}.jsonl` relative to the root folder of **auto-alignment**.
+
+### LLM-as-a-Judge
+For llm-as-a-judge evaluation here is an example:
+```bash
+# Assume you are at the folder of self-rewarding
+export MODEL_PATH=saved_models/llama3-8b-eft-dpo-iter2
+export TEMPLATE_NAME=llama-3-instruct
+export MODEL_NAME=llama3-8b-eft-dpo-iter2
+export EVAL_TYPE=llm-as-a-judge
+bash scripts/run_eval.sh
+```
+The result will be showed at the stdout.
 
 ## Reference Performance
+
+### Instruction following Evaluation
 
 | Model | Dataset / Algorithm |MT-Bench | IFEval-Pr.(S) | IFEval-Ins.(S) | IFEval-Pr.(L) | IFEval-Ins.(L) | IFEval(Avg.)
 | -- | -- | -- | -- | -- | -- | -- | --
@@ -116,8 +165,11 @@ bash scripts/dpo_iter2.sh
 | LLama-3-8b | EFT(M1) | 5.48 | 35.86 | 48.2 | 40.85	| 53.12 | 44.51
 | LLama-3-8b | Self-Rewarding-iter1(M2) | 5.54	| 36.41 | 48.44 |	41.77 | 53.72 | 45.09
 | LLama-3-8b | Self-Rewarding-iter1(M3) | 5.58	| 36.78 | 48.68 | 41.96 | 53.84 | 45.32
+| LLama-3-8b | Instruct | 6.7	| 68.58 | 77.1 | 75.79 | 83.09 | 76.14
 
-In our reproduction, with self-rewarding, the model performance on MT-Bench and IFEval continuously improves.
+In our reproduction, with self-rewarding, the model performance on MT-Bench and IFEval continuously improves. However, there is still a gap between M3 model's performance and that of the Instruct model.
+
+### Other Instruction Datasets
 
 | Model | Dataset / Algorithm |  ARC-e | ARC-c | Hellaswag | SIQA | PIQA | GSM8K | MMLU | OpenBookQA | NQ
 | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | --
@@ -126,16 +178,20 @@ In our reproduction, with self-rewarding, the model performance on MT-Bench and 
 | LLama-3-8b | EFT(M1) | 70.9 | 47.8 | 75.4 | 47.75 | 81.94 | 57.77 | 66.27 | 52 | 29.94
 | LLama-3-8b | Self-Rewarding-iter1(M2) | 70.9 | 47.8 | 75.41 | 47.8 | 81.99 | 57.62 | 66.22 | 52.2 | 29.86
 | LLama-3-8b | Self-Rewarding-iter1(M3) |  71.08 | 48.14 | 75.41 | 47.75 | 81.83 | 57.62 | 66.27 | 52.2 | 29.81
+| LLama-3-8b | Instruct | 69.49 | 48.47 | 67.48 | 52.25 | 79 | 79.61 | 67.9 | 74 | 24.82
 
-On 9 other instruction datasets, ift, eft and dpo maintain the performance.
+On 9 other instruction datasets, ift, eft and dpo maintain the performance of base model (M0).
+
+### LLM-as-a-Judge Evaluation
 
 | Model | Dataset / Algorithm | exact acc(%)| five fullmark(%) | spearman | kendall $\tau$
 | -- | -- | -- | -- | -- | --
-| LLama-3-8b | Base(M0) |  - | - | - | -
+| LLama-3-8b | Base(M0) |  - | - | - | - | -
 | LLama-3-8b | IFT(SFT-baseline) | 5.08 | 20.53 | -0.06 | -0.0507
 | LLama-3-8b | EFT(M1) | 28.44 | 100 | 0.4502 | 0.3843
 | LLama-3-8b | Self-Rewarding-iter1(M2) | 29.19	| 100	| 0.452 | 0.3865
 | LLama-3-8b | Self-Rewarding-iter1(M3) | 27.87 | 100	 | 0.4615 | 0.3945
+| LLama-3-8b | Instruct |  - | - | - | - | -
 
 Both EFT and the subsequent self-rewarding can improve the Spearman and Kendall Tau correlation coefficients between the model scores and the human scores.
 ## Citation
