@@ -249,7 +249,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--template-name",
         type=str,
-        help="The input question file path.",
+        help="The chat template used in inference.",
     )
 
     args = parser.parse_args()

@@ -14,7 +14,7 @@ autoalign-cli sft \
     --eval_steps ${EVAL_STEPS:-"1500"} \
     --save_strategy ${SAVE_STRATEGY:-"epoch"} \
     --learning_rate ${LR:-"2e-5"} \
-    --weight_decay 0. \
+    --weight_decay ${WD:-0.} \
     --warmup_ratio ${WARMUP_RATIO:-0.04} \
     --lr_scheduler_type ${LR_SCHEDULE:-"cosine"} \
     --report_to ${REPORT_TO:-"tensorboard"} \
@@ -25,4 +25,5 @@ autoalign-cli sft \
     --deepspeed ${DS_CONFIG:-"configs/zero3.json"} \
     --ddp_timeout 18000 \
     --lazy_preprocess ${LAZY:-"False"} \
-    --eval_num ${EVAL_NUM:-"0"}
+    --eval_num ${EVAL_NUM:-"0"} \
+    --num_workers 8

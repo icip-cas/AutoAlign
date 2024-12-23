@@ -1,7 +1,7 @@
-export DATA_PATH=data/train/infinite_7m.json
+export DATA_PATH=path/to/infinite_7m.json
 export CONV_TEMPLATE=chatml-keep-system
 export OUTPUT_DIR=saved_models/qwen2-7b_infinite
-export MODEL_PATH=pretrained_models/Qwen2-7B
+export MODEL_PATH=Qwen/Qwen2-7B
 export GA=16
 export DS_CONFIG=configs/zero2.json
 export LR=5e-6

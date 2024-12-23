@@ -8,6 +8,7 @@ from transformers.utils import (
 import logging
 import sys
 import os
+import subprocess
 
 
 def read_json(data_path):
@@ -70,3 +71,16 @@ def remove_file_if_user_confirms(file_path):
     else:
         print(f"File '{file_path}' does not exist.")
         return False
+
+
+def get_available_gpu_list():
+    try:
+        result = subprocess.check_output(
+            ["nvidia-smi", "--query-gpu=index", "--format=csv,noheader,nounits"]
+        )
+        output = result.decode("utf-8")
+        gpu_list = output.strip().split("\n")
+        return gpu_list
+    except subprocess.CalledProcessError as e:
+        print(f"Error occurred while getting GPU information: {e}")
+        return []

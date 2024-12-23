@@ -1,7 +1,7 @@
-export DATA_PATH=/ciphome/wenxueru2022/auto-alignment/data/ultrachat.json
+export DATA_PATH=path/to/ultrachat.json
 export CONV_TEMPLATE=glm-4-chat-keep-system
 export OUTPUT_DIR=saved_models/glm-4-9b_ultrachat
-export MODEL_PATH=/data7/pretrained_models/glm-4-9b
+export MODEL_PATH=THUDM/glm-4-9b
 export GA=16
 export DS_CONFIG=configs/zero2.json
 export REPORT_TO="wandb"

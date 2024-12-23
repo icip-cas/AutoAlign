@@ -1,7 +1,7 @@
-export DATA_PATH=data/train/infinite_7m.json
+export DATA_PATH=path/to/infinite_7m.json
 export CONV_TEMPLATE=llama-3-instruct
-export OUTPUT_DIR=./saved_models/llama-31-8b_infinite
-export MODEL_PATH=pretrained_models/Meta-Llama-3.1-8B
+export OUTPUT_DIR=saved_models/llama-31-8b_infinite
+export MODEL_PATH=meta-llama/Meta-Llama-3.1-8B
 export GA=16
 export DS_CONFIG=configs/zero2.json
 export REPORT_TO="wandb"
