@@ -27,7 +27,22 @@ def parse_args(args: list):
 
     parser = ArgumentParser()
     parser.add_argument("--config-path", type=str, default=None, required=True)
-    parser.add_argument("--force", action="store_true")
+    parser.add_argument(
+        "--force", action="store_true", help="Forcely overwrite the conflict files."
+    )
+    parser.add_argument(
+        "--subjective_generate_only",
+        action="store_true",
+        help="Do not use API to evaluate subjective datasets.",
+    )
+    parser.add_argument(
+        "-r",
+        "--reuse",
+        type=str,
+        default=None,
+        required=False,
+        help="If the previous OpenCompass evaluation crashed, reuse the evaluation log folders. This parameter is to set the folder path.",
+    )
     args = parser.parse_args(args)
     return args
 
@@ -117,20 +132,28 @@ def generate_config(
         )
     if not os.path.isdir("configs"):
         os.makedirs("configs")
-    config_path = "configs/{model_name}.py".format(model_name=model_name)
+    config_path = "configs/{model_name}-{template}.py".format(
+        model_name=model_name, template=template_name
+    )
     with open(config_path, "w") as file:
         file.write(config)
     return os.path.join("../", config_path)
 
 
-def start_opencompass(work_dir, config_path, opencompass_path):
+def start_opencompass(work_dir, config_path, opencompass_path, reuse):
     command = [
-        "cd {opencompass_path} \n python run.py {config_path} --work-dir {work_dir}".format(
-            config_path=config_path,
-            opencompass_path=opencompass_path,
-            work_dir=os.path.join("..", work_dir),
+        "cd {opencompass_path} \npython run.py {config_path} ".format(
+            config_path=config_path, opencompass_path=opencompass_path
         )
     ]
+    if reuse is not None:
+        if not reuse.startswith("/"):
+            reuse = os.path.join("../../..", reuse)
+        command[0] += "--reuse {reuse_dir}".format(reuse_dir=reuse)
+    else:
+        command[0] += "--work-dir {work_dir}".format(
+            work_dir=os.path.join("..", work_dir)
+        )
     try:
         process = subprocess.Popen(command, shell=True, text=True, preexec_fn=os.setsid)
         # wait
@@ -293,11 +316,12 @@ def run_alpaca_eval(
     batch_size: int,
     template_name: str,
     judge_model: str,
+    alpaca_path: str,
     args,
 ) -> None:
     print("run_alpaca_eval")
     eval_set = datasets.load_dataset(
-        "tatsu-lab/alpaca_eval", "alpaca_eval", trust_remote_code=True
+        alpaca_path, "alpaca_eval", trust_remote_code=True
     )["eval"]
     logger.info(
         f"Running ALPaCA evaluation for model: {model_name}, model_path: {model_path}"
@@ -331,18 +355,22 @@ def run_alpaca_eval(
             json.dump(datas, f, indent=4)
     logger.info("outputs generated, starting to evaluate")
 
-    command = f"""alpaca_eval --model_outputs data/alpaca/{model_name}/{model_name}_outputs.json \
-    --output_path data/alpaca/{model_name}/ \
-    --annotators_config {judge_model} \
-    --is_overwrite_leaderboard"""
-    logger.info(f"Start Runing alpacal eval\n {command=}")
-    process = subprocess.run(command, shell=True)
-    if process.returncode != 0:
-        logger.error(
-            "alpaca evaluation failed, we will continue to run the next evaluation"
-        )
+    if args.subjective_generate_only:
+        logger.info("Jump alpaca evaluation, finished with generation only")
     else:
-        logger.info("alpaca evaluation finished")
+        command = f"""alpaca_eval --model_outputs data/alpaca/{model_name}/{model_name}_outputs.json \
+        --output_path data/alpaca/{model_name}/ \
+        --annotators_config {judge_model} \
+        --is_overwrite_leaderboard"""
+        logger.info(f"Start Runing alpacal eval\n {command=}")
+        process = subprocess.run(command, shell=True)
+        if process.returncode != 0:
+            logger.error(
+                "alpaca evaluation failed, we will continue to run the next evaluation"
+            )
+        else:
+            logger.info("alpaca evaluation finished")
+
     return
 
 
@@ -411,23 +439,29 @@ def run_mt_bench_eval(
         process = subprocess.run(command, shell=True)
         if process.returncode != 0:
             logger.error(
-                "mt-bench evaluation failed, we will continue to run the next evaluation"
+                "mt-bench evaluation failed when generating answers, we will continue to run the next evaluation"
             )
         else:
-            logger.info("alpaca evaluation finished")
+            logger.info(f"mt-bench generation saved in {answer_file}")
 
     logger.info("mt-bench generation finished")
-    logger.info("starting to evaluate")
 
-    if os.path.exists(judge_file) and not remove_file_if_user_confirms(judge_file):
-        logger.info(f"Using existing judge file at {judge_file}")
-
+    if args.subjective_generate_only:
+        logger.info("Jump mt-bench evaluation, finished with generation only")
     else:
-        judge_mt_bench(model_list=[model_name], parallel=4, mtpath=mtpath)
+        logger.info("starting to evaluate")
 
-    logger.info("mt-bench evaluation finished")
+        if os.path.exists(judge_file) and not remove_file_if_user_confirms(judge_file):
+            logger.info(f"Using existing judge file at {judge_file}")
 
-    display_result_single("mt_bench", judge_file, "gpt-4", [model_name])
+        else:
+            judge_mt_bench(model_list=[model_name], parallel=4, mtpath=mtpath)
+
+        logger.info("mt-bench evaluation finished")
+
+        display_result_single("mt_bench", judge_file, "gpt-4", [model_name])
+
+    return
 
 
 def transpose_and_format_dataframe(input_dataframe, output_txt_path):
@@ -495,7 +529,7 @@ def run_objective_eval(
         template_name,
     )
     # start_opencompass process
-    start_opencompass(work_dir, config_path, opencompass_path)
+    start_opencompass(work_dir, config_path, opencompass_path, args.reuse)
     # summarize the results and display
     ordered_df = handle_result(model_name, work_dir)
     if not os.path.isdir("outputs"):
@@ -522,6 +556,9 @@ def run_eval(args) -> None:
     template_name = config["template_name"]
     # num_gpus = torch.cuda.device_count()
     mtpath = config["mt_path"]
+    alpaca_path = (
+        config["alpaca_path"] if "alpaca_path" in config else "tatsu-lab/alpaca_eval"
+    )
     per_model_gpu = config["per_model_gpu"]
     opencompass_path = config["opencompass_path"]
     opencompass_backend = config["backend"]
@@ -554,7 +591,13 @@ def run_eval(args) -> None:
             args,
         )
         run_alpaca_eval(
-            model_name, model_path, batch_size, template_name, judge_model, args
+            model_name,
+            model_path,
+            batch_size,
+            template_name,
+            judge_model,
+            alpaca_path,
+            args,
         )
     else:
         logger.error(f"eval_type {eval_type} not supported")

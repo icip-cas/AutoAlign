@@ -1,7 +1,7 @@
-export DATA_PATH=data/train/infinite_7m.json
+export DATA_PATH=path/to/infinite_7m.json
 export CONV_TEMPLATE=llama-2-chat-keep-system
-export OUTPUT_DIR=./saved_models/tinyllama_infinite
-export MODEL_PATH=pretrained_models/TinyLlama-1.1B-intermediate-step-1431k-3T
+export OUTPUT_DIR=saved_models/tinyllama_infinite
+export MODEL_PATH=TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T
 export GA=4
 export DS_CONFIG=configs/zero2.json
 export REPORT_TO="wandb"

@@ -1,9 +1,0 @@
-export DATA_PATH=data/seed.json
-export CONV_TEMPLATE=llama-3-instruct
-export OUTPUT_DIR=/data6/xudong2022/fastalign/saved_models/llama-3-8b_oasst_seed_data
-export MODEL_PATH=pretrained_models/NousResearch/Meta-Llama-3-8B
-export GA=32
-export DS_CONFIG=configs/zero2.json
-export TRAIN_BATCH_SIZE=1
-export REPORT_TO=wandb
-bash scripts/train_sft.sh

@@ -52,6 +52,17 @@ def preprocess(sample, conv_template_name):
     )
 
 
+def trainer_save_model_safe(trainer: transformers.Trainer):
+    from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
+    from torch.distributed.fsdp import StateDictType, FullStateDictConfig
+
+    save_policy = FullStateDictConfig(offload_to_cpu=True, rank0_only=True)
+    with FSDP.state_dict_type(
+        trainer.model, StateDictType.FULL_STATE_DICT, save_policy
+    ):
+        trainer.save_model()
+
+
 def run_dpo():
     # parse arguments
     parser = transformers.HfArgumentParser((ModelArguments, DataArguments, DPOConfig))
@@ -121,6 +132,15 @@ def run_dpo():
         trainer.train(resume_from_checkpoint=True)
     else:
         trainer.train()
+
+    # Save model
+    model.config.use_cache = True
+    trainer.save_state()
+    tokenizer.save_pretrained(training_args.output_dir)
+    if trainer.is_deepspeed_enabled:
+        trainer.save_model()
+    else:
+        trainer_save_model_safe(trainer)
 
 
 if __name__ == "__main__":
