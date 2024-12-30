@@ -97,6 +97,12 @@ def get_model_answers(
 ):
     inferencer = HFInferencer(model_path)
     tokenizer = inferencer.get_tokenizer()
+    added_vocab = tokenizer.get_added_vocab()
+    bad_tokens = [
+        added_vocab[key]
+        for key in added_vocab.keys()
+        if "reserved_special_token" in key
+    ]
     for question in tqdm(questions):
         if question["category"] in temperature_config:
             temperature = temperature_config[question["category"]]
@@ -126,7 +132,10 @@ def get_model_answers(
                 try:
                     if not do_sample:
                         output = inferencer.inference(
-                            prompt, do_sample=do_sample, max_new_tokens=max_new_token
+                            prompt,
+                            do_sample=do_sample,
+                            max_new_tokens=max_new_token,
+                            bad_words_ids=bad_tokens,
                         )
                     else:
                         output = inferencer.inference(
@@ -134,6 +143,7 @@ def get_model_answers(
                             temperature=temperature,
                             do_sample=do_sample,
                             max_new_tokens=max_new_token,
+                            bad_words_ids=bad_tokens,
                         )
 
                     if conv.template.stop_str and isinstance(
