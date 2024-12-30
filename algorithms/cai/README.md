@@ -1,32 +1,58 @@
-## CAI
+# CAI Process
 
-cai论文:
-https://arxiv.org/pdf/2212.08073
+## Paper Reference
+[CAI Paper](https://arxiv.org/pdf/2212.08073)
 
-数据来源:
-hh-rlhf中red team数据:https://huggingface.co/datasets/Anthropic/hh-rlhf/tree/main/red-team-attempts
+## Data Sources
+1. **Red Team Data** from HH-RLHF: [Dataset Link](https://huggingface.co/datasets/Anthropic/hh-rlhf/tree/main/red-team-attempts)  
+2. **Helpful Data** used in SFT, UltraChat_90k: [Dataset Link](https://hf-mirror.com/datasets/HuggingFaceH4/ultrachat_200k)  
 
-sft中使用的helpful数据ultrachat_90k:https://hf-mirror.com/datasets/HuggingFaceH4/ultrachat_200k
+## Workflow
 
-cai流程：
+### 1. Generating Revision Data
+- Input a query into the model to generate a response.
+- Use the generated response and the query as context for a critique prompt, allowing the model to produce a critique of the response.
+- Subsequently, input the query, response, and critique into a revision prompt to guide the model in revising the response based on the critique, creating revision data.
+- **Note**: When generating the response, critique, and revision, use few-shot prompting.
 
-1.将query输入给模型生成response，然后输入带有query、response对话上下文的critique prompt让模型输出response的critique，最后将上面的两次对话都放在revision prompt前引导模型根据critique对response进行改写，生成revision数据。注意模型生成response、critique、revision时使用few shot。
+### 2. Fine-Tuning with SFT
+- Filter the revision data to remove noisy or irrelevant examples.
+- Combine the filtered `<query, revision>` data with the helpful dataset for fine-tuning the model using supervised fine-tuning (SFT).
+- Ensure the number of helpful data samples is **2.5 times** that of the `<query, revision>` data to avoid overfitting to the revision data.
 
-2.对revision数据进行过滤后，用<query, revision>数据混合helpful数据对模型进行sft微调。
+### 3. Judging Responses
+- Use the SFT model to sample two responses for each query with temperature values of **0** and **1**.  
+- Guide the model to judge the quality of the two responses through a prompt.  
+  - To mitigate positional bias, place each response in the first position once, resulting in **two judgments**.  
+  - For each judgment, increment the score of the preferred response by one.  
+  - The response with the higher overall score is marked as **chosen**, while the other is marked as **rejected**.  
+  - If the scores are tied, discard the data for that query.  
+- **Note**: Few-shot prompting should be used during the judgment phase.
 
-3.使用sft微调后的模型，对query进行temperature参数分别为0、1的两次采样，得到两个response。通过prompt引导模型对两个response进行judge。注意judge时为了避免位置偏差的影响，将两个response依次放在prompt中的首个选项，共judge两次。每次judge，把模型判断更好的response的得分加一，最终得分高的response作为chosen，得分低的response作为rejected。如果两个response得分一样，就将此条数据舍弃。注意模型进行judge时使用few shot。
+### 4. DPO Fine-Tuning
+- Use the `<query, chosen, rejected>` dataset to fine-tune the model with Direct Preference Optimization (DPO).
 
-4.最后利用<query, chosen, rejected>对模型进行dpo微调。
+## Key Notes
 
-注意事项：
+### Response Generation in Step 1
+- When generating the initial response for a query:
+  - Avoid using templates to encourage response jailbreaking.
+  - Set the temperature to **0.7**.
+- For critique and revision generation:
+  - Use templates to guide the output.
+  - Set the temperature to **0**.
 
-1.在第一步中直接输入query生成response时，为了让response尽可能越狱，不套用模板,且temperature设为0.7。后面引导模型输出critique和revision时，这两步需要套用模板，temperature设为0。
+### Filtering Revision Data
+- Revision data may contain noise due to the influence of few-shot examples, which can result in revisions merely repeating or copying phrases from the few-shot examples.  
+- **Filter out all such data associated with the few-shot examples**.
 
-2.生成的revision数据，很可能会受到few shot中示例的影响，导致revision数据出现few shot示例中的内容，甚至出现revision只是重复few shot示例的语句，产生噪声数据，所以将revision数据中有关few shot示例的所有数据都过滤掉。
+### Balancing Data for SFT
+- Only using `<query, revision>` data for SFT can lead to overfitting.  
+- Combine it with helpful data at a **1:2.5 ratio**.
 
-3.进行sft微调时，不能只使用<query, revision>数据，不然会导致模型过拟合。所以要混合helpful数据，我们这里设置helpful数据数量是<query, revision>数据的2.5倍。
-
-4.模型在judge时，要套用模板，提高模型judge能力，否则模型可能根本不进行judge。
+### Judgment Template
+- Ensure the model uses templates during judgment to enhance its judgment capabilities.  
+- Without templates, the model might fail to properly compare the two responses.
 
 ``` bash
 export PROMPTS_FILE="poison_en.json"
