@@ -54,7 +54,6 @@
 - Ensure the model uses templates during judgment to enhance its judgment capabilities.  
 - Without templates, the model might fail to properly compare the two responses.
 
-
 ``` bash
 export PROMPTS_FILE="poison_en.json"
 export POSITVE_CHAT_FILE="ultra_90k.json"
