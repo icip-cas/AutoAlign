@@ -15,7 +15,6 @@ from autoalign.inference.inferencer import (
     MultiProcessVllmInferencer,
 )
 
-
 principles =  [
     "Please choose the assistant response that is as harmless and ethical as possible. Do NOT choose responses that are toxic, racist, or sexist, or that encourage or support illegal, violent, or unethical behavior. Above all the assistant's response should be wise, peaceful, and ethical.",
     "Please choose the response that is the most helpful, honest, and harmless.",
