@@ -10,6 +10,7 @@ from tqdm import tqdm
 from autoalign.eval.utils import load_questions, temperature_config
 from autoalign.conversation import Conversation, Role
 from autoalign.inference.inferencer import HFInferencer
+from vllm import LLM, SamplingParams
 
 
 def inference_mt_bench(
@@ -23,6 +24,7 @@ def inference_mt_bench(
     max_new_token,
     num_choices,
     num_gpus_per_model,
+    backend,
 ):
     questions = load_questions(question_file, question_begin, question_end)
     # random shuffle the questions to balance the loading
@@ -40,6 +42,7 @@ def inference_mt_bench(
             answer_file,
             max_new_token,
             num_choices,
+            backend,
         )
     elif process_num > 1:
         import ray
@@ -60,6 +63,7 @@ def inference_mt_bench(
                         answer_file,
                         max_new_token,
                         num_choices,
+                        backend,
                     )
                 )
         else:
@@ -79,6 +83,7 @@ def inference_mt_bench(
                         answer_file,
                         max_new_token,
                         num_choices,
+                        backend,
                     )
                 )
 
@@ -94,15 +99,14 @@ def get_model_answers(
     answer_file,
     max_new_token,
     num_choices,
+    backend="vllm",
 ):
-    inferencer = HFInferencer(model_path)
-    tokenizer = inferencer.get_tokenizer()
-    added_vocab = tokenizer.get_added_vocab()
-    bad_tokens = [
-        added_vocab[key]
-        for key in added_vocab.keys()
-        if "reserved_special_token" in key
-    ]
+    if backend == "hf":
+        inferencer = HFInferencer(model_path)
+        tokenizer = inferencer.get_tokenizer()
+    elif backend == "vllm":
+        llm = LLM(model=model_path, gpu_memory_utilization=0.95)
+        tokenizer = llm.get_tokenizer()
     for question in tqdm(questions):
         if question["category"] in temperature_config:
             temperature = temperature_config[question["category"]]
@@ -120,31 +124,31 @@ def get_model_answers(
                 qs = question["turns"][j]
                 conv.append_message(Role.HUMAN, qs)
                 prompt = conv.get_conversation_str(add_generation_prompt=True)
-
-                if temperature < 1e-4:
-                    do_sample = False
-                else:
-                    do_sample = True
+                if backend == "hf":
+                    if temperature < 1e-4:
+                        do_sample = False
+                    else:
+                        do_sample = True
+                elif backend == "vllm":
+                    sampling_params = SamplingParams(
+                        temperature=temperature if temperature > 1e-4 else 0.0,
+                        max_tokens=max_new_token,
+                    )
 
                 # print("Input:", prompt)
 
                 # some models may error out when generating long outputs
                 try:
-                    if not do_sample:
+                    if backend == "hf":
                         output = inferencer.inference(
                             prompt,
+                            temperature=temperature if do_sample else 0.0,
                             do_sample=do_sample,
                             max_new_tokens=max_new_token,
-                            bad_words_ids=bad_tokens,
                         )
-                    else:
-                        output = inferencer.inference(
-                            prompt,
-                            temperature=temperature,
-                            do_sample=do_sample,
-                            max_new_tokens=max_new_token,
-                            bad_words_ids=bad_tokens,
-                        )
+                    elif backend == "vllm":
+                        outputs = llm.generate([prompt], sampling_params)
+                        output = outputs[0].outputs[0].text
 
                     if conv.template.stop_str and isinstance(
                         conv.template.stop_str, list
@@ -261,7 +265,13 @@ if __name__ == "__main__":
         type=str,
         help="The chat template used in inference.",
     )
-
+    parser.add_argument(
+        "--backend",
+        type=str,
+        choices=["hf", "vllm"],
+        help="The backend used in inference.",
+        default="vllm",
+    )
     args = parser.parse_args()
 
     if args.question_file:
@@ -287,6 +297,7 @@ if __name__ == "__main__":
         max_new_token=args.max_new_token,
         num_choices=args.num_choices,
         num_gpus_per_model=args.num_gpus_per_model,
+        backend=args.backend,
     )
 
     reorg_answer_file(answer_file)

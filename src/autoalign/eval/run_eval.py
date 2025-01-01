@@ -5,7 +5,7 @@ import torch
 from vllm import LLM, SamplingParams
 import yaml
 import os
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, AutoModelForCausalLM
 import tqdm
 import pandas as pd
 import signal
@@ -283,15 +283,20 @@ def warn_duplicate(model_name, position):
             print("Invalid input, tap your keyboard again.")
 
 
-def build_data(datas, batch_size, tokenizer, model_path, template_name) -> list:
-    llm = LLM(
-        model=model_path,
-        enforce_eager=True,
-        tensor_parallel_size=torch.cuda.device_count(),
-    )
-    sampling_params = SamplingParams(
-        temperature=0, top_p=1, skip_special_tokens=True, max_tokens=2048
-    )
+def build_data(datas, batch_size, model_path, template_name, backend) -> list:
+    if backend == "vllm":
+        llm = LLM(
+            model=model_path,
+            enforce_eager=True,
+            tensor_parallel_size=torch.cuda.device_count(),
+        )
+        sampling_params = SamplingParams(
+            temperature=0, top_p=1, skip_special_tokens=True, max_tokens=2048
+        )
+    elif backend == "hf":
+        model = AutoModelForCausalLM.from_pretrained(model_path, device_map="auto")
+        tokenizer = AutoTokenizer.from_pretrained(model_path)
+
     sorted_datas = sorted(datas, key=lambda x: len(x["instruction"]))
     dealdatas = []
     batch_num = (len(sorted_datas) - 1) // batch_size + 1
@@ -302,10 +307,35 @@ def build_data(datas, batch_size, tokenizer, model_path, template_name) -> list:
             conv = Conversation.from_template(template_name)
             conv.append_message(Role.HUMAN, data["instruction"])
             prompts.append(conv.get_conversation_str(add_generation_prompt=True))
-        outputs = llm.generate(prompts, sampling_params, use_tqdm=False)
+        if backend == "vllm":
+            outputs = llm.generate(prompts, sampling_params, use_tqdm=False)
+        elif backend == "hf":
+            device = model.device
+            tokenizer.pad_token = tokenizer.eos_token
+            inputs = tokenizer(
+                prompts, return_tensors="pt", padding=True, padding_side="left"
+            ).to(device)
+            output_ids = model.generate(
+                **inputs,
+                temperature=0,
+                top_p=1,
+                do_sample=False,
+                max_new_tokens=2048,
+            )
+            if model.config.is_encoder_decoder:
+                output_ids = output_ids
+            else:
+                output_ids = output_ids[:, len(inputs["input_ids"][0]) :]
+            generated_text = tokenizer.batch_decode(
+                output_ids, skip_special_tokens=True
+            )
         for j, data in enumerate(batch_datas):
-            data["prompt"] = data["instruction"]
-            data["output"] = outputs[j].outputs[0].text.strip()
+            if backend == "vllm":
+                data["prompt"] = data["instruction"]
+                data["output"] = outputs[j].outputs[0].text.strip()
+            elif backend == "hf":
+                data["prompt"] = data["instruction"]
+                data["output"] = generated_text[j].strip()
             dealdatas.append(data.copy())
     return dealdatas
 
@@ -317,6 +347,7 @@ def run_alpaca_eval(
     template_name: str,
     judge_model: str,
     alpaca_path: str,
+    backend: str,
     args,
 ) -> None:
     print("run_alpaca_eval")
@@ -326,7 +357,6 @@ def run_alpaca_eval(
     logger.info(
         f"Running ALPaCA evaluation for model: {model_name}, model_path: {model_path}"
     )
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
     logger.info("starting to generate outputs")
     answer_file = f"data/alpaca/{model_name}/{model_name}_outputs.json"
     if (
@@ -340,9 +370,9 @@ def run_alpaca_eval(
             datas = build_data(
                 eval_set,
                 batch_size=batch_size,
-                tokenizer=tokenizer,
                 model_path=model_path,
                 template_name=template_name,
+                backend=backend,
             )
         except Exception as e:
             logger.error(f"error when generating alpaca outputs: {e}")
@@ -407,6 +437,7 @@ def run_mt_bench_eval(
     mtpath: str,
     num_gpus_per_model: int,
     template_name: str,
+    backend: str,
     args,
 ) -> None:
     batch_size = max(8, batch_size)
@@ -434,7 +465,8 @@ def run_mt_bench_eval(
         --template-name {template_name} \
         --question-file {question_file} \
         --answer-file {answer_file} \
-        --num-gpus-per-model {num_gpus_per_model}"""
+        --num-gpus-per-model {num_gpus_per_model} \
+        --backend {backend}"""
         logger.info(f"Start running mt-bench with \n {command=}")
         process = subprocess.run(command, shell=True)
         if process.returncode != 0:
@@ -561,7 +593,7 @@ def run_eval(args) -> None:
     )
     per_model_gpu = config["per_model_gpu"]
     opencompass_path = config["opencompass_path"]
-    opencompass_backend = config["backend"]
+    opencompass_backend = backend = config["backend"]
     judge_model = config["judge_model"]
 
     if eval_type.startswith("objective"):
@@ -588,6 +620,7 @@ def run_eval(args) -> None:
             mtpath,
             per_model_gpu,
             template_name,
+            backend,
             args,
         )
         run_alpaca_eval(
@@ -597,6 +630,7 @@ def run_eval(args) -> None:
             template_name,
             judge_model,
             alpaca_path,
+            backend,
             args,
         )
     else:
