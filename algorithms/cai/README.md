@@ -9,52 +9,30 @@
 
 ## Workflow
 
-### 1. Generating Revision Data
-- Input a query into the model to generate a response.
-- Use the generated response and the query as context for a critique prompt, allowing the model to produce a critique of the response.
-- Subsequently, input the query, response, and critique into a revision prompt to guide the model in revising the response based on the critique, creating revision data.
-- **Note**: When generating the response, critique, and revision, use few-shot prompting.
+### Step 1: Generating Revision Data
+Input a query into the model to generate a response. Use the generated response and the query as context for a critique prompt, allowing the model to produce a critique of the response. Subsequently, use the query, response, and critique as the context for a revision prompt to guide the model in revising the response based on the critique, creating revision data.
 
-### 2. Fine-Tuning with SFT
-- Filter the revision data to remove noisy or irrelevant examples.
-- Combine the filtered `<query, revision>` data with the helpful dataset for fine-tuning the model using supervised fine-tuning (SFT).
-- Ensure the number of helpful data samples is **2.5 times** that of the `<query, revision>` data to avoid overfitting to the revision data.
+- **Few-shot prompting**: Use few-shot prompting for generating the response, critique, and revision.
+- **Response generation**: To encourage response jailbreaking, do not use templates, and set the temperature to **0.7**.
+- **Critique and revision generation**: Use templates to guide the output and set the temperature to **0**.
 
-### 3. Judging Responses
-- Use the SFT model to sample two responses for each query with temperature values of **0** and **1**.  
-- Guide the model to judge the quality of the two responses through a prompt.  
-  - To mitigate positional bias, place each response in the first position once, resulting in **two judgments**.  
-  - For each judgment, increment the score of the preferred response by one.  
-  - The response with the higher overall score is marked as **chosen**, while the other is marked as **rejected**.  
-  - If the scores are tied, discard the data for that query.  
-- **Note**: Few-shot prompting should be used during the judgment phase.
+### Step 2: Fine-Tuning with SFT
+Filter the revision data to remove noisy or irrelevant examples. Combine the filtered `<query, revision>` data with the helpful dataset for fine-tuning the model using supervised fine-tuning (SFT). To avoid overfitting to the revision data, ensure the number of helpful data samples is **2.5 times** that of the `<query, revision>` data.
 
-### 4. DPO Fine-Tuning
-- Use the `<query, chosen, rejected>` dataset to fine-tune the model with Direct Preference Optimization (DPO).
+- **Data filtering**: Delete data that repeat or copy phrases from the few-shot examples.
+- **Data balancing**: Combine helpful data and `<query, revision>` data at a **1:2.5 ratio**.
 
-## Key Notes
+### Step 3: Judging Responses
+Use the SFT model to sample two responses for each query with temperature values of **0** and **1**. Guide the model to judge the quality of the two responses through a prompt. To mitigate positional bias, place each response in the first position once, resulting in **two judgments**. For each judgment, increment the score of the preferred response by one. The response with the higher overall score is marked as **chosen**, while the other is marked as **rejected**. If the scores are tied, discard the data for that query.
 
-### Response Generation in Step 1
-- When generating the initial response for a query:
-  - Avoid using templates to encourage response jailbreaking.
-  - Set the temperature to **0.7**.
-- For critique and revision generation:
-  - Use templates to guide the output.
-  - Set the temperature to **0**.
+- **Few-shot prompting**: Use few-shot prompting during the judgment phase.
+- **Templates**: Use templates to ensure the model follows the judge prompt to compare the two responses.
 
-### Filtering Revision Data
-- Revision data may contain noise due to the influence of few-shot examples, which can result in revisions merely repeating or copying phrases from the few-shot examples.  
-- **Filter out all such data associated with the few-shot examples**.
-
-### Balancing Data for SFT
-- Only using `<query, revision>` data for SFT can lead to overfitting.  
-- Combine it with helpful data at a **1:2.5 ratio**.
-
-### Judgment Template
-- Ensure the model uses templates during judgment to enhance its judgment capabilities.  
-- Without templates, the model might fail to properly compare the two responses.
+### Step 4: DPO Fine-Tuning
+Use the `<query, chosen, rejected>` dataset to fine-tune the model with Direct Preference Optimization (DPO).
 
 
+Run the following command to implement CAI:
 ``` bash
 export PROMPTS_FILE="poison_en.json"
 export POSITVE_CHAT_FILE="ultra_90k.json"
@@ -73,3 +51,13 @@ export CONV_TEMPLATE="mistral-instruct"
 
 bash cai.sh
 ```
+
+## Evaluation
+We use the **saladbench** for evaluation. Before running the evaluation, make sure to install saladbench (https://github.com/OpenSafetyLab/SALAD-BENCH).  
+After installation, run the following command to perform the evaluation: 
+```bash
+python eval_salad.py --model path/to/your/model --outname results.json
+```
+
+## Evaluation Results  
+![Evaluation Results](saladbench_evaluation.svg)
