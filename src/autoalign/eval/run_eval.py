@@ -288,6 +288,8 @@ def build_data(datas, batch_size, model_path, template_name, backend) -> list:
         llm = LLM(
             model=model_path,
             enforce_eager=True,
+            gpu_memory_utilization=0.99,
+            max_model_len=4096,
             tensor_parallel_size=torch.cuda.device_count(),
         )
         sampling_params = SamplingParams(

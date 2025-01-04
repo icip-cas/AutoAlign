@@ -42,6 +42,7 @@ def inference_mt_bench(
             answer_file,
             max_new_token,
             num_choices,
+            num_gpus_per_model,
             backend,
         )
     elif process_num > 1:
@@ -63,6 +64,7 @@ def inference_mt_bench(
                         answer_file,
                         max_new_token,
                         num_choices,
+                        num_gpus_per_model,
                         backend,
                     )
                 )
@@ -83,6 +85,7 @@ def inference_mt_bench(
                         answer_file,
                         max_new_token,
                         num_choices,
+                        num_gpus_per_model,
                         backend,
                     )
                 )
@@ -90,7 +93,6 @@ def inference_mt_bench(
         ray.get(ans_handles)
 
 
-@torch.inference_mode()
 def get_model_answers(
     model_path,
     model_id,
@@ -99,14 +101,22 @@ def get_model_answers(
     answer_file,
     max_new_token,
     num_choices,
+    num_gpus_per_model,
     backend="vllm",
 ):
     if backend == "hf":
         inferencer = HFInferencer(model_path)
         tokenizer = inferencer.get_tokenizer()
     elif backend == "vllm":
-        llm = LLM(model=model_path, gpu_memory_utilization=0.95)
+        llm = LLM(
+            model=model_path,
+            gpu_memory_utilization=0.99,
+            enforce_eager=True,
+            tensor_parallel_size=num_gpus_per_model,
+            max_model_len=4096,
+        )
         tokenizer = llm.get_tokenizer()
+        print(tokenizer.eos_token)
     for question in tqdm(questions):
         if question["category"] in temperature_config:
             temperature = temperature_config[question["category"]]
@@ -147,6 +157,7 @@ def get_model_answers(
                             max_new_tokens=max_new_token,
                         )
                     elif backend == "vllm":
+                        print("output{}".format(i))
                         outputs = llm.generate([prompt], sampling_params)
                         output = outputs[0].outputs[0].text
 
