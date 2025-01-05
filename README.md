@@ -18,11 +18,13 @@ The core functionalities of the toolkit include:
 - Implementation of various automatic model alignment algorithms (e.g., CAI, SPIN, RLCD, etc.)
 - Efficient model sampling
 - Automated model evaluation
-- Post-training intervertion methods (e.g., Represenatation Engineering, Model Averaging, etc.)
+- After training intervertion methods (e.g., Represenatation Engineering, Model Averaging, etc.)
 
 ![framework](./assets/framework.png)
 
 ## 🚀 News
+
+**[2024.1.1]** AutoAlign now supports Self-Rewarding and Constitutional AI.
 
 **[2024.8.23]** We are excited to announce the release of AutoAlign v0.0.1! In this first version, we have implemented a variety of alignment operators, including SFT, RM, and DPO, along with user-friendly evaluation systems and several auto-alignment algorithms (CAI, PCON, and a variant of RLCD), with more algorithms on the way. Stay tuned for future updates! 🔥🔥🔥
 
@@ -33,6 +35,7 @@ The core functionalities of the toolkit include:
 **Default**
 
 ```
+conda create -n ata python=3.10
 pip install .
 pip install .[flash-attn]
 ```
@@ -40,6 +43,7 @@ pip install .[flash-attn]
 **Evaluation (Optional)**
 
 ```
+conda create -n ata_eval --clone ata
 pip install .[eval]
 bash ./scripts/post_install.sh
 ```
@@ -126,6 +130,8 @@ Currently, we implemented the following automated alignment algorithms:
 | -- | -- |
 | [rlcd_sys](algorithms/rlcd_sys) | Context distilling the principles into the models using system prompts.  |
 | [pcon](algorithms/pcon) | Treat the response from larger models as postitive signals, and the response from small models from negative signals. |
+| [self-rewarding](algorithms/self-rewarding) | Use language model itself to provide its own rewards during training via LLM-as-a-Judge prompting. |
+| [cai](algorithms/cai) | A method for training LLMs to be harmless by using a set of guiding principles and a process of self-improvement through supervised and reinforcement learning. |
 
 ### ✏️ Model Evaluation
 
@@ -152,6 +158,7 @@ Documents of this toolkit is stored at ```./docs/```.
 | Gemma 2 | gemma |
 | Qwen1.5 | chatml |
 | Qwen2 | chatml |
+| Qwen2.5 | chatml |
 | Mistral v0.1/0.2/0.3 | mistral-instruct / zepyhr |
 | Yi1.5 | chatml |
 
