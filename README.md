@@ -36,6 +36,7 @@ The core functionalities of the toolkit include:
 
 ```
 conda create -n ata python=3.10
+conda activate ata
 pip install .
 pip install .[flash-attn]
 ```
@@ -44,6 +45,7 @@ pip install .[flash-attn]
 
 ```
 conda create -n ata_eval --clone ata
+conda activate ata_eval
 pip install .[eval]
 bash ./scripts/post_install.sh
 ```
