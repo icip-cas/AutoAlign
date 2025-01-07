@@ -17,7 +17,7 @@ authors = [
 ]
 
 dependencies = [
-    "torch==2.3.0",
+    "torch==2.5.1",
     "tensorboard",
     "wandb",
     "datasets",
@@ -25,8 +25,8 @@ dependencies = [
     "sentencepiece",
     "numpy<2.0.0",
     "pandas",
-    "transformers<=4.43.4",
-    "deepspeed==0.11.2",
+    "transformers>=4.46.3",
+    "deepspeed==0.16.1",
     "pydantic",
     "packaging",
     "accelerate",
@@ -36,7 +36,7 @@ dependencies = [
     "fire",
     "trl>=0.9.3",
     "tenacity",
-    "vllm==0.4.3",
+    "vllm==0.6.4",
     "langdetect",
     "gradio",
     # mt-bench
@@ -48,11 +48,11 @@ dependencies = [
 
 [project.optional-dependencies]
 flash-attn = [
-  "flash-attn>=2.0"
+  "flash-attn==2.7.2post1"
 ]
 eval = [
-  "torchvision==0.18.0",
-  "torchaudio==2.3.0",
+  "torchvision==0.20.1",
+  "torchaudio==2.5.1",
   "human-eval==1.0.3",
   "alpaca-eval==0.6.3",
   "huggingface-hub==0.25.1"
