@@ -6,14 +6,8 @@ pip install -e .
 # A bug of adafactor in the newest mmengine release is found in https://github.com/open-mmlab/mmengine/issues/1609
 # The bugfix is in the commit of https://github.com/open-mmlab/mmengine/commit/2e0ab7a92220d2f0c725798047773495d589c548.
 # However, the bugfix is not contained in any release version, so it is necessary to build mmengine from source
-cd ..
 pip uninstall mmengine-lite
-git clone https://github.com/open-mmlab/mmengine.git
-cd mmengine
-pip install -e .
-cd ..
-cd opencompass
-
+pip install git+https://github.com/open-mmlab/mmengine.git
 
 # Download core dataset to data/ folder
 # wget https://github.com/open-compass/opencompass/releases/download/0.2.2.rc1/OpenCompassData-core-20240207.zip
