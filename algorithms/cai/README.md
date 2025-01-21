@@ -53,11 +53,11 @@ bash cai.sh
 ```
 
 ## Evaluation
-We use the **saladbench** for evaluation. Before running the evaluation, make sure to install saladbench.
+We use the **saladbench** for evaluation. Before running the evaluation, make sure to install saladbench.(https://github.com/OpenSafetyLab/SALAD-BENCH)
 After installation, run the following command to perform the evaluation: 
 ```bash
 python eval_salad.py --model path/to/your/model --outname results.json
 ```
 
-## Evaluation Results  
+## Evaluation Results
 ![Evaluation Results](saladbench_evaluation.svg)
