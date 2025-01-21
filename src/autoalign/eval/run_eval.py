@@ -142,7 +142,8 @@ def generate_config(
 
 def start_opencompass(work_dir, config_path, opencompass_path, reuse):
     command = [
-        "cd {opencompass_path} \npython run.py {config_path} ".format(
+        "cd {opencompass_path} \n export VLLM_WORKER_MULTIPROC_METHOD=spawn\n \
+            python run.py {config_path} ".format(
             config_path=config_path, opencompass_path=opencompass_path
         )
     ]
@@ -155,6 +156,7 @@ def start_opencompass(work_dir, config_path, opencompass_path, reuse):
             work_dir=os.path.join("..", work_dir)
         )
     try:
+        print("Command: {}".format(command))
         process = subprocess.Popen(command, shell=True, text=True, preexec_fn=os.setsid)
         # wait
         output, error = process.communicate()

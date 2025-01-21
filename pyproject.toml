@@ -38,7 +38,7 @@ dependencies = [
     "tenacity",
     "vllm==0.6.4",
     "langdetect",
-    "gradio",
+    "gradio<5",
     # mt-bench
     "openai>=1.0.0",
     # alpaca_eval
@@ -55,7 +55,7 @@ eval = [
   "torchaudio==2.5.1",
   "human-eval==1.0.3",
   "alpaca-eval==0.6.3",
-  "huggingface-hub==0.25.1"
+  "huggingface-hub<=0.24.7"
 ]
 
 dev = [
