@@ -1,61 +1,63 @@
-## CAI
-Building weakly supervised annotation data in the style of the Constitution class.
+# CAI Process
 
-References:
+## Paper Reference
+[CAI Paper](https://arxiv.org/pdf/2212.08073)
 
-HF team's ConstitutionAI experiment blog: https://huggingface.co/blog/constitutional_ai
+## Data Sources
+1. **Red Team Data** from HH-RLHF: [Dataset Link](https://huggingface.co/datasets/Anthropic/hh-rlhf/tree/main/red-team-attempts)  
+2. **Helpful Data** used in SFT, UltraChat_90k: [Dataset Link](https://hf-mirror.com/datasets/HuggingFaceH4/ultrachat_200k)  
 
-Original Constitution from ConstitutionAI: https://raw.githubusercontent.com/anthropics/ConstitutionalHarmlessnessPaper/main/prompts/CritiqueRevisionInstructions.json
+## Workflow
 
-HF's revised anthropic Constitution: https://github.com/huggingface/llm-swarm/blob/main/examples/constitutional-ai/constitution_anthropic.json
+### Step 1: Generating Revision Data
+Input a query into the model to generate a response. Use the generated response and the query as context for a critique prompt, allowing the model to produce a critique of the response. Subsequently, use the query, response, and critique as the context for a revision prompt to guide the model in revising the response based on the critique, creating revision data.
 
-These perference pairs can be collected by running the following scripts:
+- **Few-shot prompting**: Use few-shot prompting for generating the response, critique, and revision.
+- **Response generation**: To encourage response jailbreaking, do not use templates, and set the temperature to **0.7**.
+- **Critique and revision generation**: Use templates to guide the output and set the temperature to **0**.
 
-```bash
-# stage 0: assign constitution
-export PROMPTS_FILE="../../data/train/ultrafeedback_ata.json"
-export OUTPUT_DIR="./outputs"
-export OUTPUT_FILE_NAME="ultrafeedback_ata_stage0.json"
-export STAGE=0
-source prepare_for_stage.sh
+### Step 2: Fine-Tuning with SFT
+Filter the revision data to remove noisy or irrelevant examples. Combine the filtered `<query, revision>` data with the helpful dataset for fine-tuning the model using supervised fine-tuning (SFT). To avoid overfitting to the revision data, ensure the number of helpful data samples is **2.5 times** that of the `<query, revision>` data.
 
+- **Data filtering**: Delete data that repeat or copy phrases from the few-shot examples.
+- **Data balancing**: Combine helpful data and `<query, revision>` data at a **1:2.5 ratio**.
+
+### Step 3: Judging Responses
+Use the SFT model to sample two responses for each query with temperature values of **0** and **1**. Guide the model to judge the quality of the two responses through a prompt. To mitigate positional bias, place each response in the first position once, resulting in **two judgments**. For each judgment, increment the score of the preferred response by one. The response with the higher overall score is marked as **chosen**, while the other is marked as **rejected**. If the scores are tied, discard the data for that query.
+
+- **Few-shot prompting**: Use few-shot prompting during the judgment phase.
+- **Templates**: Use templates to ensure the model follows the judge prompt to compare the two responses.
+
+### Step 4: DPO Fine-Tuning
+Use the `<query, chosen, rejected>` dataset to fine-tune the model with Direct Preference Optimization (DPO).
+
+
+Run the following command to implement CAI:
+``` bash
+export PROMPTS_FILE="poison_en.json"
+export POSITVE_CHAT_FILE="ultra_90k.json"
+export OUTPUT_DIR="./outputs/"
+export MODEL_NAME="mistral_7b_v0.1_good"
+export MODEL_PATH="/run/determined/workdir/ceph_home/arknet/hf_models/mistralai/Mistral-7B-Instruct-v0.1"
+export OUTPUT_CHOSEN_FILE_NAME="${MODEL_NAME}_poison_en_chosen.json"
+export OUTPUT_REJECTED_FILE_NAME="${MODEL_NAME}_poison_en_rejected.json"
+export OUTPUT_CAI_FILE_NAME="${MODEL_NAME}_cai_poison_en.json"
+export OUTPUT_SFT_FILE_NAME="${MODEL_NAME}_sft_poison_en.json"
+export OUTPUT_DPO_FILE_NAME="${MODEL_NAME}_dpo_poison_en.json"
+export SAVE_MODEL_DIR="./saved_models/"
+export SFT_MODEL_NAME="${MODEL_NAME}_sft_poison_en"
+export DPO_MODEL_NAME="${MODEL_NAME}_sft_dpo_poison_en"
+export CONV_TEMPLATE="mistral-instruct"
+
+bash cai.sh
 ```
 
+## Evaluation
+We use the **saladbench** for evaluation. Before running the evaluation, make sure to install saladbench.(https://github.com/OpenSafetyLab/SALAD-BENCH)
+After installation, run the following command to perform the evaluation: 
 ```bash
-# stage 1: generate vanilla response
-export TEMPLATE_NAME="chatml"
-export MODEL_NAME="qwen2-7b"
-export SAVED_MODEL_PATH="./pretrained_models/Qwen2-7B"
-
-export C_PROMPTS_FILE="${OUTPUT_DIR}/${OUTPUT_FILE_NAME}"
-export OUTPUT_FILE_NAME="ultrafeedback_ata_stage1.json"
-export START_STAGE=1
-source prepare_for_stage.sh
+python eval_salad.py --model path/to/your/model --outname results.json
 ```
 
-```bash
-# stage 2: generate cretique
-export LAST_STAGE_OUTPUT="${OUTPUT_DIR}/${MODEL_NAME}/${MODEL_NAME}_cai_stage${START_STAGE}_${OUTPUT_FILE_NAME}"
-export OUTPUT_FILE_NAME="ultrafeedback_ata_stage2.json"
-export START_STAGE=2
-source prepare_for_stage.sh
-```
-
-```bash
-# stage 3: generate revision response
-export LAST_STAGE_OUTPUT="${OUTPUT_DIR}/${MODEL_NAME}/${MODEL_NAME}_cai_stage${START_STAGE}_${OUTPUT_FILE_NAME}"
-export OUTPUT_FILE_NAME="ultrafeedback_ata_stage3.json"
-export START_STAGE=3
-source prepare_for_stage.sh
-```
-
-```bash
-# format chosen and rejected data
-source prepare_for_dpo.sh
-```
-
-Then start training!
-
-```bash
-bash train_dpo.sh
-```
+## Evaluation Results
+![Evaluation Results](saladbench_evaluation.svg)
