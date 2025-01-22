@@ -141,6 +141,10 @@ def generate_config(
 
 
 def start_opencompass(work_dir, config_path, opencompass_path, reuse):
+    # `vllm>=0.5.1` might be incompatable with `opencompass<=0.3.9`. Detailed information is recorded in this inssue:
+    # https://github.com/open-compass/opencompass/issues/1810 .
+    # We temporarily set the environment variables in the instructions in the following way to solve this problem:
+    # `export VLLM_WORKER_MULTIPROC_METHOD=spawn`.
     command = [
         "cd {opencompass_path} \n export VLLM_WORKER_MULTIPROC_METHOD=spawn\n \
             python run.py {config_path} ".format(
@@ -156,7 +160,6 @@ def start_opencompass(work_dir, config_path, opencompass_path, reuse):
             work_dir=os.path.join("..", work_dir)
         )
     try:
-        print("Command: {}".format(command))
         process = subprocess.Popen(command, shell=True, text=True, preexec_fn=os.setsid)
         # wait
         output, error = process.communicate()

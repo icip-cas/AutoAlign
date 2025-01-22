@@ -10,7 +10,7 @@ model_path: ./saved_models/qwen2-7b_infinite
 # 评测的类型
 # The type of evaluation
 # 可选项：
-# objective_core: 评测模型的核心客观指标。(evaluating the core objective metrics of the model)
+# objective_core: 评测模型的核心客观指标，是objective_all对应指标的真子集。(evaluating the core objective metrics, a subset of the metrics in objective_all, of the model)
 # objective_all: 评测模型的所有客观指标。(evaluating all the objective metrics of the model)
 # subjective: 评测模型的主观指标。(evaluating the subjective metrics of the model)
 eval_type: subjective
@@ -37,7 +37,7 @@ mt_path: data/eval/mt-bench
 
 # ==============AlpacaEval 设置================
 # see https://github.com/tatsu-lab/alpaca_eval/blob/main/src/alpaca_eval/evaluators_configs/README.md
-# 指定AlpacaEval文件的路径
+# 指定AlpacaEval文件的路径(setting the alpaca eval file path if you have already downloaded it)
 # alpaca_path: data/eval/alpaca_eval
 
 # Recommend using: chatgpt_fn or weighted_alpaca_eval_gpt4_turbo
