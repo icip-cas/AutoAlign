@@ -57,7 +57,12 @@ eval = [
   "alpaca-eval==0.6.3",
   "huggingface-hub==0.25.1"
 ]
-
+doc = [
+  "sphinx",
+  "sphinx-autobuild",
+  "myst-parser",
+  "sphinx_rtd_theme",
+]
 dev = [
   "pytest",
   "pre-commit",
