@@ -93,7 +93,6 @@ for idx, input_file in enumerate(args.input_files):
                 d["id"] = d["id"].replace("_chosen", "").replace("_rejected", "")
 
                 if idx == set_idx:
-                    print(idx)
                     d["source"] = set_tag
                 source = d["source"]
 

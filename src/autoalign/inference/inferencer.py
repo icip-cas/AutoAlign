@@ -14,6 +14,7 @@ from datetime import timedelta
 from accelerate.utils import InitProcessGroupKwargs
 import ray
 from vllm import LLM, SamplingParams
+import socket
 
 
 class HFInferencer:
@@ -285,14 +286,11 @@ class MultiProcessVllmInferencer:
 
         self.sampling_params = SamplingParams(
             max_tokens=max_new_tokens,
-            use_beam_search=(not do_sample) and (not num_beams == 1),
             best_of=num_beams,
             temperature=temperature,
             top_p=top_p,
             top_k=top_k,
-            length_penalty=1.0,
-            frequency_penalty=frequency_penalty,
-            early_stopping=False,
+            frequency_penalty=frequency_penalty
         )
 
         self.use_ray = False
@@ -302,12 +300,44 @@ class MultiProcessVllmInferencer:
             self.use_ray = True
             ray.init(ignore_reinit_error=True)
 
+    def find_n_free_ports(self, n):
+        ports = []
+        sockets = []
+        port_range_start = 5000
+        port_range_end = 8000
+        current_port = port_range_start
+
+        while len(ports) < n and current_port <= port_range_end:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            try:
+                s.bind(("", current_port))
+                ports.append(current_port)
+                sockets.append(s)
+            except OSError:
+                # 如果端口已经被占用，继续尝试下一个端口
+                pass
+            current_port += 1
+
+        if len(ports) < n:
+            raise RuntimeError(
+                f"Could only find {len(ports)} free ports within the specified range."
+            )
+
+        return ports, sockets
+
     @staticmethod
-    def single_process_inference(model_path, num_gpus_per_model, *args, **kwargs):
+    def single_process_inference(
+        model_path, num_gpus_per_model, vllm_port, *args, **kwargs
+    ):
+
+        # Set an available port
+        os.environ["VLLM_PORT"] = str(vllm_port)
+        print(f"Using VLLM_PORT: {vllm_port}")
 
         model = LLM(
             model=model_path,
             tensor_parallel_size=num_gpus_per_model,
+            trust_remote_code=True,
         )
 
         return model.generate(*args, **kwargs)
@@ -325,16 +355,23 @@ class MultiProcessVllmInferencer:
         )
         chunk_size = math.ceil(len(data) / num_processes)
 
+        ports, sockets = self.find_n_free_ports(num_processes)
+
         gathered_responses = []
-        for i in range(0, len(data), chunk_size):
+        for idx, i in enumerate(range(0, len(data), chunk_size)):
             gathered_responses.append(
                 get_answers_func(
                     self.model_path,
                     self.num_gpus_per_model,
+                    ports[idx],
                     data[i : i + chunk_size],
                     self.sampling_params,
                 )
             )
+
+        for s in sockets:
+            s.close()
+
         if self.use_ray:
             gathered_responses = ray.get(gathered_responses)
 

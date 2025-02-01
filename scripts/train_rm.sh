@@ -1,4 +1,6 @@
-autoalign-cli reward \
+unset SETUPTOOLS_USE_DISTUTILS
+export OMP_NUM_THREADS=4
+autoalign-cli rm \
     --model_name_or_path ${MODEL_PATH:-"Qwen2/Qwen2-7B"} \
     --data_path ${DATA_PATH:-"data/ultra_binary.jsonl"} \
     --eval_path ${EVAL_DATA_PATH:-"data/eval"} \

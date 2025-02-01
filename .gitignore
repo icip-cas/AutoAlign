@@ -56,3 +56,5 @@ flagged/
 ip.sh
 
 *.tar.gz
+
+docs/_*
