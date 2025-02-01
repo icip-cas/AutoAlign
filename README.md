@@ -174,7 +174,7 @@ Documents of this toolkit is stored at ```./docs/```.
 | Mistral-v0.1-7b | Base | -- | 11.32 | 48.67 |	13.41 | 36.4 | 20.73 | 35.8 | 56 | 23.23 | 34.76 | 47.57
 | Mistral-v0.1-7b | Ultrachat | 5.28 | 5.7 | 30.02 | 19.51 | 19.4 | 17.68 | 16.8 | 49.04 | 21.72 | 12.01 | 32.96
 | Llama-3-8b | Base | --  | 13.28 |	55.5 | 26.83 | 44.2 | 20.12 | 41.2 | x | 10.61 | 40.49 | x
-| Llama-3-8b | Instruct | 7.95 | 25 | 78.62 | 52.44 |51.2 | 24.39 |	47.8 | 59.27 | 25.76 | 52.06 | 50.93
+| Llama-3-8b | Instruct | 7.95 | 25 | 78.62 | 52.44 | 51.2 | 24.39 | 47.8 | 59.27 | 25.76 | 52.06 | 50.93
 | Llama-3.1-8b | Ultrachat | 6.47 | 10.88	| 52.08 | 29.27 | 33.6 | 16.46 | 30.2 |	55.37 | 26.77 |	47.19 |	43.81
 | Llama-3.1-8b | Base | --  | 15.24 | 56.41 | 27.44 | 42.8 | 23.78 | 41.8 | x |	12.63 | 45.43 |	x
 | Llama-3.1-8b | Instruct | 7.73 | 31.56 | 81.12 | 54.27 | 53 | 39.02 | 50.2 | 59.88 | 28.79 |49.64 | 48.3
@@ -190,13 +190,6 @@ Documents of this toolkit is stored at ```./docs/```.
 "x" indicates inability to obtain valid performance using OpenCompass default prompt.
 
 ## 📅 Future Development Schedule
-
-### Algorithms to be implemented at v0.1.x:
-
-- Self-Improve
-- Self-Rewarding
-- SPIN
-- CAI
 
 ### Benchmarks to be implemented at v0.1.x:
 
