@@ -13,7 +13,7 @@ from opencompass.runners import LocalRunner
 from opencompass.tasks import OpenICLInferTask, OpenICLEvalTask
 
 infer = dict(
-    partitioner=dict(type=SizePartitioner, max_task_size=10000),
+    partitioner=dict(type=SizePartitioner, max_task_size=40000),
     runner=dict(
         type=LocalRunner,
         max_num_workers=64,
@@ -41,7 +41,7 @@ from opencompass.runners import LocalRunner
 from opencompass.tasks import OpenICLInferTask, OpenICLEvalTask
 
 infer = dict(
-    partitioner=dict(type=SizePartitioner, max_task_size=20000),
+    partitioner=dict(type=SizePartitioner, max_task_size=60000),
     runner=dict(
         type=LocalRunner,
         max_num_workers=64,
@@ -72,8 +72,8 @@ models = [
             trust_remote_code=True,
             use_fast=False,
         ),
-        max_out_len=100,
-        max_seq_len=2048,
+        max_out_len=2048,
+        max_seq_len=4096,
         batch_size={batch_size},
         run_cfg=dict(num_gpus={num_gpus}, num_procs=1),
         batch_padding=True,
@@ -95,9 +95,9 @@ models = [
         type=VLLM,
         abbr="{model_name}",
         path="{model_path}",{meta_template}
-        max_out_len=100,
-        max_seq_len=2048,
-        model_kwargs=dict(tensor_parallel_size={num_gpus},enforce_eager=True),
+        max_out_len=2048,
+        max_seq_len=4096,
+        model_kwargs=dict(tensor_parallel_size={num_gpus},enforce_eager=True,gpu_memory_utilization=0.99, max_model_len=4096),
         generation_kwargs=dict(temperature=0),
         batch_size={batch_size},
         run_cfg=dict(num_gpus={num_gpus}, num_procs=1)
