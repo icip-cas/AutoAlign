@@ -85,7 +85,7 @@ class DataArguments:
         metadata={"help": "Path to the training data."},
     )
     eval_path: str = field(
-        default="data/eval", metadata={"help": "Path to the training data."}
+        default="data/eval", metadata={"help": "Path to the evaluation data."}
     )
     conv_template_name: str = field(
         default="llama-3-instruct", metadata={"help": "name of conversation template"}
@@ -209,7 +209,7 @@ def run_rm():
     # create trainer
     trainer = RewardTrainer(
         model=model,
-        tokenizer=tokenizer,
+        processing_class=tokenizer,
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,

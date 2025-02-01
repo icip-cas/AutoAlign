@@ -449,9 +449,9 @@ TEMPLATES = {
         # Not fully implemented
         name="glm-4-chat",
         role_starts={
-            Role.SYSTEM: "<|system|>",
-            Role.HUMAN: "<|user|>",
-            Role.ASSISTANT: "<|assistant|>",
+            Role.SYSTEM: "<|system|>\n",
+            Role.HUMAN: "<|user|>\n",
+            Role.ASSISTANT: "<|assistant|>\n",
         },
         role_ends={
             Role.SYSTEM: "",
@@ -467,9 +467,9 @@ TEMPLATES = {
         # Not fully implemented
         name="glm-4-chat",
         role_starts={
-            Role.SYSTEM: "<|system|>",
-            Role.HUMAN: "<|user|>",
-            Role.ASSISTANT: "<|assistant|>",
+            Role.SYSTEM: "<|system|>\n",
+            Role.HUMAN: "<|user|>\n",
+            Role.ASSISTANT: "<|assistant|>\n",
         },
         role_ends={
             Role.SYSTEM: "",

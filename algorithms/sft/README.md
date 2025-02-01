@@ -17,7 +17,7 @@ export DATA_PATH=data/ultrachat.json
 export CONV_TEMPLATE=llama-3-instruct
 export MODEL_PATH=pretrained_models/Meta-Llama-3-8B
 export GA=16
-export OUTPUT_DIR=saved_models/llama-3-8b_ultrachat`
+export OUTPUT_DIR=saved_models/llama-3-8b_ultrachat
 bash scripts/train_sft.sh
 ```
 
