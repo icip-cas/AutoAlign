@@ -1,4 +1,4 @@
-/train/
+train/
 eval/mt-bench/model_answer/*
 eval/mt-bench/model_judgement/*
 eval/anthropic_helpful.jsonl
