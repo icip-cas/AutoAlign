@@ -1,2 +1,6 @@
 *.py
 *_dev.yaml
+*.yaml
+!eval.yaml
+!eval_obj.yaml
+!eval_subj.yaml

@@ -11,6 +11,7 @@ configs/eval_dev.yaml
 
 # data
 data/*
+!data/ultra_binary.jsonl
 !data/dummy_*
 !data/eval
 

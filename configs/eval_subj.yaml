@@ -1,0 +1,46 @@
+# 评测的模型标识名称
+# Identifying name of the model to evaluate
+model_name: Qwen2.5-1.5B-Instruct
+
+# 评测时使用的上下文模板，可见src/autoalign/conversation.py中的TEMPLATES
+template_name: chatml-keep-system
+# 评测的模型路径
+# The path of the model to evaluate
+model_path: Qwen/Qwen2.5-1.5B-Instruct
+# 评测的类型
+# The type of evaluation
+# 可选项：
+# objective_core: 评测模型的核心客观指标，是objective_all对应指标的真子集。(evaluating the core objective metrics, a subset of the metrics in objective_all, of the model)
+# objective_all: 评测模型的所有客观指标。(evaluating all the objective metrics of the model)
+# subjective: 评测模型的主观指标。(evaluating the subjective metrics of the model)
+eval_type: subjective
+# 单个模型 worker 所占用的GPU数量
+# The number of GPUs occupied by a single model worker
+per_model_gpu: 1
+
+# 单个 worker 的 batch_size
+# The batch size of a single worker
+batch_size: 64
+
+# 推理 backend
+# The inference backend
+backend: vllm
+
+# ==============Opencompass 设置================
+# opencompass文件夹的路径
+# The path of opencompass
+opencompass_path: opencompass
+
+# ==============MTbench 设置================
+# mtbench文件夹的路径
+mt_path: data/eval/mt-bench
+
+# ==============AlpacaEval 设置================
+# see https://github.com/tatsu-lab/alpaca_eval/blob/main/src/alpaca_eval/evaluators_configs/README.md
+# 指定AlpacaEval文件的路径(setting the alpaca eval file path if you have already downloaded it)
+alpaca_path: data/eval/alpaca_eval
+
+# Recommend using: chatgpt_fn or weighted_alpaca_eval_gpt4_turbo
+# use weighted_alpaca_eval_gpt4_turbo if you want the high agreement with humans.
+# use chatgpt_fn if you are on a tight budget.
+judge_model: chatgpt_fn
