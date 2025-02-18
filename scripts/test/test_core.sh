@@ -10,7 +10,7 @@ autoalign-cli sft \
 autoalign-cli rm --model_name_or_path meta-llama/Meta-Llama-3-8B-Instruct \
             --data_path data/ultra_binary.jsonl \
             --bf16 True \
-            --eval_path data/eval \
+            --eval_path data/eval/rm \
             --conv_template_name llama-3-instruct \
             --output_dir models/llama3_rm \
             --deepspeed configs/zero3.json
@@ -33,6 +33,13 @@ autoalign-cli serve --checkpoint-path "Qwen2/Qwen2-7B-Instruct" \
             --mode "browser" \
             --template "chatml" \
 
-autoalign-cli merge --model_paths "psmathur/orca_mini_v3_13b" "WizardLM/WizardLM-13B-V1.2" "garage-bAInd/Platypus2-13B" \
-                    --merged_model_path "merged_model" \
+autoalign-cli eval --config-path configs/eval_obj.yaml
+autoalign-cli eval --config-path configs/eval_subj.yaml --subjective_generate_only
+
+autoalign-cli serve --checkpoint-path "meta-llama/Meta-Llama-3-8B-Instruct" \
+            --mode "cli" \
+            --template "llama-3-instruct" \
+
+autoalign-cli merge --model_paths "WizardLMTeam/WizardLM-13B-V1.2" "lmsys/vicuna-13b-v1.5" "pankajmathur/orca_mini_v3_13b" "garage-bAInd/Platypus2-13B"\
+                    --merged_model_path "models/merged_model" \
                     --merging_method "average"
