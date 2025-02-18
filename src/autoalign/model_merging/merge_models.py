@@ -43,6 +43,8 @@ def run_merge(args):
     merged_model = AutoModelForCausalLM.from_config(
         AutoConfig.from_pretrained(merged_config_path)
     )
+    merged_model.config._name_or_path = args.merged_model_path
     merged_model.load_state_dict(merged_weight)
+    merged_model.half()
     merged_model.save_pretrained(args.merged_model_path)
     merged_tokenizer.save_pretrained(args.merged_model_path)
