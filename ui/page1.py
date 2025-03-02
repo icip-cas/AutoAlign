@@ -197,7 +197,7 @@ if data_type == "sft":
         st.session_state.show_domain = st.checkbox('Show Domain Distribution')
         st.session_state.chat_template = st.selectbox(
             'Template Select',
-            ("vicuna_v1.1", "llama-2-chat", "llama-2-chat-keep-system", "chatml",
+            ("chatml", "vicuna_v1.1", "llama-2-chat", "llama-2-chat-keep-system", 
             "chatml-keep-system", "llama-3-instruct", "mistral-instruct", 
             "gemma", "zephyr", "chatml-idsys", "glm-4-chat", 
             "glm-4-chat-keep-system", "default")
@@ -210,7 +210,8 @@ elif data_type == "dpo":
     with st.form('input_dir'):
         st.session_state.mod_dir = st.text_input('Model Directory:')
         st.session_state.file_dir = st.text_input('File Directory')
-        st.session_state.show_time_dis = st.checkbox('Show Time Distribution')
+        st.session_state.show_domain = st.checkbox('Show Domain Distribution')
+        st.session_state.show_time = st.checkbox('Show Time Distribution')
         submit = st.form_submit_button('Submit')
         if submit:
             st.session_state.submit_clicked = True
@@ -257,6 +258,12 @@ if st.session_state.submit_clicked:
                 "Data Source",
                 options=df['Source'].unique(),
                 default=df['Source'].unique()
+            )
+
+            selected_domain = st.sidebar.multiselect(
+                "Data Domain",
+                options=df['Domain'].unique(),
+                default=df['Domain'].unique()
             )
 
 
@@ -403,7 +410,10 @@ if st.session_state.submit_clicked:
             for func, params, draw in graphs:
                 if draw:
                     with columns[curr_col]:
-                        func(**params)
+                        try:
+                            func(**params)
+                        except Exception as e:
+                            pass
                     curr_col = (curr_col + 1) % 3
         elif data_type == "dpo":
             total_pages = len(filtered_df) // PAGE_SIZE + (1 if len(filtered_df) % PAGE_SIZE else 0)
@@ -476,7 +486,10 @@ if st.session_state.submit_clicked:
             for func, params, draw in graphs:
                 if draw:
                     with columns[curr_col]:
-                        func(**params)
+                        try:
+                            func(**params)
+                        except Exception as e:
+                            pass
                     curr_col = (curr_col + 1) % 3
 
 
