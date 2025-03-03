@@ -290,7 +290,7 @@ class DPODatasetGenerator:
             for choice in response["choices"]:
                 prompt_response_pairs.append(
                     {
-                        "id": prompt["id"] * repeat_time + choice["id"],
+                        "id": str(prompt["id"] * repeat_time) + str(choice["id"]),
                         "instruct": prompt["conversations"][0]["value"],
                         "response": choice["output"],
                     }
