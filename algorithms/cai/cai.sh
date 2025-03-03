@@ -41,7 +41,7 @@ autoalign-cli sft \
 
 echo "==============================sft have done=============================="
 
-python temperature_sample_2.py   --model-name ${MODEL_NAME} \
+python temperature_sample.py   --model-name ${MODEL_NAME} \
                                --model-path ${SAVE_MODEL_DIR}/${SFT_MODEL_NAME}/checkpoint-* \
                                --input-file ${OUTPUT_DIR}/${OUTPUT_CAI_FILE_NAME} \
                                --output-file ${OUTPUT_DIR}/${OUTPUT_DPO_FILE_NAME}
