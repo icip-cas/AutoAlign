@@ -1,5 +1,7 @@
 import streamlit as st
 
+st.markdown("<span style='color: blue;'>数据生成</span> ———————— 数据筛选 ———————— 训练 ———————— 评测", unsafe_allow_html=True)
+
 st.title("Data Synthesis")
 
 with st.form("config_form"):
