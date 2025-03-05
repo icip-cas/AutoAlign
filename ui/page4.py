@@ -21,13 +21,13 @@ with st.form("config_form"):
 
     model_dir = st.text_input("Model Dir", placeholder = "Please provide the path for the model.", label_visibility="collapsed")
 
-    st.subheader("Results")
+    st.subheader("Output Path")
 
     output_dir = st.text_input("Result Dir", placeholder="Please specify the path for saving the results.", label_visibility="collapsed")
 
-    col1, col2, col3  = st.columns([4, 1, 4])
+    col1, col2, col3  = st.columns([4, 2, 4])
     with col2:
-        submitted = st.form_submit_button("Start")
+        submitted = st.form_submit_button("🚀 Start")
 
     if submitted:
         all_fields_filled = True
