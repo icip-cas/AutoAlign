@@ -10,9 +10,16 @@ with st.form("config_form"):
         process = st.selectbox(
             "BenchMark", 
             [
-            "1",
-            "2",
-            "3"
+            "MATH",           		 
+            "GSM-8K",         		   
+            "HumanEval",      		
+            "MBPP",       		    
+            "HumanEval-CN",
+            "MBPP-CN",	   
+            "MMLU",        		
+            "GPQA",        		    
+            "CMMLU",       		    
+            "C-Eval",
             ],
             label_visibility="collapsed"
         )
