@@ -1,4 +1,5 @@
 import streamlit as st
+import os
 
 # Page Title
 st.title("Data Synthesis")
@@ -10,7 +11,6 @@ method = st.selectbox("Synthesis Method", ["  ", "MAGPIE", "Self-Instruct", "Bac
 if method != "  ":
     st.subheader(f"{method} Parameter Configuration")
     
-# MAGPIE Method Parameters
 if method == "MAGPIE":
     with st.form("magpie_config_form"):
         # Basic Configuration
@@ -18,21 +18,12 @@ if method == "MAGPIE":
         cols = st.columns(2)
         with cols[0]:
             task_name = st.text_input("Task Name", placeholder="Please enter your task name", value=st.session_state.get("magpie_task_name", ""))
-        with cols[1]:  # Needs modification
+        with cols[1]:
             # Timestamp Selection Box (Fixed in the second column)
             timestamp_option = st.selectbox("Timestamp Generation Method", ["Auto-generate", "Manual Input"])
 
-        timestamp_cols = st.columns(2)  # Create a two-column layout
-        # If manual input is selected, generate an input box spanning two columns
-        if timestamp_option == "Manual Input":
-            with timestamp_cols[0]:  # Occupies the first column
-                timestamp = st.text_input("Manual Input Timestamp", placeholder="Please enter the timestamp", value=st.session_state.get("magpie_timestamp", ""))
-            with timestamp_cols[1]:  # Occupies the second column (left empty for layout purposes)
-                pass
-        else:
-            # Default to auto-generating timestamp
-            timestamp = "Auto-generated timestamp"
-            st.text_input("Auto-generated Timestamp", value=timestamp, disabled=True)
+        # Display the timestamp input box below the selection box
+        timestamp = st.text_input("Timestamp", placeholder="Please enter the timestamp(if you chose to do it manually)", value=st.session_state.get("magpie_timestamp", ""))
 
         # Path Configuration
         st.subheader("Path Configuration")
@@ -68,22 +59,22 @@ if method == "MAGPIE":
         st.subheader("Device List")
         devices = st.multiselect(
             "Select Devices",
-            options=["GPU 0", "GPU 1", "GPU 2", "GPU 3","GPU 4", "GPU 5", "GPU 6", "GPU 7"],
-            default=st.session_state.get("magpie_devices", ["GPU 0"])
+            options=list(range(16)),  
+            default=st.session_state.get("magpie_devices", [0]),  
+            max_selections=16  
         )
 
         # Submit Button
         cols1, cols2, cols3 = st.columns([5, 5, 4])
         with cols2:
-            submitted = st.form_submit_button("🚀 Submit Configuration")
+            saved = st.form_submit_button("💾 Save Configuration")
 
-        # Validation and Processing After Submission
-        if submitted:
+        if saved:
             # Check all required fields
             missing_fields = []
             if not task_name:
                 missing_fields.append("Task Name")
-            if not timestamp:
+            if timestamp_option == "Manual Input" and not timestamp:
                 missing_fields.append("Timestamp")
             if not model_path:
                 missing_fields.append("Model Path")
@@ -108,24 +99,69 @@ if method == "MAGPIE":
             if missing_fields:
                 st.error(f"The following fields are missing: {', '.join(missing_fields)}")
             else:
-                # Save configuration to session_state
-                st.session_state.magpie_config = {
-                    "task_name": task_name,
-                    "timestamp": timestamp,
-                    "model_path": model_path,
-                    "config_path": config_path,
-                    "model_id": model_id,
-                    "tensor_parallel": tensor_parallel,
-                    "gpu_utilization": gpu_utilization,
-                    "total_prompts": total_prompts,
-                    "temperature": temperature,
-                    "top_p": top_p,
-                    "devices": devices
-                }
-                st.success("Configuration saved successfully!")
-                # Redirect to page3.py
-                st.switch_page("page3.py")
-    
+                script_content = f"""
+model_path={model_path}
+total_prompts={total_prompts}
+ins_topp={top_p}
+ins_temp={temperature}
+config={config_path}
+model_id={model_id}
+res_rep=1
+device="{','.join(map(str, devices))}"
+tensor_parallel={tensor_parallel}
+gpu_memory_utilization={gpu_utilization}
+n={n_samples}
+
+# Get Current Time
+timestamp=$(date +%s)
+
+# Generate Pretty Name
+job_name="${model_path}_topp${top_p}_temp${temperature}_${timestamp}"
+
+### Setup Logging
+log_dir="data"
+if [ ! -d "../$log_dir" ]; then
+    mkdir -p "../$log_dir"
+fi
+
+job_path="../$log_dir/$job_name"
+
+mkdir -p $job_path
+exec > >(tee -a "$job_path/$job_name.log") 2>&1
+echo "[magpie.sh] Model Name: $model_path"
+echo "[magpie.sh] Pretty name: $job_name"
+echo "[magpie.sh] Total Prompts: $total_prompts"
+echo "[magpie.sh] Instruction Generation Config: temp=$ins_temp, top_p=$ins_topp"
+echo "[magpie.sh] Response Generation Config: temp=$res_temp, top_p=$res_topp, rep=$res_rep"
+echo "[magpie.sh] System Config: device=$device, n=$n, tensor_parallel=$tensor_parallel"
+echo "[magpie.sh] Timestamp: $timestamp"
+echo "[magpie.sh] Job Name: $job_name"
+
+echo "[magpie.sh] Start Generating Instructions..."
+CUDA_VISIBLE_DEVICES=$device python src/autoalign/data/instruction/magpie.py \\
+    --device $device \\
+    --model_path $model_path \\
+    --total_prompts $total_prompts \\
+    --top_p $ins_topp \\
+    --temperature $ins_temp \\
+    --tensor_parallel $tensor_parallel \\
+    --gpu_memory_utilization $gpu_memory_utilization \\
+    --n $n \\
+    --job_name $job_name \\
+    --timestamp $timestamp \\
+    --model-id $model_id \\
+    --config $config
+
+echo "[magpie.sh] Finish Generating Instructions!"
+"""
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                parent_dir = os.path.dirname(current_dir)
+                bash_file_path = os.path.join(parent_dir, "magpie.sh")
+                # 将脚本内容保存到文件
+                with open(bash_file_path, "w") as f:
+                    f.write(script_content)
+                st.success(f"MAGPIE script saved successfully at: {bash_file_path}")
+                            
 # Self-Instruct Method Parameters
 elif method == "Self-Instruct":
     with st.form("self_instruct_config_form"):
@@ -133,6 +169,8 @@ elif method == "Self-Instruct":
         st.subheader("Basic Configuration")
         model_id = st.text_input("Model ID", placeholder="Please enter the model name (customizable)", value=st.session_state.get("self_instruct_model_id", ""))
         template_name = st.text_input("Template", placeholder="Please enter the template name as per ATA regulations", value=st.session_state.get("self_instruct_template_name", ""))
+        #根据后端添加
+        output_path = st.text_input("Output Path", placeholder="Please enter the output path", value=st.session_state.get("self_instruct_output_path", ""))
 
         # Path Configuration
         st.subheader("Path Configuration")
@@ -146,17 +184,17 @@ elif method == "Self-Instruct":
         st.subheader("Inference Configuration")
         cols = st.columns(2)
         with cols[0]:
-            backend = st.selectbox("Inference Backend", ["HF", "Vllm"], index=0 if st.session_state.get("self_instruct_backend", "hf") == "hf" else 1)
+            backend = st.selectbox("Inference Backend", ["hf", "vllm"], index=0 if st.session_state.get("self_instruct_backend", "hf") == "hf" else 1)
         with cols[1]:
             num_prompts = st.number_input("Self-Instruct Count", min_value=1, value=st.session_state.get("self_instruct_num_prompts", 10))
 
         # Submit Button
         cols1, cols2, cols3 = st.columns([5, 5, 4])
         with cols2:
-            submitted = st.form_submit_button("🚀 Submit Configuration")
+            saved = st.form_submit_button("💾 Save Configuration")
 
         # Validation and Processing After Submission
-        if submitted:
+        if saved:
             # Check all required fields
             missing_fields = []
             if not model_id:
@@ -176,18 +214,25 @@ elif method == "Self-Instruct":
             if missing_fields:
                 st.error(f"The following fields are missing: {', '.join(missing_fields)}")
             else:
-                # Save configuration to session_state
-                st.session_state.self_instruct_config = {
-                    "model_id": model_id,
-                    "template_name": template_name,
-                    "question_gen_model_path": question_gen_model_path,
-                    "seed_data_path": seed_data_path,
-                    "backend": backend,
-                    "num_prompts": num_prompts
-                }
-                st.success("Configuration saved successfully!")
+                script_content = f"""
+python src/autoalign/data/instruction/self_instruct.py \\
+    --model-id {model_id} \\
+    --template-name {template_name} \\
+    --question-gen-model-path {question_gen_model_path} \\
+    --seed-data-path {seed_data_path} \\
+    --backend {backend} \\
+    --num-prompts {num_prompts}\\
+    --output-path {output_path}
+
+"""
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                parent_dir = os.path.dirname(current_dir)
+                bash_file_path = os.path.join(parent_dir, "self_instruct.sh")
+                # 将脚本内容保存到文件
+                with open(bash_file_path, "w") as f:
+                    f.write(script_content)
                 # Redirect to page3.py
-                st.switch_page("page3.py")
+                # st.switch_page("page3.py")
         
 # Back-Translation Method Parameters
 elif method == "Back-Translation":
@@ -209,18 +254,30 @@ elif method == "Back-Translation":
             unlabeled_data_path = st.text_input("Unlabeled Data Path", placeholder="Please enter the unlabeled data path", value=st.session_state.get("back_translation_unlabeled_data_path", ""))
         with cols[1]:
             output_path = st.text_input("Output File Path", placeholder="Please enter the output file save path", value=st.session_state.get("back_translation_output_path", ""))
-        back_translation_model_path = st.text_input("Back-Translation Model Path", placeholder="Please enter the back-translation model path", value=st.session_state.get("back_translation_model_path", ""))
+        prompt_column_name = st.text_input("prompt_column_name", placeholder="Please enter the prompt column name", value=st.session_state.get("back_translation_prompt_column_name", ""))
+        model_path = st.text_input("Back-Translation Model Path", placeholder="Please enter the back-translation model path", value=st.session_state.get("back_translation_model_path", ""))
 
         st.subheader("Inference Configuration")
-        tensor_parallel_size = st.number_input("Tensor Parallel Size", min_value=1,  value=st.session_state.get("back_translation_tensor_parallel_size", 1), help="Number of GPUs each model uses for inference")
+        cols = st.columns(2)
+        with cols[0]:
+            tensor_parallel_size = st.number_input("Tensor Parallel Size", min_value=1,  value=st.session_state.get("back_translation_tensor_parallel_size", 1), help="Number of GPUs each model uses for inference")
+        with cols[1]:
+            devices = st.multiselect(
+            "Select Devices",
+            options=list(range(16)),  
+            default=st.session_state.get("magpie_devices", [0]),  
+            max_selections=16  
+        )
+            devices_str = ','.join(map(str, devices))
 
+    
         # Submit Button
         cols1, cols2, cols3 = st.columns([5, 5, 4])
         with cols2:
-            submitted = st.form_submit_button("🚀 Submit Configuration")
+            saved = st.form_submit_button("💾 Save Configuration")
 
         # Validation and Processing After Submission
-        if submitted:
+        if saved:
             # Check all required fields
             missing_fields = []
             if not temperature:
@@ -229,11 +286,15 @@ elif method == "Back-Translation":
                 missing_fields.append("Top-p")
             if not max_length:
                 missing_fields.append("Max Length")
+            if not prompt_column_name:
+                missing_fields.append("prompt_column_name")
+            if not devices:
+                missing_fields.append("devices")
             if not unlabeled_data_path:
                 missing_fields.append("Unlabeled Data Path")
             if not output_path:
                 missing_fields.append("Output File Save Path")
-            if not back_translation_model_path:
+            if not model_path:
                 missing_fields.append("Back-Translation Model Path")
             if not tensor_parallel_size:
                 missing_fields.append("Tensor Parallel Size")
@@ -242,16 +303,31 @@ elif method == "Back-Translation":
             if missing_fields:
                 st.error(f"The following fields are missing: {', '.join(missing_fields)}")
             else:
-                # Save configuration to session_state
-                st.session_state.back_translation_config = {
-                    "temperature": temperature,
-                    "top_p": top_p,
-                    "max_length": max_length,
-                    "unlabeled_data_path": unlabeled_data_path,
-                    "output_path": output_path,
-                    "back_translation_model_path": back_translation_model_path,
-                    "tensor_parallel_size": tensor_parallel_size
-                }
+                script_content = f"""
+#!/usr/bin/bash
+
+
+export CUDA_VISIBLE_DEVICES={devices_str}
+
+model_path={model_path}
+data_filepath={unlabeled_data_path}
+save_filepath={output_path}
+prompt_column_name={prompt_column_name}
+
+python src/autoalign/data/instruction/back_translation.py \\
+    --reverse \\
+    --model_path={model_path} \\
+    --data_filepath={unlabeled_data_path} \\
+    --save_filepath={output_path} \\
+    --prompt_column_name={prompt_column_name} \\
+    --tensor_parallel_size={tensor_parallel_size}
+"""
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                parent_dir = os.path.dirname(current_dir)
+                bash_file_path = os.path.join(parent_dir, "back_translation.sh")
+                # 将脚本内容保存到文件
+                with open(bash_file_path, "w") as f:
+                    f.write(script_content)
                 st.success("Configuration saved successfully!")
                 # Redirect to page3.py
                 st.switch_page("page3.py")
