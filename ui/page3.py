@@ -1,5 +1,15 @@
 import streamlit as st
-
+import time
+for key, default in {
+    "p1_fin": False,
+    "p2_fin": False,
+    "p3_fin": False,
+    "p4_fin": False,
+    "selected_button": "data_gen"
+}.items():
+    if key not in st.session_state:
+        st.session_state[key] = default
+st.set_page_config(layout="centered")
 nav_cols = st.columns(4)
 with nav_cols[0]:
     if st.button("📥 Generate Query", use_container_width=True):
@@ -238,6 +248,10 @@ with st.form("Train Configuration"):
         # Temporary skipping part
         st.session_state.p3_fin = True
         st.success("Successfully Saved!")
+        time.sleep(0.7)
+        st.session_state.selected_button = "eval"
+        st.switch_page("page4.py")
+
 
 if st.session_state.selected_button == "data_gen":
     st.switch_page("page1.py")

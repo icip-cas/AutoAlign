@@ -1,5 +1,16 @@
 import streamlit as st
+st.set_page_config(layout="centered")
 nav_cols = st.columns(4)
+for key, default in {
+    "p1_fin": False,
+    "p2_fin": False,
+    "p3_fin": False,
+    "p4_fin": False,
+    "selected_button": "data_gen"
+}.items():
+    if key not in st.session_state:
+        st.session_state[key] = default
+
 with nav_cols[0]:
     if st.button("📥 Generate Query", use_container_width=True):
         st.session_state.selected_button = "data_gen"
@@ -24,9 +35,16 @@ with st.form("config_form"):
         process = st.selectbox(
             "BenchMark", 
             [
-            "1",
-            "2",
-            "3"
+            "MATH",           		 
+            "GSM-8K",         		   
+            "HumanEval",      		
+            "MBPP",       		    
+            "HumanEval-CN",
+            "MBPP-CN",	   
+            "MMLU",        		
+            "GPQA",        		    
+            "CMMLU",       		    
+            "C-Eval",
             ],
             label_visibility="collapsed"
         )

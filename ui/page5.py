@@ -13,6 +13,11 @@ import uuid
 from io import StringIO
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 st.set_page_config(layout="wide")
+for key, default in {
+    "selected_button": "data_demo"
+}.items():
+    if key not in st.session_state:
+        st.session_state[key] = default
 nav_cols = st.columns(4)
 with nav_cols[0]:
     if st.button("Data Board", use_container_width=True):
@@ -116,8 +121,8 @@ def pro_file(file_path, data_type, tokenizer):
                 "Turns": turn_num,
                 "Tokens": token_num,
                 "Domain": domain,
-                "Time": data_time,
-                "Score": group_score
+                "Score": group_score,
+                "Time": data_time
             })
         elif data_type == "dpo":
             smooth = SmoothingFunction().method7
