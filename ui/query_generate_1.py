@@ -4,13 +4,23 @@ import os
 # Page Title
 st.title("Data Synthesis")
 
-# Data Generation Method Selection
-method = st.selectbox("Synthesis Method", ["  ", "MAGPIE", "Self-Instruct", "Back-Translation"])
+# 使用 session_state 保存 method 的选择状态
+if "selected_method" not in st.session_state:
+    st.session_state["selected_method"] = "  "
 
+# 选择框
+method = st.selectbox(
+    "Synthesis Method", 
+    ["  ", "MAGPIE", "Self-Instruct", "Back-Translation"],
+    index=["  ", "MAGPIE", "Self-Instruct", "Back-Translation"].index(st.session_state["selected_method"])
+)
+
+# 更新 session_state 中的 method
+st.session_state["selected_method"] = method
 # Dynamically Display Parameters Based on Selected Method
 if method != "  ":
     st.subheader(f"{method} Parameter Configuration")
-    
+
 if method == "MAGPIE":
     with st.form("magpie_config_form"):
         # Basic Configuration
@@ -20,7 +30,7 @@ if method == "MAGPIE":
             task_name = st.text_input("Task Name", placeholder="Please enter your task name", value=st.session_state.get("magpie_task_name", ""))
         with cols[1]:
             # Timestamp Selection Box (Fixed in the second column)
-            timestamp_option = st.selectbox("Timestamp Generation Method", ["Auto-generate", "Manual Input"])
+            timestamp_option = st.selectbox("Timestamp Generation Method", ["Auto-generate", "Manual Input"], index=0 if st.session_state.get("magpie_timestamp_option", "Auto-generate") == "Auto-generate" else 1)
 
         # Display the timestamp input box below the selection box
         timestamp = st.text_input("Timestamp", placeholder="Please enter the timestamp(if you chose to do it manually)", value=st.session_state.get("magpie_timestamp", ""))
@@ -47,11 +57,11 @@ if method == "MAGPIE":
         st.subheader("Sampling Configuration")
         cols = st.columns(4)
         with cols[0]:
-            total_prompts = st.number_input("Total Prompts", min_value=1, value=st.session_state.get("magpie_total_prompts", 100), step = 1)
+            total_prompts = st.number_input("Total Prompts", min_value=1, value=st.session_state.get("magpie_total_prompts", 100), step=1)
         with cols[1]:
-            temperature = st.number_input("Temperature", min_value=0.0, max_value=1.0, value=st.session_state.get("magpie_temperature", 0.7), step = 0.1)
+            temperature = st.number_input("Temperature", min_value=0.0, max_value=1.0, value=st.session_state.get("magpie_temperature", 0.7), step=0.1)
         with cols[2]:
-            top_p = st.number_input("Top-p", min_value=0.0, max_value=1.0, value=st.session_state.get("magpie_top_p", 0.9), step = 0.1)
+            top_p = st.number_input("Top-p", min_value=0.0, max_value=1.0, value=st.session_state.get("magpie_top_p", 0.9), step=0.1)
         with cols[3]:
             n_samples = st.number_input("N-Simultaneous Samples", min_value=1, value=st.session_state.get("magpie_n_samples", 1))
 
@@ -70,6 +80,21 @@ if method == "MAGPIE":
             saved = st.form_submit_button("💾 Save Configuration")
 
         if saved:
+            # Save all inputs to session_state
+            st.session_state["magpie_task_name"] = task_name
+            st.session_state["magpie_timestamp_option"] = timestamp_option
+            st.session_state["magpie_timestamp"] = timestamp
+            st.session_state["magpie_model_path"] = model_path
+            st.session_state["magpie_config_path"] = config_path
+            st.session_state["magpie_model_id"] = model_id
+            st.session_state["magpie_tensor_parallel"] = tensor_parallel
+            st.session_state["magpie_gpu_utilization"] = gpu_utilization
+            st.session_state["magpie_total_prompts"] = total_prompts
+            st.session_state["magpie_temperature"] = temperature
+            st.session_state["magpie_top_p"] = top_p
+            st.session_state["magpie_n_samples"] = n_samples
+            st.session_state["magpie_devices"] = devices
+
             # Check all required fields
             missing_fields = []
             if not task_name:
@@ -95,9 +120,28 @@ if method == "MAGPIE":
             if not devices:
                 missing_fields.append("Device List")
 
-            # If there are missing fields, prompt which fields are missing
-            if missing_fields:
-                st.error(f"The following fields are missing: {', '.join(missing_fields)}")
+            # 检查路径合法性
+            invalid_paths = []
+            if model_path and not os.path.exists(model_path):
+                invalid_paths.append(f"Model Path '{model_path}' does not exist.")
+            if config_path and not os.path.exists(config_path):
+                invalid_paths.append(f"Config Path '{config_path}' does not exist.")
+
+            # 如果有缺失字段或无效路径，显示详细的错误信息
+            if missing_fields or invalid_paths:
+                error_message = "Please fix the following errors before saving:\n\n"
+                
+                if missing_fields:
+                    error_message += "**Missing Fields:**\n"
+                    for field in missing_fields:
+                        error_message += f"- {field} is required.\n"
+                
+                if invalid_paths:
+                    error_message += "\n**Invalid Paths:**\n"
+                    for path_error in invalid_paths:
+                        error_message += f"- {path_error}\n"
+                
+                st.error(error_message)
             else:
                 script_content = f"""
 model_path={model_path}
@@ -161,15 +205,15 @@ echo "[magpie.sh] Finish Generating Instructions!"
                 with open(bash_file_path, "w") as f:
                     f.write(script_content)
                 st.success(f"MAGPIE script saved successfully at: {bash_file_path}")
-                            
-# Self-Instruct Method Parameters
+                # Redirect to page3.py
+                st.switch_page("4.eval.py")
+
 elif method == "Self-Instruct":
     with st.form("self_instruct_config_form"):
         # Basic Configuration
         st.subheader("Basic Configuration")
         model_id = st.text_input("Model ID", placeholder="Please enter the model name (customizable)", value=st.session_state.get("self_instruct_model_id", ""))
         template_name = st.text_input("Template", placeholder="Please enter the template name as per ATA regulations", value=st.session_state.get("self_instruct_template_name", ""))
-        #根据后端添加
         output_path = st.text_input("Output Path", placeholder="Please enter the output path", value=st.session_state.get("self_instruct_output_path", ""))
 
         # Path Configuration
@@ -195,6 +239,15 @@ elif method == "Self-Instruct":
 
         # Validation and Processing After Submission
         if saved:
+            # Save all inputs to session_state
+            st.session_state["self_instruct_model_id"] = model_id
+            st.session_state["self_instruct_template_name"] = template_name
+            st.session_state["self_instruct_output_path"] = output_path
+            st.session_state["self_instruct_question_gen_model_path"] = question_gen_model_path
+            st.session_state["self_instruct_seed_data_path"] = seed_data_path
+            st.session_state["self_instruct_backend"] = backend
+            st.session_state["self_instruct_num_prompts"] = num_prompts
+
             # Check all required fields
             missing_fields = []
             if not model_id:
@@ -204,15 +257,34 @@ elif method == "Self-Instruct":
             if not question_gen_model_path:
                 missing_fields.append("Self-Instruct Model Path")
             if not seed_data_path:
-                missing_fields.append("Seed-data-path")
+                missing_fields.append("Seed Data Path")
             if not backend:
                 missing_fields.append("Inference Backend")
             if not num_prompts:
                 missing_fields.append("Self-Instruct Count")
 
-            # If there are missing fields, prompt which fields are missing
-            if missing_fields:
-                st.error(f"The following fields are missing: {', '.join(missing_fields)}")
+            # 检查路径合法性
+            invalid_paths = []
+            if question_gen_model_path and not os.path.exists(question_gen_model_path):
+                invalid_paths.append(f"Self-Instruct Model Path '{question_gen_model_path}' does not exist.")
+            if seed_data_path and not os.path.exists(seed_data_path):
+                invalid_paths.append(f"Seed Data Path '{seed_data_path}' does not exist.")
+
+            # 如果有缺失字段或无效路径，显示详细的错误信息
+            if missing_fields or invalid_paths:
+                error_message = "Please fix the following errors before saving:\n\n"
+                
+                if missing_fields:
+                    error_message += "**Missing Fields:**\n"
+                    for field in missing_fields:
+                        error_message += f"- {field} is required.\n"
+                
+                if invalid_paths:
+                    error_message += "\n**Invalid Paths:**\n"
+                    for path_error in invalid_paths:
+                        error_message += f"- {path_error}\n"
+                
+                st.error(error_message)
             else:
                 script_content = f"""
 python src/autoalign/data/instruction/self_instruct.py \\
@@ -231,21 +303,21 @@ python src/autoalign/data/instruction/self_instruct.py \\
                 # 将脚本内容保存到文件
                 with open(bash_file_path, "w") as f:
                     f.write(script_content)
+                st.success(f"Self-Instruct script saved successfully at: {bash_file_path}")
                 # Redirect to page3.py
-                # st.switch_page("page3.py")
-        
-# Back-Translation Method Parameters
+                st.switch_page("page3.py")
+
 elif method == "Back-Translation":
     with st.form("back_translation_config_form"):
         # Sampling Configuration
         st.subheader("Sampling Configuration")
         cols = st.columns(3)
         with cols[0]:
-            temperature = st.number_input("Temperature", min_value=0.0, max_value=2.0, value=st.session_state.get("back_translation_temperature", 0.7), step = 0.1)
+            temperature = st.number_input("Temperature", min_value=0.0, max_value=2.0, value=st.session_state.get("back_translation_temperature", 0.7), step=0.1)
         with cols[1]:
-            top_p = st.number_input("Top-p", min_value=0.0, max_value=1.0, value=st.session_state.get("back_translation_top_p", 0.9), step = 0.1)
+            top_p = st.number_input("Top-p", min_value=0.0, max_value=1.0, value=st.session_state.get("back_translation_top_p", 0.9), step=0.1)
         with cols[2]:
-            max_length = st.number_input("Max Length", min_value=50, value=st.session_state.get("back_translation_max_length", 8192), step = 2048)
+            max_length = st.number_input("Max Length", min_value=50, value=st.session_state.get("back_translation_max_length", 8192), step=2048)
 
         # Path Configuration
         st.subheader("Path Configuration")
@@ -270,7 +342,6 @@ elif method == "Back-Translation":
         )
             devices_str = ','.join(map(str, devices))
 
-    
         # Submit Button
         cols1, cols2, cols3 = st.columns([5, 5, 4])
         with cols2:
@@ -278,6 +349,17 @@ elif method == "Back-Translation":
 
         # Validation and Processing After Submission
         if saved:
+            # Save all inputs to session_state
+            st.session_state["back_translation_temperature"] = temperature
+            st.session_state["back_translation_top_p"] = top_p
+            st.session_state["back_translation_max_length"] = max_length
+            st.session_state["back_translation_unlabeled_data_path"] = unlabeled_data_path
+            st.session_state["back_translation_output_path"] = output_path
+            st.session_state["back_translation_prompt_column_name"] = prompt_column_name
+            st.session_state["back_translation_model_path"] = model_path
+            st.session_state["back_translation_tensor_parallel_size"] = tensor_parallel_size
+            st.session_state["back_translation_devices"] = devices
+
             # Check all required fields
             missing_fields = []
             if not temperature:
@@ -299,13 +381,31 @@ elif method == "Back-Translation":
             if not tensor_parallel_size:
                 missing_fields.append("Tensor Parallel Size")
 
-            # If there are missing fields, prompt which fields are missing
-            if missing_fields:
-                st.error(f"The following fields are missing: {', '.join(missing_fields)}")
+            # Check path validity
+            invalid_paths = []
+            if unlabeled_data_path and not os.path.exists(unlabeled_data_path):
+                invalid_paths.append(f"Unlabeled Data Path '{unlabeled_data_path}' does not exist.")
+            if model_path and not os.path.exists(model_path):
+                invalid_paths.append(f"Back-Translation Model Path '{model_path}' does not exist.")
+
+            # If there are missing fields or invalid paths, display detailed error messages
+            if missing_fields or invalid_paths:
+                error_message = "Please fix the following errors before saving:\n\n"
+                
+                if missing_fields:
+                    error_message += "**Missing Fields:**\n"
+                    for field in missing_fields:
+                        error_message += f"- {field} is required.\n"
+                
+                if invalid_paths:
+                    error_message += "\n**Invalid Paths:**\n"
+                    for path_error in invalid_paths:
+                        error_message += f"- {path_error}\n"
+                
+                st.error(error_message)
             else:
                 script_content = f"""
 #!/usr/bin/bash
-
 
 export CUDA_VISIBLE_DEVICES={devices_str}
 
