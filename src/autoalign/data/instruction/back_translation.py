@@ -1,31 +1,26 @@
 # modifyed from https://github.com/Spico197/Humback
 import argparse
-
+import numpy as np
 from vllm import LLM, SamplingParams
 from functools import partial
 from datasets import Dataset
-from utils import dump_jsonlines, load_jsonlines
+from utils import dump_json, load_jsonlines
 
 from autoalign.conversation import Role
 from autoalign.conversation_instr import InstructionGenerateConversation
 
 
-def apply_template(
-    conv,
-    conv_template_name,
-):
+def apply_template(conv, conv_template_name, key_name):
     """tokenize conversation and prepare labels for loss calculation"""
     # get conversation template
     conversation = InstructionGenerateConversation.from_template(conv_template_name)
     conversation.swap_eos_token()
     # fill in messages from single conv data point
-    conversation.append_message(role=Role.ASSISTANT, message=conv["content"])
+    conversation.append_message(role=Role.ASSISTANT, message=conv[key_name])
 
     # tokenize conversation
     applied_message = conversation.get_conversation_str(add_generation_prompt="human")
-    print(applied_message)
-
-    return {"content": applied_message}
+    return {key_name: applied_message}
 
 
 def main(args):
@@ -41,38 +36,50 @@ def main(args):
     )
 
     raw_data = load_jsonlines(args.data_filepath)
-    dataset = Dataset.from_list(raw_data[:100])
-    print(dataset[0])
+    dataset = Dataset.from_list(raw_data)
+
     dataset = dataset.map(
         partial(
             apply_template,
             conv_template_name="vicuna_v1.1",
+            key_name=args.prompt_column_name,
         ),
         remove_columns=list(dataset.features),
         num_proc=8,
     )
-    prompts = [data["content"] for data in dataset]
+    prompts = [data[args.prompt_column_name] for data in dataset]
+    dump_jsonl = []
 
-    # 00:25 / 100 prompts on one GPU
-    results = llm.generate(prompts, use_tqdm=True, sampling_params=sampling_params)
+    rounds = int(np.ceil(len(prompts) / args.save_cycle))
+
+    for rnd in range(rounds):
+        length = min(args.save_cycle, len(prompts) - rnd * args.save_cycle)
+        batches = int(np.ceil(length / args.batch_size))
+        for batch in range(batches):
+            start = rnd * args.save_cycle + batch * args.batch_size
+            end = rnd * args.save_cycle + min(
+                args.save_cycle, (batch + 1) * args.batch_size
+            )
+
+            results = llm.generate(
+                prompts[start:end], use_tqdm=True, sampling_params=sampling_params
+            )
+            for result in results:
+                dump_jsonl.append(
+                    {
+                        "index": len(dump_jsonl),
+                        "conversations": [
+                            {"from": "human", "value": result.outputs[0].text}
+                        ],
+                    }
+                )
+        dump_json(dump_jsonl, args.save_filepath)
 
     # 07:24 / 100 prompts on one GPU
     # results = []
     # for prompt in tqdm(prompts):
     #     result = llm.generate(prompt, use_tqdm=False, sampling_params=sampling_params)
     #     results.append(result)
-
-    dump_jsonl = []
-    for raw, result in zip(raw_data, results):
-        dump_jsonl.append(
-            {
-                "raw": raw,
-                "full_prompt": result.prompt,
-                "prompt": raw[args.prompt_column_name],
-                "response": result.outputs[0].text,
-            }
-        )
-    dump_jsonlines(dump_jsonl, args.save_filepath)
 
 
 if __name__ == "__main__":
@@ -87,6 +94,8 @@ if __name__ == "__main__":
     parser.add_argument("--model_path", type=str)
     parser.add_argument("--dtype", type=str, default="bfloat16")
     parser.add_argument("--tensor_parallel_size", type=int, default=1)
+    parser.add_argument("--save_cycle", type=int, default=1000)
+    parser.add_argument("--batch_size", type=int, default=50)
     args = parser.parse_args()
 
     main(args)
