@@ -2,14 +2,13 @@ import torch
 import random
 import re
 import multiprocessing
-from multiprocessing import Pool
-from functools import partial
 from tqdm import tqdm
 from datasets import Dataset
 from copy import deepcopy
-from rouge_score import rouge_scorer
 import argparse
 import os
+import numpy as np
+from torchmetrics.text.rouge import ROUGEScore
 from utils import (
     load_json,
     dump_json,
@@ -17,8 +16,6 @@ from utils import (
     post_process_instructs,
     DEFAULT_TASK_GENERATION_PROMPT,
 )
-from autoalign.conversation import Conversation
-from autoalign.prompts.judge import META_JUDGE_EN
 
 
 def inference(
@@ -39,8 +36,6 @@ def inference(
         infer_kwargs = deepcopy(kwargs)
         if "template_name" in infer_kwargs:
             infer_kwargs.pop("template_name")
-        if "reward_regex_str" in infer_kwargs:
-            infer_kwargs.pop("reward_regex_str")
         if "instruction_pool" in infer_kwargs:
             infer_kwargs.pop("instruction_pool")
         if "ift_dataset" in infer_kwargs:
@@ -109,8 +104,8 @@ def parallel_inference(
     random.shuffle(questions)
     try:
         gpus = os.environ["CUDA_VISIBLE_DEVICES"].split(",")
-    except Exception as e:
-        print(e)
+    except Exception:
+        # print(e)
         gpus = get_available_gpu_list()
     num_gpus_total = len(gpus)
     process_num = min(len(questions), num_gpus_total // num_gpus_per_model)
@@ -225,38 +220,6 @@ def extract_prompts(answer, **kwargs) -> str:
     return prompts
 
 
-def format_conversation(conv, **kwargs) -> str:
-    template_name = kwargs.get("template_name")
-    conversation = Conversation.from_template(template_name)
-    conversation.fill_in_messages(conv)
-    return conversation.get_conversation_str(add_generation_prompt=True)
-
-
-def format_prompt(pair, **kwargs) -> str:
-    prompt_reward_model = META_JUDGE_EN.format(
-        instruction=pair["instruct"], response=pair["response"]
-    )
-    template_name = kwargs.get("template_name")
-    conversation = Conversation.from_template(template_name)
-    conversation.fill_in_messages(
-        {"conversations": [{"from": "human", "value": prompt_reward_model}]}
-    )
-    return conversation.get_conversation_str(add_generation_prompt=True)
-
-
-def parse_reward_fn(llm_response: str, **kwargs) -> float:
-    reward_regex_str = kwargs.get("reward_regex_str")
-    result = re.search(rf"{reward_regex_str}", llm_response)
-    if result is None:
-        return None
-    try:
-        result.group(1)
-    except Exception as e:
-        print("Encountered {} while parsing reward function.".format(e))
-        return None
-    return float(result.group(1))
-
-
 class DatasetGenerator:
     def __init__(
         self,
@@ -306,30 +269,38 @@ class DatasetGenerator:
         new_prompts = post_process_instructs(rem_dup_task_prompts)
         return new_prompts
 
-    def prompts_filter(self, prompts: list[dict]):
+    def prompts_filter(self, prompts: list[str], prompts_cache: list[str] = []):
+
         os.environ["TOKENIZERS_PARALLELISM"] = "True"
-        scorer = rouge_scorer.RougeScorer(["rougeL"], use_stemmer=False)
+
         assert len(prompts) > 0
         random.shuffle(prompts)
-        filtered_prompts = [prompts[0]]
-        for prompt in tqdm(prompts[1:]):
-            with Pool(64) as p:
-                rouge_scores = p.map(partial(scorer.score, prompt), filtered_prompts)
-            rouge_scores = [score["rougeL"].fmeasure for score in rouge_scores]
-            if max(rouge_scores) > 0.7:
+        cache_len = len(prompts_cache)
+        filtered_prompts = [prompts[0]] if len(prompts_cache) <= 0 else prompts_cache
+        for prompt in tqdm(prompts[1:] if len(prompts_cache) <= 0 else prompts):
+            rouge_scores = rouge_metric([prompt], filtered_prompts)
+            rouge_score = rouge_scores["rougeL_fmeasure"].item()
+            rouge_metric.reset()
+            if rouge_score > 0.7:
                 continue
             else:
                 filtered_prompts.append(prompt)
         return [
-            {"index": index, "conversations": [{"from": "human", "value": prompt}]}
-            for index, prompt in enumerate(filtered_prompts)
+            {
+                "index": index + cache_len,
+                "conversations": [{"from": "human", "value": prompt}],
+            }
+            for index, prompt in enumerate(filtered_prompts[cache_len:])
         ]
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--model-id", type=str, required=True, help="A custom name for the model."
+        "--job-id",
+        type=str,
+        required=True,
+        help="A custom name for the information of the job.",
     )
     parser.add_argument(
         "--template-name",
@@ -375,8 +346,15 @@ if __name__ == "__main__":
         default="output",
         help="The times to sample from the model.",
     )
+    parser.add_argument(
+        "--save-every",
+        type=int,
+        default=3,
+        help="The times to sample from the model.",
+    )
     args = parser.parse_args()
-
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    rouge_metric = ROUGEScore(rouge_keys=("rougeL",), accumulate="best").to(device)
     generator = DatasetGenerator(
         instruct_generator=args.question_gen_model_path,
         ift_dataset=args.seed_data_path,
@@ -384,17 +362,23 @@ if __name__ == "__main__":
         backend=args.backend,
         num_gpus_per_model=args.num_gpus_per_model,
     )
+    filtered_prompts = []
+    rounds = int(np.ceil(args.num_prompts / args.save_every))
+    for rnd in range(rounds):
+        gen_num = min(args.save_every, args.num_prompts - rnd * args.save_every)
+        raw_prompts = generator.generate_prompts(num_prompts=gen_num)
+        if len(filtered_prompts) > 0:
+            prompt_cache = [p["conversations"][0]["value"] for p in filtered_prompts]
+        else:
+            prompt_cache = []
+        # print(len(prompt_cache))
+        filtered_prompt = generator.prompts_filter(
+            prompts=raw_prompts, prompts_cache=prompt_cache
+        )
+        filtered_prompts.extend(filtered_prompt)
 
-    raw_prompts = generator.generate_prompts(num_prompts=args.num_prompts)
-    filtered_prompt = generator.prompts_filter(prompts=raw_prompts)
-
-    dump_json(
-        filtered_prompt,
-        os.path.join(
-            args.output_path,
-            "{}_filtered_prompts.json".format(
-                args.model_id,
-            ),
-        ),
-        indent=2,
-    )
+        dump_json(
+            filtered_prompts,
+            os.path.join(args.output_path, f"{args.job_id}.json"),
+            indent=2,
+        )

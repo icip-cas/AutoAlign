@@ -2,13 +2,9 @@ import torch
 import random
 import re
 import multiprocessing
-from multiprocessing import Pool
-from functools import partial
 import numpy as np
 from tqdm import tqdm
-from datasets import Dataset
 from copy import deepcopy
-from rouge_score import rouge_scorer
 import argparse
 import os
 from utils import (
@@ -115,8 +111,8 @@ def parallel_inference(
     random.shuffle(questions)
     try:
         gpus = os.environ["CUDA_VISIBLE_DEVICES"].split(",")
-    except Exception as e:
-        print(e)
+    except Exception:
+        # print(e)
         gpus = get_available_gpu_list()
     num_gpus_total = len(gpus)
     process_num = min(len(questions), num_gpus_total // num_gpus_per_model)
@@ -267,70 +263,14 @@ class DPODatasetGenerator:
     def __init__(
         self,
         model_name,
-        instruct_generator,
         template_name,
         backend,
-        ift_dataset,
         num_gpus_per_model,
     ):
         self.model_name = model_name
-        self.instruct_generator = instruct_generator
         self.template_name = template_name
         self.backend = backend
-        self.ift_dataset = Dataset.from_list(load_json(ift_dataset))
         self.num_gpus_per_model = num_gpus_per_model
-
-    def generate_prompts(self, num_prompts: int, num_examples: int = 6):
-        task_generation_prompts = []
-
-        for index in range(num_prompts):
-            rand_examples_idxs = random.sample(
-                range(0, len(self.ift_dataset)), k=num_examples
-            )
-            examples = []
-            for idx in rand_examples_idxs:
-                examples.append(self.ift_dataset[idx]["conversations"][0]["value"])
-            task_generation_prompts.append({"index": index, "examples": examples})
-        raw_task_prompts = parallel_inference(
-            model_name=self.instruct_generator,
-            questions=task_generation_prompts,
-            num_choices=1,
-            input_hook_fn=format_examples,
-            output_hook_fn=extract_prompts,
-            num_gpus_per_model=self.num_gpus_per_model,
-            temperature=0.6,
-            top_p=0.9,
-            max_new_tokens=512,
-            ift_dataset=self.ift_dataset,
-            instruction_pool=[],
-            template_name=self.template_name,
-            backend=self.backend,
-        )
-        task_prompts = []
-        for raw_prompt in raw_task_prompts:
-            task_prompts.extend(raw_prompt["choices"][0]["output"])
-
-        rem_dup_task_prompts = list(set(task_prompts))
-        new_prompts = post_process_instructs(rem_dup_task_prompts)
-        return new_prompts
-
-    def prompts_filter(self, prompts: list[dict]):
-        scorer = rouge_scorer.RougeScorer(["rougeL"], use_stemmer=False)
-        assert len(prompts) > 0
-        random.shuffle(prompts)
-        filtered_prompts = [prompts[0]]
-        for prompt in tqdm(prompts[1:]):
-            with Pool(64) as p:
-                rouge_scores = p.map(partial(scorer.score, prompt), filtered_prompts)
-            rouge_scores = [score["rougeL"].fmeasure for score in rouge_scores]
-            if max(rouge_scores) > 0.7:
-                continue
-            else:
-                filtered_prompts.append(prompt)
-        return [
-            {"index": index, "conversations": [{"from": "human", "value": prompt}]}
-            for index, prompt in enumerate(filtered_prompts)
-        ]
 
     def generate_responses(self, prompts, repeat_time=4):
         prompts = sorted(prompts, key=lambda x: x["index"])
@@ -469,14 +409,7 @@ if __name__ == "__main__":
         help="The template name.",
     )
     parser.add_argument(
-        "--question-gen-model-path",
-        type=str,
-        required=True,
-        help="The path to the question generator (usually an instruct model) weights. \
-        This can be a local folder or a Hugging Face repo ID.",
-    )
-    parser.add_argument(
-        "--seed-data-path",
+        "--instruction-path",
         type=str,
         required=True,
         help="The path to the the seed data. This can be a local folder or a Hugging Face repo ID.",
@@ -520,66 +453,35 @@ if __name__ == "__main__":
         default=1,
         help="The number of GPUs per model.",
     )
-    parser.add_argument(
-        "--num-prompts",
-        type=int,
-        default=1000,
-        help="The times to sample from the sample",
-    )
 
     args = parser.parse_args()
 
     generator = DPODatasetGenerator(
         model_name=args.model_path,
-        instruct_generator=args.question_gen_model_path,
-        ift_dataset=args.seed_data_path,
         template_name=args.template_name,
         backend=args.backend,
         num_gpus_per_model=args.num_gpus_per_model,
     )
 
-    raw_prompts = generator.generate_prompts(num_prompts=args.num_prompts)
-
-    dump_json(
-        raw_prompts,
-        "exp/{}/{}/iter{}/raw_prompts.json".format(
-            args.model_id, args.sft_base_model, str(args.num_iter)
-        ),
-        indent=2,
-    )
-
-    filtered_prompt = generator.prompts_filter(prompts=raw_prompts)
-    dump_json(
-        filtered_prompt,
-        "exp/{}/{}/iter{}/filtered_prompts.json".format(
-            args.model_id, args.sft_base_model, str(args.num_iter)
-        ),
-        indent=2,
-    )
-
+    filtered_prompt = load_json(f"{str(args.instruction_path)}")
+    print(f"Data Length: {len(filtered_prompt)}")
     prompt_response_pairs = generator.generate_responses(prompts=filtered_prompt)
     dump_json(
         prompt_response_pairs,
-        "exp/{}/{}/iter{}/prompts_responses.json".format(
-            args.model_id, args.sft_base_model, str(args.num_iter)
-        ),
+        f"exp/{args.model_id}/{args.sft_base_model}/iter{str(args.num_iter)}/prompts_responses.json",
         indent=2,
     )
 
     conv_scores = generator.generate_scores(instr_resp_pairs=prompt_response_pairs)
     dump_json(
         conv_scores,
-        "exp/{}/{}/iter{}/conv_scores.json".format(
-            args.model_id, args.sft_base_model, str(args.num_iter)
-        ),
+        f"exp/{args.model_id}/{args.sft_base_model}/iter{str(args.num_iter)}/conv_scores.json",
         indent=2,
     )
     # scores = json.load(open("data/{}/conv_scores.json".format(args.model_id), 'r'))
     preference_data = generator.generate_preferences(conv_scores=conv_scores)
     dump_json(
         preference_data,
-        "exp/{}/{}/iter{}/preference_data.json".format(
-            args.model_id, args.sft_base_model, str(args.num_iter)
-        ),
+        f"exp/{args.model_id}/{args.sft_base_model}/iter{str(args.num_iter)}/preference_data.json",
         indent=2,
     )
