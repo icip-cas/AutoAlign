@@ -413,6 +413,7 @@ model_path={model_path}
 data_filepath={unlabeled_data_path}
 save_filepath={output_path}
 prompt_column_name={prompt_column_name}
+tensor_parallel_size={tensor_parallel_size}
 
 python src/autoalign/data/instruction/back_translation.py \\
     --reverse \\
