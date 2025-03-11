@@ -35,7 +35,7 @@ def inference():
 
     with open(args.test_file, "r", encoding="utf-8") as f:
         all_test_points = json.loads(f.read())
-
+    print(f"Data Length: {len(all_test_points)}")
     if args.debug_mode:
         all_test_points = all_test_points[:1000]
 
