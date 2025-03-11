@@ -1,11 +1,10 @@
 
-model_path=/141nfs/maoyingzhi2024/hf_models/Qwen/Qwen2.5-1.5B-instruct/
+model_path=/141nfs/maoyingzhi2024/hf_models/Qwen/Qwen2-1.5B-instruct
 total_prompts=100
 ins_topp=0.9
 ins_temp=0.7
-config=/141nfs/maoyingzhi2024/hf_models/Qwen/Qwen2.5-1.5B-instruct/
-model_id=test
-res_rep=1
+config=/141nfs/maoyingzhi2024/hf_models/Qwen/Qwen2-1.5B-instruct
+model_id=Qwen/Qwen2.5-1.5B-Instruct
 device="0"
 tensor_parallel=1
 gpu_memory_utilization=0.8
@@ -15,7 +14,7 @@ n=1
 timestamp=$(date +%s)
 
 # Generate Pretty Name
-job_name="$/141nfs/maoyingzhi2024/hf_models/Qwen/Qwen2.5-1.5B-instruct/_topp$0.9_temp$0.7_$a"
+job_name="$/141nfs/maoyingzhi2024/hf_models/Qwen/Qwen2-1.5B-instruct_topp$0.9_temp$0.7_$"
 
 ### Setup Logging
 log_dir="data"
@@ -31,7 +30,6 @@ echo "[magpie.sh] Model Name: $model_path"
 echo "[magpie.sh] Pretty name: $job_name"
 echo "[magpie.sh] Total Prompts: $total_prompts"
 echo "[magpie.sh] Instruction Generation Config: temp=$ins_temp, top_p=$ins_topp"
-echo "[magpie.sh] Response Generation Config: temp=$res_temp, top_p=$res_topp, rep=$res_rep"
 echo "[magpie.sh] System Config: device=$device, n=$n, tensor_parallel=$tensor_parallel"
 echo "[magpie.sh] Timestamp: $timestamp"
 echo "[magpie.sh] Job Name: $job_name"

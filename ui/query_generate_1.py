@@ -150,7 +150,6 @@ ins_topp={top_p}
 ins_temp={temperature}
 config={config_path}
 model_id={model_id}
-res_rep=1
 device="{','.join(map(str, devices))}"
 tensor_parallel={tensor_parallel}
 gpu_memory_utilization={gpu_utilization}
@@ -160,7 +159,7 @@ n={n_samples}
 timestamp=$(date +%s)
 
 # Generate Pretty Name
-job_name="${model_path}_topp${top_p}_temp${temperature}_${timestamp}"
+job_name="${model_id}_topp${top_p}_temp${temperature}_${timestamp}"#job_name="${task_name}_topp${top_p}_temp${temperature}_${timestamp}"
 
 ### Setup Logging
 log_dir="data"
@@ -176,7 +175,6 @@ echo "[magpie.sh] Model Name: $model_path"
 echo "[magpie.sh] Pretty name: $job_name"
 echo "[magpie.sh] Total Prompts: $total_prompts"
 echo "[magpie.sh] Instruction Generation Config: temp=$ins_temp, top_p=$ins_topp"
-echo "[magpie.sh] Response Generation Config: temp=$res_temp, top_p=$res_topp, rep=$res_rep"
 echo "[magpie.sh] System Config: device=$device, n=$n, tensor_parallel=$tensor_parallel"
 echo "[magpie.sh] Timestamp: $timestamp"
 echo "[magpie.sh] Job Name: $job_name"
@@ -309,15 +307,15 @@ python src/autoalign/data/instruction/self_instruct.py \\
 
 elif method == "Back-Translation":
     with st.form("back_translation_config_form"):
-        # Sampling Configuration
-        st.subheader("Sampling Configuration")
-        cols = st.columns(3)
-        with cols[0]:
-            temperature = st.number_input("Temperature", min_value=0.0, max_value=2.0, value=st.session_state.get("back_translation_temperature", 0.7), step=0.1)
-        with cols[1]:
-            top_p = st.number_input("Top-p", min_value=0.0, max_value=1.0, value=st.session_state.get("back_translation_top_p", 0.9), step=0.1)
-        with cols[2]:
-            max_length = st.number_input("Max Length", min_value=50, value=st.session_state.get("back_translation_max_length", 8192), step=2048)
+        # # Sampling Configuration
+        # st.subheader("Sampling Configuration")
+        # cols = st.columns(3)
+        # with cols[0]:
+        #     temperature = st.number_input("Temperature", min_value=0.0, max_value=2.0, value=st.session_state.get("back_translation_temperature", 0.7), step=0.1)
+        # with cols[1]:
+        #     top_p = st.number_input("Top-p", min_value=0.0, max_value=1.0, value=st.session_state.get("back_translation_top_p", 0.9), step=0.1)
+        # with cols[2]:
+        #     max_length = st.number_input("Max Length", min_value=50, value=st.session_state.get("back_translation_max_length", 8192), step=2048)
 
         # Path Configuration
         st.subheader("Path Configuration")
@@ -350,9 +348,9 @@ elif method == "Back-Translation":
         # Validation and Processing After Submission
         if saved:
             # Save all inputs to session_state
-            st.session_state["back_translation_temperature"] = temperature
-            st.session_state["back_translation_top_p"] = top_p
-            st.session_state["back_translation_max_length"] = max_length
+            # st.session_state["back_translation_temperature"] = temperature
+            # st.session_state["back_translation_top_p"] = top_p
+            # st.session_state["back_translation_max_length"] = max_length
             st.session_state["back_translation_unlabeled_data_path"] = unlabeled_data_path
             st.session_state["back_translation_output_path"] = output_path
             st.session_state["back_translation_prompt_column_name"] = prompt_column_name
@@ -362,12 +360,12 @@ elif method == "Back-Translation":
 
             # Check all required fields
             missing_fields = []
-            if not temperature:
-                missing_fields.append("Temperature")
-            if not top_p:
-                missing_fields.append("Top-p")
-            if not max_length:
-                missing_fields.append("Max Length")
+            # if not temperature:
+            #     missing_fields.append("Temperature")
+            # if not top_p:
+            #     missing_fields.append("Top-p")
+            # if not max_length:
+            #     missing_fields.append("Max Length")
             if not prompt_column_name:
                 missing_fields.append("prompt_column_name")
             if not devices:
