@@ -11,7 +11,7 @@ if "model_dir" not in st.session_state:
 if "output_dir" not in st.session_state:
     st.session_state["output_dir"] = ""
 if "model_name" not in st.session_state:
-    st.session_state["model_name"] = "Qwen2.5-1.5B-Instruct"
+    st.session_state["model_name"] = ""  # 初始化为空字符串
 if "per_model_gpu" not in st.session_state:
     st.session_state["per_model_gpu"] = 1
 if "batch_size" not in st.session_state:
@@ -45,20 +45,12 @@ with st.form("config_form"):
         label_visibility="collapsed"
     )
 
-    st.subheader("Output Path")
-    output_dir = st.text_input(
-        "Result Dir", 
-        placeholder="Please specify the path for saving the results.", 
-        value=st.session_state["output_dir"],  # 恢复 output_dir 的输入内容
-        label_visibility="collapsed"
-    )
-
     # 评测的模型标识名称
     st.subheader("Model Name")
     model_name = st.text_input(
         "Model Name", 
         placeholder="Enter the identifying name of the model to evaluate.", 
-        value=st.session_state["model_name"],  # 恢复 model_name 的输入内容
+        value=st.session_state["model_name"],  # 使用 session_state 中的值
         label_visibility="collapsed"
     )
 
@@ -94,7 +86,6 @@ with st.form("config_form"):
         # 保存用户输入到 session_state
         st.session_state["process"] = process
         st.session_state["model_dir"] = model_dir
-        st.session_state["output_dir"] = output_dir
         st.session_state["model_name"] = model_name
         st.session_state["per_model_gpu"] = per_model_gpu
         st.session_state["batch_size"] = batch_size
@@ -109,30 +100,19 @@ with st.form("config_form"):
             st.error(f"Model directory '{model_dir}' does not exist.")
             all_fields_filled = False
 
-        # 检查 Output Dir 是否存在
-        if not output_dir:
-            st.error("Please specify the output directory.")
+        # 检查 Model Name 是否为空
+        if not model_name:
+            st.error("Please provide the model name.")
             all_fields_filled = False
 
         # 如果所有字段合法且路径检查通过
         if all_fields_filled:
-            # 检查 Output Dir 是否存在，如果不存在则创建
-            if not os.path.exists(output_dir):
-                try:
-                    os.makedirs(output_dir, exist_ok=True)  # 尝试创建目录
-                    st.success(f"Output directory '{output_dir}' created successfully.")
-                except Exception as e:
-                    st.error(f"Failed to create output directory '{output_dir}': {e}")
-                    all_fields_filled = False
+            # 根据评测类型设置 mt_path 和 alpaca_path
+            mt_path = "data/eval/mt-bench"
+            alpaca_path = "data/eval/alpaca_eval" if process == "subjective" else None
 
-            # 如果创建成功，生成配置文件并写入
-            if all_fields_filled:
-                # 根据评测类型设置 mt_path 和 alpaca_path
-                mt_path = "data/eval/mt-bench"
-                alpaca_path = "data/eval/alpaca_eval" if process == "subjective" else None
-
-                # 生成配置文件内容
-                config_content = f"""# 评测的模型标识名称
+            # 生成配置文件内容
+            config_content = f"""# 评测的模型标识名称
 # Identifying name of the model to evaluate
 model_name: {model_name}
 
@@ -168,15 +148,6 @@ opencompass_path: opencompass
 # ==============MTbench 设置================
 # mtbench文件夹的路径
 mt_path: {mt_path}
-"""
-
-                # 如果评测类型是主观的，添加 alpaca_path
-                if alpaca_path:
-                    config_content += f"""
-# ==============AlpacaEval 设置================
-# see https://github.com/tatsu-lab/alpaca_eval/blob/main/src/alpaca_eval/evaluators_configs/README.md
-# 指定AlpacaEval文件的路径(setting the alpaca eval file path if you have already downloaded it)
-alpaca_path: {alpaca_path}
 
 # Recommend using: chatgpt_fn or weighted_alpaca_eval_gpt4_turbo
 # use weighted_alpaca_eval_gpt4_turbo if you want the high agreement with humans.
@@ -184,18 +155,26 @@ alpaca_path: {alpaca_path}
 judge_model: chatgpt_fn
 """
 
-                current_dir = os.path.dirname(__file__)
+            if alpaca_path:
+                config_content += f"""
+# ==============AlpacaEval 设置================
+# see https://github.com/tatsu-lab/alpaca_eval/blob/main/src/alpaca_eval/evaluators_configs/README.md
+# 指定AlpacaEval文件的路径(setting the alpaca eval file path if you have already downloaded it)
+alpaca_path: {alpaca_path}
+"""
 
-                relative_path = os.path.join("..", "configs") 
-                target_dir = os.path.normpath(os.path.join(current_dir, relative_path))
+            current_dir = os.path.dirname(__file__)
 
-                target_file = os.path.join(target_dir, "eval.yaml")
-                try:
-                    with open(target_file, "w") as f:
-                        f.write(config_content)
-                    st.success(f"The configuration has been successfully saved.")
-                except Exception as e:
-                    st.error(f"Failed to save configuration")
+            relative_path = os.path.join("..", "configs") 
+            target_dir = os.path.normpath(os.path.join(current_dir, relative_path))
 
-                # 跳转到 page5.py
-                st.switch_page("page5.py")
+            target_file = os.path.join(target_dir, "eval.yaml")
+            try:
+                with open(target_file, "w") as f:
+                    f.write(config_content)
+                st.success(f"The configuration has been successfully saved.")
+            except Exception as e:
+                st.error(f"Failed to save configuration")
+
+            # 跳转到 page5.py
+            st.switch_page("page5.py")
