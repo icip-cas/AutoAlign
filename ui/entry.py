@@ -1,3 +1,3 @@
 import streamlit as st
-pg = st.navigation([st.Page("1.query_generate.py"), st.Page("4.eval.py"), st.Page("8.eval_visua.py")])
+pg = st.navigation([st.Page("query_generate_1.py"), st.Page("eval_4.py")])
 pg.run()
