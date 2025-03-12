@@ -1,6 +1,6 @@
 mkdir -p ${OUTPUT_DIR}
 mkdir -p ${SAVE_MODEL_DIR}
-
+echo "Method Name: CAI"
 python prepare_for_cai.py   --model-name ${MODEL_NAME} \
                             --model-path ${MODEL_PATH} \
                             --input-file ${PROMPTS_FILE} \

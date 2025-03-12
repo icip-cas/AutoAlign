@@ -117,7 +117,7 @@ def get_args():
     )
     parser.add_argument("--gpu_memory_utilization", type=float, default=0.95)
     parser.add_argument("--swap_space", type=float, default=2.0)
-    parser.add_argument("--output_folder", type=str, default="../data")
+    parser.add_argument("--output_folder", type=str, default="./data")
     parser.add_argument(
         "--job_name", type=str, default=None, help="Job Name. Get from the script."
     )
