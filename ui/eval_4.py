@@ -11,7 +11,7 @@ if "model_dir" not in st.session_state:
 if "output_dir" not in st.session_state:
     st.session_state["output_dir"] = ""
 if "model_name" not in st.session_state:
-    st.session_state["model_name"] = ""  # 初始化为空字符串
+    st.session_state["model_name"] = ""  
 if "per_model_gpu" not in st.session_state:
     st.session_state["per_model_gpu"] = 1
 if "batch_size" not in st.session_state:
@@ -33,7 +33,7 @@ with st.form("config_form"):
                 "objective_core",
                 "objective_all",
                 "subjective",
-            ].index(st.session_state["process"]),  # 恢复 process 的选择状态
+            ].index(st.session_state["process"]),  
             label_visibility="collapsed"
         )
 
@@ -41,20 +41,19 @@ with st.form("config_form"):
     model_dir = st.text_input(
         "Model Dir", 
         placeholder="Please provide the path for the model.", 
-        value=st.session_state["model_dir"],  # 恢复 model_dir 的输入内容
+        value=st.session_state["model_dir"],  
         label_visibility="collapsed"
     )
 
-    # 评测的模型标识名称
+
     st.subheader("Model Name")
     model_name = st.text_input(
         "Model Name", 
         placeholder="Enter the identifying name of the model to evaluate.", 
-        value=st.session_state["model_name"],  # 使用 session_state 中的值
+        value=st.session_state["model_name"],  
         label_visibility="collapsed"
     )
 
-    # GPU 和 Batch Size 配置
     st.subheader("GPU and Batch Size Configuration")
     col1, col2 = st.columns(2)
     with col1:
@@ -71,19 +70,16 @@ with st.form("config_form"):
         batch_size = st.number_input(
             "Batch Size", 
             min_value=1, 
-            value=st.session_state["batch_size"],  # 恢复 batch_size 的输入内容
+            value=st.session_state["batch_size"], 
             step=1,
             label_visibility="collapsed"
         )
 
-    # 提交按钮
     col1, col2, col3 = st.columns([4, 2, 4])
     with col2:
         submitted = st.form_submit_button("🚀 Start")
 
-    # 表单提交后的逻辑
     if submitted:
-        # 保存用户输入到 session_state
         st.session_state["process"] = process
         st.session_state["model_dir"] = model_dir
         st.session_state["model_name"] = model_name
@@ -111,7 +107,6 @@ with st.form("config_form"):
             mt_path = "data/eval/mt-bench"
             alpaca_path = "data/eval/alpaca_eval" if process == "subjective" else None
 
-            # 生成配置文件内容
             config_content = f"""# 评测的模型标识名称
 # Identifying name of the model to evaluate
 model_name: {model_name}

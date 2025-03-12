@@ -262,8 +262,8 @@ def plot_curves(data, epoch_markers, progress):
             y=alt.Y('Gradient Norm', title='Gradient Norm'),
             tooltip=['Step', 'Gradient Norm']
         ).properties(
-            width=600,  # 增加宽度
-            height=400  # 增加高度
+            width=600,  
+            height=400  
         )
 
         # 添加 epoch 虚线标记（过滤掉 epoch=0）
