@@ -18,11 +18,11 @@ job_name="$/141nfs/maoyingzhi2024/hf_models/Qwen/Qwen2-1.5B-instruct_topp$0.9_te
 
 ### Setup Logging
 log_dir="data"
-if [ ! -d "../$log_dir" ]; then
+if [ ! -d "./$log_dir" ]; then
     mkdir -p "../$log_dir"
 fi
 
-job_path="../$log_dir/$job_name"
+job_path="./$log_dir/$job_name"
 
 mkdir -p $job_path
 exec > >(tee -a "$job_path/$job_name.log") 2>&1

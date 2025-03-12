@@ -143,11 +143,14 @@ if method == "MAGPIE":
                 
                 st.error(error_message)
             else:
+                if timestamp_option == "Auto-generate":
+                    timestamp = "timestamp"
+                temperature = round(temperature, 2)
                 script_content = f"""
 model_path={model_path}
 total_prompts={total_prompts}
-ins_topp={top_p}
-ins_temp={temperature}
+ins_topp={round(top_p, 2)}
+ins_temp={round(temperature, 2)}
 config={config_path}
 model_id={model_id}
 device="{','.join(map(str, devices))}"
@@ -159,15 +162,15 @@ n={n_samples}
 timestamp=$(date +%s)
 
 # Generate Pretty Name
-job_name="${model_id}_topp${top_p}_temp${temperature}_${timestamp}"#job_name="${task_name}_topp${top_p}_temp${temperature}_${timestamp}"
+job_name="{task_name}_topp{top_p}_temp{temperature}_${timestamp}"
 
 ### Setup Logging
 log_dir="data"
-if [ ! -d "../$log_dir" ]; then
-    mkdir -p "../$log_dir"
+if [ ! -d "./$log_dir" ]; then
+    mkdir -p "./$log_dir"
 fi
 
-job_path="../$log_dir/$job_name"
+job_path="./$log_dir/$job_name"
 
 mkdir -p $job_path
 exec > >(tee -a "$job_path/$job_name.log") 2>&1
@@ -198,7 +201,7 @@ echo "[magpie.sh] Finish Generating Instructions!"
 """
                 current_dir = os.path.dirname(os.path.abspath(__file__))
                 parent_dir = os.path.dirname(current_dir)
-                bash_file_path = os.path.join(parent_dir, "magpie.sh")
+                bash_file_path = os.path.join(parent_dir, "query_generate.sh")
                 # 将脚本内容保存到文件
                 with open(bash_file_path, "w") as f:
                     f.write(script_content)
@@ -297,7 +300,7 @@ python src/autoalign/data/instruction/self_instruct.py \\
 """
                 current_dir = os.path.dirname(os.path.abspath(__file__))
                 parent_dir = os.path.dirname(current_dir)
-                bash_file_path = os.path.join(parent_dir, "self_instruct.sh")
+                bash_file_path = os.path.join(parent_dir, "query_generate.sh")
                 # 将脚本内容保存到文件
                 with open(bash_file_path, "w") as f:
                     f.write(script_content)
@@ -423,7 +426,7 @@ python src/autoalign/data/instruction/back_translation.py \\
 """
                 current_dir = os.path.dirname(os.path.abspath(__file__))
                 parent_dir = os.path.dirname(current_dir)
-                bash_file_path = os.path.join(parent_dir, "back_translation.sh")
+                bash_file_path = os.path.join(parent_dir, "query_generate.sh")
                 # 将脚本内容保存到文件
                 with open(bash_file_path, "w") as f:
                     f.write(script_content)
