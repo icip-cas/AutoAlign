@@ -67,7 +67,7 @@ def main(args):
             for result in results:
                 dump_jsonl.append(
                     {
-                        "index": len(dump_jsonl),
+                        "id": len(dump_jsonl),
                         "conversations": [
                             {"from": "human", "value": result.outputs[0].text}
                         ],
