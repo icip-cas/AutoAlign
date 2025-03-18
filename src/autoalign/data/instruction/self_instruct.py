@@ -287,7 +287,7 @@ class DatasetGenerator:
                 filtered_prompts.append(prompt)
         return [
             {
-                "index": index + cache_len,
+                "id": index + cache_len,
                 "conversations": [{"from": "human", "value": prompt}],
             }
             for index, prompt in enumerate(filtered_prompts[cache_len:])
