@@ -1,0 +1,182 @@
+[
+  {
+    "index": 0,
+    "conversations": [
+      {
+        "from": "human",
+        "value": "Can you provide a list of the top 5 most popular programming languages used in the web development today?"
+      }
+    ]
+  },
+  {
+    "index": 1,
+    "conversations": [
+      {
+        "from": "human",
+        "value": "How do i run a bash script from a python program?"
+      }
+    ]
+  },
+  {
+    "index": 2,
+    "conversations": [
+      {
+        "from": "human",
+        "value": "Can you create a list of the top 10 songs of the 90s that are still popular today?"
+      }
+    ]
+  },
+  {
+    "index": 3,
+    "conversations": [
+      {
+        "from": "human",
+        "value": "Can you provide a sample code for a simple web scraper using python and the beautifulsoup library?"
+      }
+    ]
+  },
+  {
+    "index": 4,
+    "conversations": [
+      {
+        "from": "human",
+        "value": "I want to use a neural network to predict the stock prices of a company. can you provide a sample code in python?"
+      }
+    ]
+  },
+  {
+    "index": 5,
+    "conversations": [
+      {
+        "from": "human",
+        "value": "I want to use a data visualization library to create a chart that shows the relationship between two variables. can you provide a sample code in python?"
+      }
+    ]
+  },
+  {
+    "index": 6,
+    "conversations": [
+      {
+        "from": "human",
+        "value": "I'm trying to create a game using python and the pygame library, but i'm having trouble with the graphics. can you help me troubleshoot the issue?"
+      }
+    ]
+  },
+  {
+    "index": 7,
+    "conversations": [
+      {
+        "from": "human",
+        "value": "Can you explain the concept of blockchain and how it is used in cryptocurrency?"
+      }
+    ]
+  },
+  {
+    "index": 8,
+    "conversations": [
+      {
+        "from": "human",
+        "value": "I'm trying to create a chatbot like you, but i'm having trouble understanding how to integrate a natural language processing library into my code. can you help?"
+      }
+    ]
+  },
+  {
+    "index": 9,
+    "conversations": [
+      {
+        "from": "human",
+        "value": "Can you provide a sample code for a simple chatbot using python and the nltk library?"
+      }
+    ]
+  },
+  {
+    "index": 10,
+    "conversations": [
+      {
+        "from": "human",
+        "value": "I'm trying to create a simple gui application using python and the tkinter library, but i'm having trouble with the layout. can you help me troubleshoot the issue?"
+      }
+    ]
+  },
+  {
+    "index": 11,
+    "conversations": [
+      {
+        "from": "human",
+        "value": "Can you explain the concept of a microservice architecture and how it is used in software development?"
+      }
+    ]
+  },
+  {
+    "index": 12,
+    "conversations": [
+      {
+        "from": "human",
+        "value": "What is the average salary of a software developer in the us in 2023?"
+      }
+    ]
+  },
+  {
+    "index": 13,
+    "conversations": [
+      {
+        "from": "human",
+        "value": "What is the difference between a noun and a pronoun in the english language?"
+      }
+    ]
+  },
+  {
+    "index": 14,
+    "conversations": [
+      {
+        "from": "human",
+        "value": "Can you help me create a database for a restaurant that tracks orders, customers, and menu items?"
+      }
+    ]
+  },
+  {
+    "index": 15,
+    "conversations": [
+      {
+        "from": "human",
+        "value": "I'm trying to create a neural network using tensorflow and keras, but i'm having trouble with the model architecture. can you help me troubleshoot the issue?"
+      }
+    ]
+  },
+  {
+    "index": 16,
+    "conversations": [
+      {
+        "from": "human",
+        "value": "Can you explain the concept of a restful api and how it is used in software development?"
+      }
+    ]
+  },
+  {
+    "index": 17,
+    "conversations": [
+      {
+        "from": "human",
+        "value": "Can you explain the difference between a keyword and a tag in seo?"
+      }
+    ]
+  },
+  {
+    "index": 18,
+    "conversations": [
+      {
+        "from": "human",
+        "value": "Can you provide a step-by-step guide on how to create a virtual machine using virtualbox?"
+      }
+    ]
+  },
+  {
+    "index": 19,
+    "conversations": [
+      {
+        "from": "human",
+        "value": "I want to use a machine learning algorithm to classify text as either spam or not spam. can you provide a sample code in python?"
+      }
+    ]
+  }
+]

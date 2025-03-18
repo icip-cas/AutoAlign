@@ -1,0 +1,2 @@
+
+python algorithms/self-rewarding/src/dpo_dataset_generator.py    --model-path /ceph_home/arknet/hf_models/Qwen/Qwen2.5-1.5B                                        --model-id Qwen2.5-1.5B                                        --template-name chatml                                        --sft-base-model eft                                        --backend vllm                                        --num-iter 1                                        --instruction-path /141nfs/wangjunxiang/AutoAlign/testing-data/test.json
