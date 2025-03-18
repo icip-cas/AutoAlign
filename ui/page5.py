@@ -18,19 +18,6 @@ for key, default in {
 }.items():
     if key not in st.session_state:
         st.session_state[key] = default
-nav_cols = st.columns(4)
-with nav_cols[0]:
-    if st.button("Data Board", use_container_width=True):
-        st.session_state.selected_button = "data_demo"
-with nav_cols[1]:
-    if st.button("Logs", use_container_width=True):
-        st.session_state.selected_button = "logs"
-with nav_cols[2]:
-    if st.button("Training", use_container_width=True) and st.session_state.p2_fin:
-        st.session_state.selected_button = "training"
-with nav_cols[3]:
-    if st.button("Benchmark", use_container_width=True) and st.session_state.p2_fin and st.session_state.p3_fin:
-        st.session_state.selected_button = "benchmark"
 
 n_gram = 4
 
@@ -189,7 +176,85 @@ for key, default in {
         st.session_state[key] = default
 
 
+st.markdown("""
+    <style>
+        div.stButton > button,
+        div.stFormSubmitButton > button {
+            width: min(6vw, 80px);
+            height: min(6vw, 80px);
+            border-radius: 50%;
+            background: #2196F3;
+            color: white !important;  /* 强制文字颜色 */
+            border: none;
+            cursor: pointer;
+            transition: 0.3s;
+            font-size: 2rem !important;
+            font-weight: bold !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+        }
+            
+        div.stButton > button > div > p,
+        div.stFormSubmitButton > button > div > p {
+            font-size: 2rem;    
+        }
 
+        /* 覆盖所有交互状态 */
+        div.stButton > button:hover,
+        div.stButton > button:active,
+        div.stButton > button:focus,
+        div.stFormSubmitButton > button:hover,
+        div.stFormSubmitButton > button:active,
+        div.stFormSubmitButton > button:focus {
+            background: #1976D2 !important;
+            color: white !important;  /* 强制保持白色 */
+            transform: scale(1.05);
+            box-shadow: none !important;  /* 移除聚焦阴影 */
+            outline: none !important;     /* 移除聚焦轮廓 */
+        }
+
+        /* 强制禁用所有颜色变换 */
+        div.stButton > button:hover span,
+        div.stButton > button:active span,
+        div.stButton > button:focus span {
+            color: inherit !important;  /* 继承父级颜色 */
+        }
+        
+        .btn-text {
+            font-size: 1.5rem;
+            text-align: center;
+            margin-top: 5px;
+        }
+        
+    </style>
+""", unsafe_allow_html=True)
+
+
+nav_cols = st.columns(7)
+labels = [
+    ("Data Board", "5", "data_demo"),
+    ("", "", ""),
+    ("Logs", "6", "logs"),
+    ("", "", ""),
+    ("Training", "7", "training"),
+    ("", "", ""),
+    ("Benchmark", "8", "benchmark")
+]
+
+
+for i, (text, num, key) in enumerate(labels):
+    with nav_cols[i]:
+        if key:
+            with st.container():
+                if st.button(num, key=key):
+                    st.session_state['selected_button'] = key
+                st.markdown(f"<div class='btn-text'>{text}</div>", unsafe_allow_html=True)
+        else:
+            st.markdown(
+                "<div class='hr-line' style='background: #2196F3; height: 4px; width: 100%; margin-top: calc(min(6vw, 80px) / 2 - 2px); border-radius: 2px;'></div>", unsafe_allow_html=True
+                )
 #从这里开始编辑前端
 page_cols = st.columns([1, 1])
 with page_cols[0]:
@@ -203,19 +268,19 @@ with page_cols[0]:
     st.session_state.data_type = data_type
     if data_type == "sft":
         with st.form('input_dir'):
-            st.session_state.mod_dir = st.text_input('Model Directory:')    
-            st.session_state.file_dir = st.text_input('File Directory')
+            st.session_state.mod_dir = st.text_input('Model Directory:', value="/141nfs/arknet/hf_models/Qwen1.5-1.8B-Chat")    
+            st.session_state.file_dir = st.text_input('File Directory', value="/home/wangjunxiang2025/AutoAlign/data/dummy_sft.json")
             form_cols = st.columns([1,1,1,1,1])
             with form_cols[0]:
-                st.session_state.show_turn = st.checkbox('Turn')
+                st.session_state.show_turn = st.checkbox('Turn', value=True)
             with form_cols[1]:
-                st.session_state.show_source = st.checkbox('Source')
+                st.session_state.show_source = st.checkbox('Source', value=True)
             with form_cols[2]:
-                st.session_state.show_token = st.checkbox('Token')
+                st.session_state.show_token = st.checkbox('Token', value=True)
             with form_cols[3]:
-                st.session_state.show_time = st.checkbox('Time')
+                st.session_state.show_time = st.checkbox('Time', value=True)
             with form_cols[4]:
-                st.session_state.show_domain = st.checkbox('Domain')
+                st.session_state.show_domain = st.checkbox('Domain', value=True)
             st.session_state.chat_template = st.selectbox(
                 'Template Select',
                 ("chatml", "vicuna_v1.1", "llama-2-chat", "llama-2-chat-keep-system", 
@@ -223,14 +288,14 @@ with page_cols[0]:
                 "gemma", "zephyr", "chatml-idsys", "glm-4-chat", 
                 "glm-4-chat-keep-system", "default")
             )
-            submit = st.form_submit_button('Submit')
+            submit = st.form_submit_button('→')
             if submit:
                 st.session_state.submit_clicked = True
 
     elif data_type == "dpo":
         with st.form('input_dir'):
-            st.session_state.mod_dir = st.text_input('Model Directory:')
-            st.session_state.file_dir = st.text_input('File Directory')
+            st.session_state.mod_dir = st.text_input('Model Directory:', value="/141nfs/arknet/hf_models/Qwen1.5-1.8B-Chat")
+            st.session_state.file_dir = st.text_input('File Directory', value="/home/wangjunxiang2025/AutoAlign/data/dummy_dpo.json")
             st.session_state.show_domain = st.checkbox('Show Domain Distribution')
             st.session_state.show_time = st.checkbox('Show Time Distribution')
             submit = st.form_submit_button('Submit')

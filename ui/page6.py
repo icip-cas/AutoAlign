@@ -3,20 +3,101 @@ import re
 import pandas as pd
 import altair as alt
 import time
-nav_cols = st.columns(4)
-with nav_cols[0]:
-    if st.button("Data Board", use_container_width=True):
-        st.session_state.selected_button = "data_demo"
-with nav_cols[1]:
-    if st.button("Logs", use_container_width=True):
-        st.session_state.selected_button = "logs"
-with nav_cols[2]:
-    if st.button("Training", use_container_width=True) and st.session_state.p2_fin:
-        st.session_state.selected_button = "training"
-with nav_cols[3]:
-    if st.button("Benchmark", use_container_width=True) and st.session_state.p2_fin and st.session_state.p3_fin:
-        st.session_state.selected_button = "benchmark"
+st.set_page_config(layout="wide", page_title="Training Log Viewer", page_icon="📊")
+for key, default in {   
+    "selected_button": "data_demo"
+}.items():
+    if key not in st.session_state:
+        st.session_state[key] = default
+st.markdown("""
+    <style>
+        div.stButton > button,
+        div.stFormSubmitButton > button {
+            width: min(6vw, 80px);
+            height: min(6vw, 80px);
+            border-radius: 50%;
+            background: #2196F3;
+            color: white !important;  /* 强制文字颜色 */
+            border: none;
+            cursor: pointer;
+            transition: 0.3s;
+            font-size: 2rem !important;
+            font-weight: bold !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+        }
+            
+        div.stButton > button > div > p,
+        div.stFormSubmitButton > button > div > p {
+            font-size: 2rem;    
+        }
 
+        /* 覆盖所有交互状态 */
+        div.stButton > button:hover,
+        div.stButton > button:active,
+        div.stButton > button:focus,
+        div.stFormSubmitButton > button:hover,
+        div.stFormSubmitButton > button:active,
+        div.stFormSubmitButton > button:focus {
+            background: #1976D2 !important;
+            color: white !important;  /* 强制保持白色 */
+            transform: scale(1.05);
+            box-shadow: none !important;  /* 移除聚焦阴影 */
+            outline: none !important;     /* 移除聚焦轮廓 */
+        }
+
+        /* 强制禁用所有颜色变换 */
+        div.stButton > button:hover span,
+        div.stButton > button:active span,
+        div.stButton > button:focus span {
+            color: inherit !important;  /* 继承父级颜色 */
+        }
+        
+        .btn-text {
+            font-size: 1.5rem;
+            text-align: center;
+            margin-top: 5px;
+        }
+        
+    </style>
+""", unsafe_allow_html=True)
+
+
+nav_cols = st.columns(7)
+labels = [
+    ("Data Board", "5", "data_demo"),
+    ("", "", ""),
+    ("Logs", "6", "logs"),
+    ("", "", ""),
+    ("Training", "7", "training"),
+    ("", "", ""),
+    ("Benchmark", "8", "benchmark")
+]
+
+
+for i, (text, num, key) in enumerate(labels):
+    with nav_cols[i]:
+        if key:
+            with st.container():
+                if st.button(num, key=key):
+                    st.session_state['selected_button'] = key
+                st.markdown(f"<div class='btn-text'>{text}</div>", unsafe_allow_html=True)
+        else:
+            st.markdown(
+                "<div class='hr-line' style='background: #2196F3; height: 4px; width: 100%; margin-top: calc(min(6vw, 80px) / 2 - 2px); border-radius: 2px;'></div>", unsafe_allow_html=True
+                )
+
+
+if st.session_state.selected_button == "data_demo":
+    st.switch_page("page5.py")
+elif st.session_state.selected_button == "logs":
+    pass
+elif st.session_state.selected_button == "training":
+    st.switch_page("page7.py")
+elif st.session_state.selected_button == "benchmark":
+    st.switch_page("page8.py")
 # 使用缓存读取日志文件
 @st.cache_data(ttl=0.2)  # 缓存10秒
 def read_log_file(log_file_path): 
@@ -75,10 +156,9 @@ def plot_curves(pid_dict, all_total_generate):
         
 # Streamlit 应用
 def main():
-    st.set_page_config(layout="wide", page_title="Training Log Viewer", page_icon="📊")
     st.title("📊 Training Log Viewer")
 
-    log_file_path = "./txt.log"  # 日志文件路径
+    log_file_path = "/141nfs/wangjunxiang/AutoAlign/testing-data/txt.log"  # 日志文件路径
     
     # 初始化 session_state
     if "step_range" not in st.session_state:
@@ -112,8 +192,11 @@ def main():
     time.sleep(0.2)
     st.rerun()
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     st.write("bruh")
+#     main()
+
+main()
 
 if st.session_state.selected_button == "data_demo":
     st.switch_page("page5.py")
