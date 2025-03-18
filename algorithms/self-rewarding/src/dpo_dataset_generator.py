@@ -449,6 +449,12 @@ if __name__ == "__main__":
         default=1,
         help="The number of GPUs per model.",
     )
+    parser.add_argument(
+        "--output-path",
+        type=str,
+        required=True,
+        help="The path to the the output data.",
+    )
 
     args = parser.parse_args()
 
@@ -464,20 +470,20 @@ if __name__ == "__main__":
     prompt_response_pairs = generator.generate_responses(prompts=filtered_prompt)
     dump_json(
         prompt_response_pairs,
-        f"exp/{args.model_id}/{args.sft_base_model}/iter{str(args.num_iter)}/prompts_responses.json",
+        f"{args.output_path}/{args.model_id}/{args.sft_base_model}/iter{str(args.num_iter)}/prompts_responses.json",
         indent=2,
     )
 
     conv_scores = generator.generate_scores(instr_resp_pairs=prompt_response_pairs)
     dump_json(
         conv_scores,
-        f"exp/{args.model_id}/{args.sft_base_model}/iter{str(args.num_iter)}/conv_scores.json",
+        f"{args.output_path}/{args.model_id}/{args.sft_base_model}/iter{str(args.num_iter)}/conv_scores.json",
         indent=2,
     )
     # scores = json.load(open("data/{}/conv_scores.json".format(args.model_id), 'r'))
     preference_data = generator.generate_preferences(conv_scores=conv_scores)
     dump_json(
         preference_data,
-        f"exp/{args.model_id}/{args.sft_base_model}/iter{str(args.num_iter)}/preference_data.json",
+        f"{args.output_path}/{args.model_id}/{args.sft_base_model}/iter{str(args.num_iter)}/preference_data.json",
         indent=2,
     )

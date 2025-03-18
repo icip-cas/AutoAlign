@@ -6,4 +6,5 @@ python src/dpo_dataset_generator.py \
     --sft-base-model ${SFT_BASE_MODEL:-"eft"} \
     --backend ${BACKEND:-"vllm"} \
     --num-iter ${NUM_ITER:-1} \
-    --instruction-path ${INS_PATH:-"data/seed.json"}
+    --instruction-path ${INS_PATH:-"data/seed.json"} \
+    --output-path ${OUTPUT_PATH:-"exp"}
