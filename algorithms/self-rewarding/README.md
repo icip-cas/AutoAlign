@@ -193,7 +193,7 @@ The result will be showed at the stdout.
 | Llama-3-8b | IFT(SFT-baseline) | 5.46 | 36.6 | 47.12 | 41.59 | 52.76 | 44.52
 | Llama-3-8b | EFT(M1) | 5.48 | 35.86 | 48.2 | 40.85	| 53.12 | 44.51
 | Llama-3-8b | Self-Rewarding-iter1(M2) | 5.54	| 36.41 | 48.44 |	41.77 | 53.72 | 45.09
-| Llama-3-8b | Self-Rewarding-iter1(M3) | 5.58	| 36.78 | 48.68 | 41.96 | 53.84 | 45.32
+| Llama-3-8b | Self-Rewarding-iter2(M3) | 5.58	| 36.78 | 48.68 | 41.96 | 53.84 | 45.32
 | Llama-3-8b | Instruct | 6.7	| 68.58 | 77.1 | 75.79 | 83.09 | 76.14
 
 In our reproduction, with self-rewarding, the model performance on MT-Bench and IFEval continuously improves. However, there is still a gap between M3 model's performance and that of the Instruct model.
@@ -206,7 +206,7 @@ In our reproduction, with self-rewarding, the model performance on MT-Bench and 
 | Llama-3-8b | IFT(SFT-baseline) | 74.43 | 47.46 | 76.99 | 49.23 | 82.81 | 57.24 | 66.36 | 52.6 | 29.58
 | Llama-3-8b | EFT(M1) | 70.9 | 47.8 | 75.4 | 47.75 | 81.94 | 57.77 | 66.27 | 52 | 29.94
 | Llama-3-8b | Self-Rewarding-iter1(M2) | 70.9 | 47.8 | 75.41 | 47.8 | 81.99 | 57.62 | 66.22 | 52.2 | 29.86
-| Llama-3-8b | Self-Rewarding-iter1(M3) |  71.08 | 48.14 | 75.41 | 47.75 | 81.83 | 57.62 | 66.27 | 52.2 | 29.81
+| Llama-3-8b | Self-Rewarding-iter2(M3) |  71.08 | 48.14 | 75.41 | 47.75 | 81.83 | 57.62 | 66.27 | 52.2 | 29.81
 | Llama-3-8b | Instruct | 69.49 | 48.47 | 67.48 | 52.25 | 79 | 79.61 | 67.9 | 74 | 24.82
 
 On 9 other instruction datasets, ift, eft and dpo maintain the performance of base model (M0).
@@ -219,7 +219,7 @@ On 9 other instruction datasets, ift, eft and dpo maintain the performance of ba
 | Llama-3-8b | IFT(SFT-baseline) | 5.08 | 20.53 | -0.06 | -0.0507
 | Llama-3-8b | EFT(M1) | 28.44 | 100 | 0.4502 | 0.3843
 | Llama-3-8b | Self-Rewarding-iter1(M2) | 29.19	| 100	| 0.452 | 0.3865
-| Llama-3-8b | Self-Rewarding-iter1(M3) | 27.87 | 100	 | 0.4615 | 0.3945
+| Llama-3-8b | Self-Rewarding-iter2(M3) | 27.87 | 100	 | 0.4615 | 0.3945
 | Llama-3-8b | Instruct |  - | - | - | - | -
 
 Both EFT and the subsequent self-rewarding can improve the Spearman and Kendall Tau correlation coefficients between the model scores and the human scores.

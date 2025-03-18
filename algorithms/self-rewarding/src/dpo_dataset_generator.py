@@ -50,7 +50,7 @@ def inference(
         if "backend" in infer_kwargs:
             infer_kwargs.pop("backend")
         for question in tqdm(questions):
-            assert "index" in question
+            assert "id" in question
             choices = []
             prompt = input_hook_fn(question, **kwargs)
             for i in range(num_choices):
@@ -60,10 +60,10 @@ def inference(
                     output = output_hook_fn(output, **kwargs)
                 except RuntimeError as e:
                     print(e)
-                    print("ERROR question ID: ", question["index"])
+                    print("ERROR question ID: ", question["id"])
                     output = "ERROR"
-                choices.append({"index": i, "output": output})
-            answers.append({"index": question["index"], "choices": choices})
+                choices.append({"id": i, "output": output})
+            answers.append({"id": question["id"], "choices": choices})
     elif kwargs["backend"] == "vllm":
         from vllm import LLM
         from vllm.sampling_params import SamplingParams
@@ -84,7 +84,7 @@ def inference(
         )
 
         for question in tqdm(questions):
-            assert "index" in question
+            assert "id" in question
             choices = []
             prompt = input_hook_fn(question, **kwargs)
             outputs = llm.generate(prompt, sampling_params)
@@ -93,8 +93,8 @@ def inference(
                 for idx, generated_output in enumerate(output.outputs):
                     generated_text = generated_output.text
                     completion = output_hook_fn(generated_text, **kwargs)
-                    choices.append({"index": idx, "output": completion})
-            answers.append({"index": question["index"], "choices": choices})
+                    choices.append({"id": idx, "output": completion})
+            answers.append({"id": question["id"], "choices": choices})
     return answers
 
 
@@ -131,7 +131,7 @@ def parallel_inference(
             output_hook_fn,
             **kwargs,
         )
-        return sorted(results, key=lambda x: x["index"])
+        return sorted(results, key=lambda x: x["id"])
     elif process_num > 1:
         chunk_size = len(questions) // process_num
         if len(questions) % process_num == 0:
@@ -160,9 +160,7 @@ def parallel_inference(
                 gathered_responses = [
                     item for sublist in gathered_responses for item in sublist
                 ]
-                gathered_responses = sorted(
-                    gathered_responses, key=lambda x: x["index"]
-                )
+                gathered_responses = sorted(gathered_responses, key=lambda x: x["id"])
                 return gathered_responses
         else:
             flags = [i for i in range(0, len(questions), chunk_size)]
@@ -194,9 +192,7 @@ def parallel_inference(
                 gathered_responses = [
                     item for sublist in gathered_responses for item in sublist
                 ]
-                gathered_responses = sorted(
-                    gathered_responses, key=lambda x: x["index"]
-                )
+                gathered_responses = sorted(gathered_responses, key=lambda x: x["id"])
                 return gathered_responses
 
 
@@ -273,7 +269,7 @@ class DPODatasetGenerator:
         self.num_gpus_per_model = num_gpus_per_model
 
     def generate_responses(self, prompts, repeat_time=4):
-        prompts = sorted(prompts, key=lambda x: x["index"])
+        prompts = sorted(prompts, key=lambda x: x["id"])
         responses = parallel_inference(
             model_name=self.model_name,
             questions=prompts,
@@ -288,13 +284,13 @@ class DPODatasetGenerator:
             backend=self.backend,
         )
         prompt_response_pairs = []
-        prompts = sorted(prompts, key=lambda x: x["index"])
+        prompts = sorted(prompts, key=lambda x: x["id"])
         for prompt, response in zip(prompts, responses):
-            assert prompt["index"] == response["index"]
+            assert prompt["id"] == response["id"]
             for choice in response["choices"]:
                 prompt_response_pairs.append(
                     {
-                        "index": prompt["index"] * repeat_time + choice["index"],
+                        "id": prompt["id"] * repeat_time + choice["id"],
                         "instruct": prompt["conversations"][0]["value"],
                         "response": choice["output"],
                     }
@@ -320,10 +316,10 @@ class DPODatasetGenerator:
             backend=self.backend,
         )
 
-        instr_resp_pairs = sorted(instr_resp_pairs, key=lambda x: x["index"])
+        instr_resp_pairs = sorted(instr_resp_pairs, key=lambda x: x["id"])
         conv_score = []
         for pair, score in zip(instr_resp_pairs, raw_scores):
-            assert pair["index"] == score["index"]
+            assert pair["id"] == score["id"]
             assert len(score["choices"]) == score_time
             new_pair = deepcopy(pair)
             new_pair["score"] = score
@@ -337,7 +333,7 @@ class DPODatasetGenerator:
             if i % repeat_time == 0:
                 formed_data.append(
                     {
-                        "index": i // repeat_time,
+                        "id": i // repeat_time,
                         "instruct": conv_scores[i]["instruct"],
                         "responses": [],
                         "scores": [],
