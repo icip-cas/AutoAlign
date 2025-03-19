@@ -1,7 +1,7 @@
 import streamlit as st
 import os
 
-st.title("Model Eval")
+st.title("📊 Model Evaluation")
 
 # 初始化 session_state
 if "process" not in st.session_state:
@@ -11,75 +11,119 @@ if "model_dir" not in st.session_state:
 if "output_dir" not in st.session_state:
     st.session_state["output_dir"] = ""
 if "model_name" not in st.session_state:
-    st.session_state["model_name"] = ""  
+    st.session_state["model_name"] = ""  # 初始化为空字符串
 if "per_model_gpu" not in st.session_state:
     st.session_state["per_model_gpu"] = 1
 if "batch_size" not in st.session_state:
     st.session_state["batch_size"] = 8
 
+
+process_descriptions = {
+    "objective_core": "GSM-8K(EN)，MATH(EN)，HumanEval(EN)，HumanEval-CN(CH)，BBH(EN)，IFEval(EN)，CONFIG_ALL：",
+    "objective_all": "GSM-8K(EN)，MATH(EN)，HumanEval(EN)HumanEval-CN(CH)，BBH(EN)，IFEval(EN)，CMMLU(CH)，C-Eval(CH)，MBPP(EN)，MBPP-CN(CH)，GPQA(EN)",
+    "subjective": "MT-Bench and Alpaca-Eval",
+}
+
+# 美化标题和分隔线
+st.markdown("---")
+st.subheader("📊 BenchMark")
+
+# 在表单外使用 st.selectbox，以便使用 on_change 回调
+process = st.selectbox(
+    "选择评测类型",
+    options=[
+        "objective_core",
+        "objective_all",
+        "subjective",
+    ],
+    index=[
+        "objective_core",
+        "objective_all",
+        "subjective",
+    ].index(st.session_state["process"]),  # 恢复 process 的选择状态
+    key="process_selectbox",
+    on_change=lambda: st.session_state.update(
+        {"process": process}
+    ),  # 更新 session_state
+)
+
+# 根据 session_state 中的 process 动态显示详细信息
+st.markdown(
+    f"""
+    <style>
+    .info-box {{
+        padding: 15px;
+        background-color: #f0f2f6;
+        border-radius: 10px;
+        border-left: 5px solid #4a90e2;
+        margin-top: 10px;
+        margin-bottom: 20px;
+    }}
+    .info-box p {{
+        margin: 0;
+        font-size: 14px;
+        color: #333;
+    }}
+    </style>
+    <div class="info-box">
+        <p>📌 <strong>Benchmark:</strong> {process_descriptions.get(st.session_state["process"], "暂无描述")}</p>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
 # 配置表单
 with st.form("config_form"):
-    st.subheader("BenchMark")
-    col1, col2 = st.columns([3, 2])
-    with col1:
-        process = st.selectbox(
-            "BenchMark",
-            [
-                "objective_core",
-                "objective_all",
-                "subjective",
-            ],
-            index=[
-                "objective_core",
-                "objective_all",
-                "subjective",
-            ].index(st.session_state["process"]),  
-            label_visibility="collapsed"
-        )
+    st.markdown("---")
+    st.subheader("📂 Model Selection")
 
-    st.subheader("Model Selection")
+    # 模型路径输入
     model_dir = st.text_input(
-        "Model Dir", 
-        placeholder="Please provide the path for the model.", 
-        value=st.session_state["model_dir"],  
-        label_visibility="collapsed"
+        "模型路径",
+        placeholder="请输入模型路径",
+        value=st.session_state["model_dir"],  # 恢复 model_dir 的输入内容
+        label_visibility="collapsed",
     )
 
-
-    st.subheader("Model Name")
+    # 评测的模型标识名称
+    st.subheader("🏷️ Model Name")
     model_name = st.text_input(
-        "Model Name", 
-        placeholder="Enter the identifying name of the model to evaluate.", 
-        value=st.session_state["model_name"],  
-        label_visibility="collapsed"
+        "模型名称",
+        placeholder="请输入模型标识名称",
+        value=st.session_state["model_name"],  # 使用 session_state 中的值
+        label_visibility="collapsed",
     )
 
-    st.subheader("GPU and Batch Size Configuration")
+    # GPU 和 Batch Size 配置
+    st.markdown("---")
+    st.subheader("⚙️ GPU and Batch Size Configuration")
     col1, col2 = st.columns(2)
     with col1:
         st.markdown("**GPU per Model**")
         per_model_gpu = st.number_input(
-            "GPU per Model", 
-            min_value=1, 
+            "每个模型的 GPU 数量",
+            min_value=1,
             value=st.session_state["per_model_gpu"],
             step=1,
-            label_visibility="collapsed"
+            label_visibility="collapsed",
         )
     with col2:
         st.markdown("**Batch Size**")
         batch_size = st.number_input(
-            "Batch Size", 
-            min_value=1, 
-            value=st.session_state["batch_size"], 
+            "批量大小",
+            min_value=1,
+            value=st.session_state["batch_size"],  # 恢复 batch_size 的输入内容
             step=1,
-            label_visibility="collapsed"
+            label_visibility="collapsed",
         )
 
-    col1, col2, col3 = st.columns([4, 2, 4])
-    with col2:
-        submitted = st.form_submit_button("🚀 Start")
+    # 提交按钮
+    st.markdown("---")
+    submitted = st.form_submit_button("🚀 Start Evaluation")
 
+    # 表单提交后的逻辑
     if submitted:
+        # 保存用户输入到 session_state
         st.session_state["process"] = process
         st.session_state["model_dir"] = model_dir
         st.session_state["model_name"] = model_name
@@ -90,15 +134,15 @@ with st.form("config_form"):
 
         # 检查 Model Dir 是否存在
         if not model_dir:
-            st.error("Please provide the model directory.")
+            st.error("❌ 请提供模型路径。")
             all_fields_filled = False
         elif not os.path.exists(model_dir):
-            st.error(f"Model directory '{model_dir}' does not exist.")
+            st.error(f"❌ 模型路径 '{model_dir}' 不存在。")
             all_fields_filled = False
 
         # 检查 Model Name 是否为空
         if not model_name:
-            st.error("Please provide the model name.")
+            st.error("❌ 请提供模型名称。")
             all_fields_filled = False
 
         # 如果所有字段合法且路径检查通过
@@ -107,6 +151,7 @@ with st.form("config_form"):
             mt_path = "data/eval/mt-bench"
             alpaca_path = "data/eval/alpaca_eval" if process == "subjective" else None
 
+            # 生成配置文件内容
             config_content = f"""# 评测的模型标识名称
 # Identifying name of the model to evaluate
 model_name: {model_name}
@@ -160,16 +205,16 @@ alpaca_path: {alpaca_path}
 
             current_dir = os.path.dirname(__file__)
 
-            relative_path = os.path.join("..", "configs") 
+            relative_path = os.path.join("..", "configs")
             target_dir = os.path.normpath(os.path.join(current_dir, relative_path))
 
             target_file = os.path.join(target_dir, "eval.yaml")
             try:
                 with open(target_file, "w") as f:
                     f.write(config_content)
-                st.success(f"The configuration has been successfully saved.")
+                st.success("✅ 配置文件已成功保存！")
             except Exception as e:
-                st.error(f"Failed to save configuration")
+                st.error(f"❌ 保存配置文件失败: {e}")
 
             # 跳转到 page5.py
             st.switch_page("page5.py")
