@@ -39,7 +39,6 @@ def read_log_file(log_file_path):
                     epoch_markers[int(epoch)] = step_counter
                 
                 step_counter += 1  # 增加 step
-            
             if progress_match:
                 progress.append(int(progress_match.group(1)))
     
@@ -322,7 +321,7 @@ def main():
     st.set_page_config(layout="wide", page_title="Training Log Viewer", page_icon="📊")
     st.title("📊 Training Log Viewer")
 
-    log_file_path = "/home/maoyingzhi2024/streamlt/log/generate_log.log"  # 日志文件路径
+    log_file_path = "/141nfs/maoyingzhi2024/output.log"  # 日志文件路径
     
     # 初始化 session_state
     if "step_range" not in st.session_state:
