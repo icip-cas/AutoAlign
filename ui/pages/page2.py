@@ -82,8 +82,29 @@ if st.session_state.method == "RLCD":
                 missing_fields.append("Dpo rejected source tag")
             if not st.session_state.rlcd_output_dir.strip():
                 missing_fields.append("Output dir")
-            if missing_fields:
-                st.error(f"Missing or invalid fields: {', '.join(missing_fields)}")
+
+            # 检查路径合法性
+            invalid_paths = []
+            if st.session_state.rlcd_input_file_dir and not os.path.exists(st.session_state.rlcd_input_file_dir):
+                invalid_paths.append(f"Prompt File '{st.session_state.rlcd_input_file_dir}' does not exist.")
+            if st.session_state.rlcd_infer_model_path and not os.path.exists(st.session_state.rlcd_infer_model_path):
+                invalid_paths.append(f"Model Path '{st.session_state.rlcd_infer_model_path}' does not exist.")
+
+            # 如果有缺失字段或无效路径，显示详细的错误信息
+            if missing_fields or invalid_paths:
+                error_message = "Please fix the following errors before saving:\n\n"
+
+                if missing_fields:
+                    error_message += "**Missing Fields:**\n"
+                    for field in missing_fields:
+                        error_message += f"- {field} is required.\n"
+
+                if invalid_paths:
+                    error_message += "\n**Invalid Paths:**\n"
+                    for path_error in invalid_paths:
+                        error_message += f"- {path_error}\n"
+
+                st.error(error_message)
             else:
                 script_content = f"""
 python prepare_for_rlcd.py --input-file {st.session_state.rlcd_input_file_dir} \
@@ -174,8 +195,29 @@ elif st.session_state.method == "SPIN":
                 missing_fields.append("Dpo rejected source tag")
             if not st.session_state.spin_output_file_dir.strip():
                 missing_fields.append("Output dir")
-            if missing_fields:
-                st.error(f"Missing or invalid fields: {', '.join(missing_fields)}")
+
+            # 检查路径合法性
+            invalid_paths = []
+            if st.session_state.spin_test_file and not os.path.exists(st.session_state.spin_test_file):
+                invalid_paths.append(f"Test File '{st.session_state.spin_test_file}' does not exist.")
+            if st.session_state.spin_model_path and not os.path.exists(st.session_state.spin_model_path):
+                invalid_paths.append(f"Model Path '{st.session_state.spin_model_path}' does not exist.")
+
+            # 如果有缺失字段或无效路径，显示详细的错误信息
+            if missing_fields or invalid_paths:
+                error_message = "Please fix the following errors before saving:\n\n"
+
+                if missing_fields:
+                    error_message += "**Missing Fields:**\n"
+                    for field in missing_fields:
+                        error_message += f"- {field} is required.\n"
+
+                if invalid_paths:
+                    error_message += "\n**Invalid Paths:**\n"
+                    for path_error in invalid_paths:
+                        error_message += f"- {path_error}\n"
+
+                st.error(error_message)
             else:
                 script_content = f"""
 autoalign-cli infer --backend "vllm" \\
@@ -214,7 +256,7 @@ elif st.session_state.method == "CAI_sft":
             st.session_state.cai_sft_model_path = st.text_input("Model path")
         with cols[1]:
             st.session_state.cai_sft_input_path = st.text_input("Input file")
-            st.session_state.cai_sft_output_path = st.text_input("Output file")
+            st.session_state.cai_sft_input_helpful_path = st.text_input("Helpful file")
         with cols[2]:
             st.session_state.cai_sft_output_chosen = st.text_input("Chosen output")
             st.session_state.cai_sft_output_rejected = st.text_input("Rejected output")
@@ -231,8 +273,8 @@ elif st.session_state.method == "CAI_sft":
                 missing_fields.append("Model path")
             if not st.session_state.cai_sft_input_path.strip():
                 missing_fields.append("Input file")
-            if not st.session_state.cai_sft_output_path.strip():
-                missing_fields.append("Output file")
+            if not st.session_state.cai_sft_input_helpful_path.strip():
+                missing_fields.append("Helpful file")
             if not st.session_state.cai_sft_output_chosen.strip():
                 missing_fields.append("Chosen output")
             if not st.session_state.cai_sft_output_rejected.strip():
@@ -241,14 +283,38 @@ elif st.session_state.method == "CAI_sft":
                 missing_fields.append("Output CAI file name")
             if not st.session_state.cai_sft_output_sft.strip():
                 missing_fields.append("Output sft file name")
-            if missing_fields:
-                st.error(f"Missing or invalid fields: {', '.join(missing_fields)}")
+
+            # 检查路径合法性
+            invalid_paths = []
+            if st.session_state.cai_sft_input_path and not os.path.exists(st.session_state.cai_sft_input_path):
+                invalid_paths.append(f"Input File '{st.session_state.cai_sft_input_path}' does not exist.")
+            if st.session_state.cai_sft_input_helpful_path and not os.path.exists(st.session_state.cai_sft_input_helpful_path):
+                invalid_paths.append(f"Helpful File '{st.session_state.cai_sft_input_helpful_path}' does not exist.")
+            if st.session_state.cai_sft_model_path and not os.path.exists(st.session_state.cai_sft_model_path):
+                invalid_paths.append(f"Model Path '{st.session_state.cai_sft_model_path}' does not exist.")
+
+            # 如果有缺失字段或无效路径，显示详细的错误信息
+            if missing_fields or invalid_paths:
+                error_message = "Please fix the following errors before saving:\n\n"
+
+                if missing_fields:
+                    error_message += "**Missing Fields:**\n"
+                    for field in missing_fields:
+                        error_message += f"- {field} is required.\n"
+
+                if invalid_paths:
+                    error_message += "\n**Invalid Paths:**\n"
+                    for path_error in invalid_paths:
+                        error_message += f"- {path_error}\n"
+
+                st.error(error_message)
+                
             else:
                 script_content = f"""
 python prepare_for_cai.py   --model-name {st.session_state.cai_sft_model_name} \
                             --model-path {st.session_state.cai_sft_model_path} \
                             --input-file {st.session_state.cai_sft_input_path} \
-                            --input_helpful_file {st.session_state.cai_sft_output_path} \
+                            --input_helpful_file {st.session_state.cai_sft_input_helpful_path} \
                             --output-chosen {st.session_state.cai_sft_output_chosen} \
                             --output-rejected {st.session_state.cai_sft_output_rejected} \
                             --output-cai {st.session_state.cai_sft_output_cai} \
@@ -287,8 +353,29 @@ elif st.session_state.method == "CAI_dpo":
                 missing_fields.append("Input file")
             if not st.session_state.cai_dpo_output_path.strip():
                 missing_fields.append("Output file")
-            if missing_fields:
-                st.error(f"Missing or invalid fields: {', '.join(missing_fields)}")
+
+            # 检查路径合法性
+            invalid_paths = []
+            if st.session_state.cai_dpo_input_path and not os.path.exists(st.session_state.cai_dpo_input_path):
+                invalid_paths.append(f"Input File '{st.session_state.cai_dpo_input_path}' does not exist.")
+            if st.session_state.cai_dpo_model_path and not os.path.exists(st.session_state.cai_dpo_model_path):
+                invalid_paths.append(f"Model Path '{st.session_state.cai_dpo_model_path}' does not exist.")
+
+            # 如果有缺失字段或无效路径，显示详细的错误信息
+            if missing_fields or invalid_paths:
+                error_message = "Please fix the following errors before saving:\n\n"
+
+                if missing_fields:
+                    error_message += "**Missing Fields:**\n"
+                    for field in missing_fields:
+                        error_message += f"- {field} is required.\n"
+
+                if invalid_paths:
+                    error_message += "\n**Invalid Paths:**\n"
+                    for path_error in invalid_paths:
+                        error_message += f"- {path_error}\n"
+
+                st.error(error_message)
             else:
                 script_content = f"""
     python temperature_sample.py   --model-name {st.session_state.cai_dpo_model_name} \
@@ -339,8 +426,29 @@ elif st.session_state.method == "Self_Rewarding":
                 missing_fields.append("Num iter")
             if not st.session_state.self_re_ins_path.strip():
                 missing_fields.append("Instruction path")
-            if missing_fields:
-                st.error(f"Missing or invalid fields: {', '.join(missing_fields)}")
+            
+            # 检查路径合法性
+            invalid_paths = []
+            if st.session_state.self_re_ins_path and not os.path.exists(st.session_state.self_re_ins_path):
+                invalid_paths.append(f"Input File '{st.session_state.self_re_ins_path}' does not exist.")
+            if st.session_state.self_re_model_path and not os.path.exists(st.session_state.self_re_model_path):
+                invalid_paths.append(f"Model Path '{st.session_state.self_re_model_path}' does not exist.")
+
+            # 如果有缺失字段或无效路径，显示详细的错误信息
+            if missing_fields or invalid_paths:
+                error_message = "Please fix the following errors before saving:\n\n"
+
+                if missing_fields:
+                    error_message += "**Missing Fields:**\n"
+                    for field in missing_fields:
+                        error_message += f"- {field} is required.\n"
+
+                if invalid_paths:
+                    error_message += "\n**Invalid Paths:**\n"
+                    for path_error in invalid_paths:
+                        error_message += f"- {path_error}\n"
+
+                st.error(error_message)
             else:
                 script_content = f"""
 python src/dpo_dataset_generator.py    --model-path {st.session_state.self_re_model_path} \
@@ -364,7 +472,6 @@ python src/dpo_dataset_generator.py    --model-path {st.session_state.self_re_mo
 
 
 if st.session_state.selected_button == "data_gen":
-    print("]]]]]]]]]]]]]]]]]]]]]]]]]]")
     st.switch_page("pages/page1.py")
 elif st.session_state.selected_button == "data_filter":
     pass

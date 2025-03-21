@@ -199,9 +199,29 @@ with st.form("Train Configuration"):
             if gradient_checkpoint is None:  # 确保已选择梯度检查点
                 missing_fields.append("Gradient Checkpoint")
 
-            # 显示错误信息
-            if missing_fields:
-                st.error(f"Missing or invalid fields: {', '.join(missing_fields)}")
+            # 检查路径合法性
+            invalid_paths = []
+            if model and not os.path.exists(model):
+                invalid_paths.append(f"Model Path '{model}' does not exist.")
+            if dataset and not os.path.exists(dataset):
+                invalid_paths.append(f"Dataset Path '{dataset}' does not exist.")
+
+            # 如果有缺失字段或无效路径，显示详细的错误信息
+            if missing_fields or invalid_paths:
+                error_message = "Please fix the following errors before saving:\n\n"
+
+                if missing_fields:
+                    error_message += "**Missing Fields:**\n"
+                    for field in missing_fields:
+                        error_message += f"- {field} is required.\n"
+
+                if invalid_paths:
+                    error_message += "\n**Invalid Paths:**\n"
+                    for path_error in invalid_paths:
+                        error_message += f"- {path_error}\n"
+
+                st.error(error_message)
+
             else:
                 script_content = f"""
     autoalign-cli dpo \
@@ -303,11 +323,30 @@ with st.form("Train Configuration"):
             if lazy_preprocess is None:  #
                 missing_fields.append("Lazy Preprocess")
 
-            # If there are missing fields, prompt which fields are missing
-            if missing_fields:
-                st.error(
-                    f"The following fields are missing: {', '.join(missing_fields)}"
-                )
+
+            # 检查路径合法性
+            invalid_paths = []
+            if model and not os.path.exists(model):
+                invalid_paths.append(f"Model Path '{model}' does not exist.")
+            if dataset and not os.path.exists(dataset):
+                invalid_paths.append(f"Dataset Path '{dataset}' does not exist.")
+
+            # 如果有缺失字段或无效路径，显示详细的错误信息
+            if missing_fields or invalid_paths:
+                error_message = "Please fix the following errors before saving:\n\n"
+
+                if missing_fields:
+                    error_message += "**Missing Fields:**\n"
+                    for field in missing_fields:
+                        error_message += f"- {field} is required.\n"
+
+                if invalid_paths:
+                    error_message += "\n**Invalid Paths:**\n"
+                    for path_error in invalid_paths:
+                        error_message += f"- {path_error}\n"
+
+                st.error(error_message)
+
             else:
                 script_content = f"""
     autoalign-cli sft \

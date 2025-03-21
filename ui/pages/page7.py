@@ -1,13 +1,28 @@
+import os
 import streamlit as st
 import re
 import pandas as pd
 import altair as alt
 import time
 from pages.navbar import render_navbar_visual
-
+from streamlit_autorefresh import st_autorefresh
 st.set_page_config(layout="wide", page_title="Training Log Viewer", page_icon="📊")
 
 render_navbar_visual()
+
+if "triggered_pages" not in st.session_state:
+    st.session_state["triggered_pages"] = set()
+
+st_autorefresh(interval=2000, key="refresh")
+log_path = "test.log"
+if os.path.exists(log_path):
+    with open(log_path, "r") as f:
+        content = f.read()
+    for page_num in [6, 7, 8]:
+        page_marker = f"###page{page_num}###"
+        if page_marker in content and page_num not in st.session_state.triggered_pages:
+            st.session_state.triggered_pages.add(page_num)  # 记录该页面已触发跳转
+            st.switch_page(f"page{page_num}.py")
 
 if st.session_state.selected_button == "data_demo":
     st.switch_page("pages/page5.py")
