@@ -11,6 +11,7 @@ pg = st.navigation(
         st.Page("pages/page6.py"),
         st.Page("pages/page7.py"),
         st.Page("pages/page8.py"),
+        st.Page("pages/Align.py")
     ]
 )
 pg.run()
