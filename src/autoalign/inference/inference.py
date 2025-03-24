@@ -61,8 +61,10 @@ def inference():
 
     test_file_name = args.test_file.split("/")[-1]
     os.makedirs(os.path.join(args.output_dir, args.model_name), exist_ok=True)
-    output_file_name = f"{args.source}_{test_file_name}"
-    output_file_path = os.path.join(args.output_dir, args.model_name, output_file_name)
+    # output_file_name = f"{args.source}_{test_file_name}"
+    output_file_name = test_file_name
+    # output_file_path = os.path.join(args.output_dir, args.model_name, output_file_name)
+    output_file_path = os.path.join(args.output_dir, output_file_name)
     print(output_file_path)
 
     all_convs = []

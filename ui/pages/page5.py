@@ -1,4 +1,5 @@
 import os
+import time
 import streamlit as st
 from transformers import AutoTokenizer
 import json
@@ -14,14 +15,41 @@ from io import StringIO
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 from pages.navbar import render_navbar_visual
 from streamlit_autorefresh import st_autorefresh
+import shutil
+import tempfile
+from pathlib import Path
 st.set_page_config(layout="wide")
+hide_sidebar_css = """
+<style>
+    section[data-testid="stSidebar"] {
+        display: none !important;
+    }
+</style>
+"""
+st.markdown(hide_sidebar_css, unsafe_allow_html=True)
 for key, default in {"selected_button": "data_demo"}.items():
     if key not in st.session_state:
         st.session_state[key] = default
 
 n_gram = 4
+for key, default in {
+    "mod_dir": '',
+    "file_dir": '',
+    "submit_clicked": False,
+    "show_turn": False,
+    "show_source": False,
+    "show_token": False,
+    "show_time": False,
+    "chat_template": '',
+    "data_type": "",
+    "show_domain": False,
+    "selected_button": "data_demo"
+}.items():
+    if key not in st.session_state:
+        st.session_state[key] = default
+#生成快照
 
-
+print("呱！")
 # 绘图函数
 def draw_bin_graph(data, num_bins, title, x, y):
     counts, bin_edges = np.histogram(data, bins=num_bins)
@@ -209,7 +237,7 @@ with page_cols[0]:
             )
             st.session_state.file_dir = st.text_input(
                 "File Directory",
-                value="/home/wangjunxiang2025/AutoAlign/data/dummy_sft.json",
+                value="testing-output/data_gen/epoch_1/tests.json",
             )
             form_cols = st.columns([1, 1, 1, 1, 1])
             with form_cols[0]:
@@ -489,16 +517,6 @@ if st.session_state.submit_clicked:
                         st.session_state.show_time,
                     ),
                 ]
-                # columns = st.columns(3)
-                # curr_col = 0
-                # for func, params, draw in graphs:
-                #     if draw:
-                #         with columns[curr_col]:
-                #             try:
-                #                 func(**params)
-                #             except Exception as e:
-                #                 pass
-                #         curr_col = (curr_col + 1) % 3
             elif data_type == "dpo":
                 total_pages = len(filtered_df) // PAGE_SIZE + (
                     1 if len(filtered_df) % PAGE_SIZE else 0
@@ -611,21 +629,30 @@ if st.session_state.submit_clicked:
             #         file_name=f"filtered_data_{uuid.uuid4().hex[:6]}.jsonl",
             #         mime="application/jsonl+json"
             #     )
+    
 
 
 if "triggered_pages" not in st.session_state:
     st.session_state["triggered_pages"] = set()
-
-st_autorefresh(interval=2000, key="refresh")
-log_path = "../../page/test.log"
-if os.path.exists(log_path):
-    with open(log_path, "r") as f:
-        content = f.read()
-    for page_num in [6, 7, 8]:
-        page_marker = f"###page{page_num}###"
-        if page_marker in content and page_num not in st.session_state.triggered_pages:
-            st.session_state.triggered_pages.add(page_num)  # 记录该页面已触发跳转
-            st.switch_page(f"page{page_num}.py")
+log_monitor = st.empty()
+with log_monitor.container():
+    # st_autorefresh(interval=2000, key="refresh")
+    log_path = "outputs/self-ins.log"
+    if os.path.exists(log_path):
+        while True:
+            time.sleep(4)
+            with open(log_path, "r") as f:
+                content = f.read()
+                # 防止上一个log没有清空导致提前跳转
+            for page_num in [5, 6, 7, 8]:
+                page_marker = f"###page{page_num}###"
+                # if page_marker in content and page_num not in st.session_state.triggered_pages:
+                if page_marker in content:
+                    
+                    print("跳到第六页！")
+                    st.session_state.submit_clicked = False
+                    # st.session_state.triggered_pages.add(page_num)  # 记录该页面已触发跳转
+                    st.switch_page(f"pages/page{page_num}.py")
 
 if st.session_state.selected_button == "data_demo":
     pass

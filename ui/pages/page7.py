@@ -7,22 +7,33 @@ import time
 from pages.navbar import render_navbar_visual
 from streamlit_autorefresh import st_autorefresh
 st.set_page_config(layout="wide", page_title="Training Log Viewer", page_icon="📊")
-
+hide_sidebar_css = """
+<style>
+    section[data-testid="stSidebar"] {
+        display: none !important;
+    }
+</style>
+"""
+st.markdown(hide_sidebar_css, unsafe_allow_html=True)
 render_navbar_visual()
 
 if "triggered_pages" not in st.session_state:
     st.session_state["triggered_pages"] = set()
 
 st_autorefresh(interval=2000, key="refresh")
-log_path = "test.log"
+log_path = "outputs/cai_sft.log"
 if os.path.exists(log_path):
     with open(log_path, "r") as f:
         content = f.read()
-    for page_num in [6, 7, 8]:
+        
+    for page_num in [5, 6, 7, 8]:
         page_marker = f"###page{page_num}###"
-        if page_marker in content and page_num not in st.session_state.triggered_pages:
-            st.session_state.triggered_pages.add(page_num)  # 记录该页面已触发跳转
-            st.switch_page(f"page{page_num}.py")
+        # if page_marker in content and page_num not in st.session_state.triggered_pages:
+        if page_marker in content:
+            
+            print("跳到第八页！")
+            # st.session_state.triggered_pages.add(page_num)  # 记录该页面已触发跳转
+            st.switch_page(f"pages/page{page_num}.py")
 
 if st.session_state.selected_button == "data_demo":
     st.switch_page("pages/page5.py")
@@ -81,31 +92,61 @@ def plot_curves(data, epoch_markers, progress):
     # 显示当前 loss 和上次 loss，用方框圈起来
     st.write("### 📊 Current and Previous Metrics")
     with st.container():
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown(
-                f"<div style='border: 2px solid #4A90E2; padding: 20px; border-radius: 15px; background-color: #f0f2f6; box-shadow: 5px 5px 15px rgba(0,0,0,0.1);'>"
-                f"<h3 style='color: #4A90E2; font-size: 1.6em; margin-bottom: 15px; text-align: center; font-family: Arial, sans-serif;'>Loss</h3>"
-                f"<div style='display: flex; justify-content: space-between; font-size: 1.3em; color: #333; margin-bottom: 10px; font-family: Arial, sans-serif;'>"
-                f"<div><b>Previous Loss</b>: {data['Loss'].iloc[-2]:.4f}</div>"
-                f"<div><b>Current Loss</b>: {data['Loss'].iloc[-1]:.4f}</div>"
-                f"</div>"
-                f"<div style='text-align: center; font-size: 1.5em; color: #333; font-weight: bold; font-family: Arial, sans-serif;'><b>Change</b>: {data['Loss'].iloc[-1] - data['Loss'].iloc[-2]:.4f}</div>"
-                f"</div>",
-                unsafe_allow_html=True,
-            )
-        with col2:
-            st.markdown(
-                f"<div style='border: 2px solid #4A90E2; padding: 20px; border-radius: 15px; background-color: #f0f2f6; box-shadow: 5px 5px 15px rgba(0,0,0,0.1);'>"
-                f"<h3 style='color: #4A90E2; font-size: 1.6em; margin-bottom: 15px; text-align: center; font-family: Arial, sans-serif;'>Gradient Norm</h3>"
-                f"<div style='display: flex; justify-content: space-between; font-size: 1.3em; color: #333; margin-bottom: 10px; font-family: Arial, sans-serif;'>"
-                f"<div><b>Previous Gradient Norm</b>: {data['Gradient Norm'].iloc[-2]:.4f}</div>"
-                f"<div><b>Current Gradient Norm</b>: {data['Gradient Norm'].iloc[-1]:.4f}</div>"
-                f"</div>"
-                f"<div style='text-align: center; font-size: 1.5em; color: #333; font-weight: bold; font-family: Arial, sans-serif;'><b>Change</b>: {data['Gradient Norm'].iloc[-1] - data['Gradient Norm'].iloc[-2]:.4f}</div>"
-                f"</div>",
-                unsafe_allow_html=True,
-            )
+        if len(data['Loss']>=2):
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown(
+                    f"<div style='border: 2px solid #4A90E2; padding: 20px; border-radius: 15px; background-color: #f0f2f6; box-shadow: 5px 5px 15px rgba(0,0,0,0.1);'>"
+                    f"<h3 style='color: #4A90E2; font-size: 1.6em; margin-bottom: 15px; text-align: center; font-family: Arial, sans-serif;'>Loss</h3>"
+                    f"<div style='display: flex; justify-content: space-between; font-size: 1.3em; color: #333; margin-bottom: 10px; font-family: Arial, sans-serif;'>"
+                    f"<div><b>Previous Loss</b>: {data['Loss'].iloc[-2]:.4f}</div>"
+                    f"<div><b>Current Loss</b>: {data['Loss'].iloc[-1]:.4f}</div>"
+                    f"</div>"
+                    f"<div style='text-align: center; font-size: 1.5em; color: #333; font-weight: bold; font-family: Arial, sans-serif;'><b>Change</b>: {data['Loss'].iloc[-1] - data['Loss'].iloc[-2]:.4f}</div>"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+            with col2:
+                st.markdown(
+                    f"<div style='border: 2px solid #4A90E2; padding: 20px; border-radius: 15px; background-color: #f0f2f6; box-shadow: 5px 5px 15px rgba(0,0,0,0.1);'>"
+                    f"<h3 style='color: #4A90E2; font-size: 1.6em; margin-bottom: 15px; text-align: center; font-family: Arial, sans-serif;'>Gradient Norm</h3>"
+                    f"<div style='display: flex; justify-content: space-between; font-size: 1.3em; color: #333; margin-bottom: 10px; font-family: Arial, sans-serif;'>"
+                    f"<div><b>Previous Gradient Norm</b>: {data['Gradient Norm'].iloc[-2]:.4f}</div>"
+                    f"<div><b>Current Gradient Norm</b>: {data['Gradient Norm'].iloc[-1]:.4f}</div>"
+                    f"</div>"
+                    f"<div style='text-align: center; font-size: 1.5em; color: #333; font-weight: bold; font-family: Arial, sans-serif;'><b>Change</b>: {data['Gradient Norm'].iloc[-1] - data['Gradient Norm'].iloc[-2]:.4f}</div>"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+        else:
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown(
+                    f"<div style='border: 2px solid #4A90E2; padding: 20px; border-radius: 15px; background-color: #f0f2f6; box-shadow: 5px 5px 15px rgba(0,0,0,0.1);'>"
+                    f"<h3 style='color: #4A90E2; font-size: 1.6em; margin-bottom: 15px; text-align: center; font-family: Arial, sans-serif;'>Loss</h3>"
+                    f"<div style='display: flex; justify-content: space-between; font-size: 1.3em; color: #333; margin-bottom: 10px; font-family: Arial, sans-serif;'>"
+                    # f"<div><b>Previous Loss</b>: {data['Loss'].iloc[-2]:.4f}</div>"
+                    # f"<div><b>Current Loss</b>: {data['Loss'].iloc[-1]:.4f}</div>"
+                    f"</div>"
+                    f"<div style='text-align: center; font-size: 1.5em; color: #333; font-weight: bold; font-family: Arial, sans-serif;'><b>Change</b>: {data['Loss'].iloc[-1] - data['Loss'].iloc[-2]:.4f}</div>"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+            with col2:
+                st.markdown(
+                    f"<div style='border: 2px solid #4A90E2; padding: 20px; border-radius: 15px; background-color: #f0f2f6; box-shadow: 5px 5px 15px rgba(0,0,0,0.1);'>"
+                    f"<h3 style='color: #4A90E2; font-size: 1.6em; margin-bottom: 15px; text-align: center; font-family: Arial, sans-serif;'>Gradient Norm</h3>"
+                    f"<div style='display: flex; justify-content: space-between; font-size: 1.3em; color: #333; margin-bottom: 10px; font-family: Arial, sans-serif;'>"
+                    # f"<div><b>Previous Gradient Norm</b>: {data['Gradient Norm'].iloc[-2]:.4f}</div>"
+                    # f"<div><b>Current Gradient Norm</b>: {data['Gradient Norm'].iloc[-1]:.4f}</div>"
+                    f"</div>"
+                    f"<div style='text-align: center; font-size: 1.5em; color: #333; font-weight: bold; font-family: Arial, sans-serif;'><b>Change</b>: {data['Gradient Norm'].iloc[-1] - data['Gradient Norm'].iloc[-2]:.4f}</div>"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+
+
+
     # 显示进度条
     if progress:
         st.write("### 🚀 Training Progress")
@@ -404,7 +445,7 @@ def main():
     st.title("📊 Training Log Viewer")
 
     log_file_path = (
-        "/141nfs/wangjunxiang/AutoAlign/testing-data/output.log"  # 日志文件路径
+        "outputs/cai_sft.log"  # 日志文件路径
     )
 
     # 初始化 session_state

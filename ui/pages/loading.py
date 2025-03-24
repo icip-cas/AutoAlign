@@ -1,6 +1,13 @@
 import streamlit as st
 import time
-
+hide_sidebar_css = """
+<style>
+    section[data-testid="stSidebar"] {
+        display: none !important;
+    }
+</style>
+"""
+st.markdown(hide_sidebar_css, unsafe_allow_html=True)
 # 设置页面标题
 st.title("Loading ...")
 
@@ -56,8 +63,8 @@ for i in range(100):
         unsafe_allow_html=True,
     )
 
-    # 模拟加载时间，每次循环暂停0.7秒
-    time.sleep(0.7)
+    # 模拟加载时间，每次循环暂停0.5秒
+    time.sleep(0.5)
 
 # 加载完成后显示完成信息
 st.markdown(
@@ -67,4 +74,4 @@ st.markdown(
 
 # 跳转到其他页面
 time.sleep(2)  # 给用户一点时间看到成功信息
-st.switch_page("page5.py")
+st.switch_page("pages/page5.py")

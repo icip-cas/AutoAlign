@@ -2,10 +2,17 @@ import streamlit as st
 import os
 import time
 from pages.navbar import render_navbar, check_and_switch_page_4, init_session_state
-
+import subprocess
 
 render_navbar()
-
+hide_sidebar_css = """
+<style>
+    section[data-testid="stSidebar"] {
+        display: none !important;
+    }
+</style>
+"""
+st.markdown(hide_sidebar_css, unsafe_allow_html=True)
 st.title("📊 Model Evaluation")
 
 # 初始化 session_state
@@ -95,8 +102,18 @@ with st.form("config_form"):
     model_name = st.text_input(
         "模型名称",
         placeholder="请输入模型标识名称",
-        value=st.session_state["model_name"],  # 使用 session_state 中的值
+        # value=st.session_state["model_name"],  # 使用 session_state 中的值
+        value="aaa",
         label_visibility="collapsed",
+    )
+
+    #输出地址
+    st.subheader("📄 Output Path")
+    output_path = st.text_input(
+        "配置文件存储路径",
+        placeholder="请输入配置存储路径",
+        value = "testing-output",
+        label_visibility="collapsed"
     )
 
     # GPU 和 Batch Size 配置
@@ -134,6 +151,7 @@ with st.form("config_form"):
         st.session_state["model_name"] = model_name
         st.session_state["per_model_gpu"] = per_model_gpu
         st.session_state["batch_size"] = batch_size
+        st.session_state["output_dir"] = output_path
 
         all_fields_filled = True
 
@@ -157,77 +175,38 @@ with st.form("config_form"):
             alpaca_path = "data/eval/alpaca_eval" if process == "subjective" else None
 
             # 生成配置文件内容
-            config_content = f"""# 评测的模型标识名称
-# Identifying name of the model to evaluate
+            config_content = f"""
 model_name: {model_name}
-
-# 评测时使用的上下文模板，可见src/autoalign/conversation.py中的TEMPLATES
 template_name: chatml-keep-system
-# 评测的模型路径
-# The path of the model to evaluate
 model_path: {model_dir}
-# 评测的类型
-# The type of evaluation
-# 可选项：
-# objective_core: 评测模型的核心客观指标，是objective_all对应指标的真子集。(evaluating the core objective metrics, a subset of the metrics in objective_all, of the model)
-# objective_all: 评测模型的所有客观指标。(evaluating all the objective metrics of the model)
-# subjective: 评测模型的主观指标。(evaluating the subjective metrics of the model)
 eval_type: {process}
-# 单个模型 worker 所占用的GPU数量
-# The number of GPUs occupied by a single model worker
 per_model_gpu: {per_model_gpu}
-
-# 单个 worker 的 batch_size
-# The batch size of a single worker
 batch_size: {batch_size}
-
-# 推理 backend
-# The inference backend
 backend: vllm
-
-# ==============Opencompass 设置================
-# opencompass文件夹的路径
-# The path of opencompass
 opencompass_path: opencompass
-
-# ==============MTbench 设置================
-# mtbench文件夹的路径
 mt_path: {mt_path}
-
-# Recommend using: chatgpt_fn or weighted_alpaca_eval_gpt4_turbo
-# use weighted_alpaca_eval_gpt4_turbo if you want the high agreement with humans.
-# use chatgpt_fn if you are on a tight budget.
 judge_model: chatgpt_fn
 """
 
             if alpaca_path:
                 config_content += f"""
-# ==============AlpacaEval 设置================
-# see https://github.com/tatsu-lab/alpaca_eval/blob/main/src/alpaca_eval/evaluators_configs/README.md
-# 指定AlpacaEval文件的路径(setting the alpaca eval file path if you have already downloaded it)
 alpaca_path: {alpaca_path}
 """
-
-            # current_dir = os.path.dirname(__file__)
-
-            # relative_path = os.path.join("..", "configs")
-            # target_dir = os.path.normpath(os.path.join(current_dir, relative_path))
-
-            # target_file = os.path.join(target_dir, "eval.yaml")
-            # try:
-            #     with open(target_file, "w") as f:
-            #         f.write(config_content)
-            #     st.success(f"Align Start!")
-            #     time.sleep(1.5)
-            #     st.switch_page("page5.py")
-            # except Exception as e:
-            #     st.error(f"Failed to save configuration")
             st.session_state.step4 = config_content
             st.session_state.p4_fin = True
             st.success(f"Align Start!")
             time.sleep(1.5)
             #  TODO: 在这里插入执行一次性脚本的内容
-            # st.switch_page("page5.py")
+            os.environ['step1'] = st.session_state.step1
+            os.environ['step2'] = st.session_state.step2
+            os.environ['step3'] = st.session_state.step3
+            os.environ['step4'] = st.session_state.step4
+            os.environ['syn_method'] = st.session_state.Syn_method
+            os.environ['method'] = st.session_state.method
+            os.environ['epoch'] = str(st.session_state.total_epoch)
+            os.environ['eval_path'] = st.session_state.output_dir
+            subprocess.Popen(f"python ui/pages/Align.py 2>&1 | tee outputs/rec.log", text=True, shell=True)
+            # subprocess.Popen("python ui/pages/Align.py", text=True, shell=True)
             st.switch_page("pages/loading.py")
 
 if st.session_state.selected_button == "data_gen":

@@ -3,9 +3,17 @@ import os
 import time
 from pages.navbar import render_navbar, check_and_switch_page_1, init_session_state
 import pages.navbar
-
+hide_sidebar_css = """
+<style>
+    section[data-testid="stSidebar"] {
+        display: none !important;
+    }
+</style>
+"""
+st.markdown(hide_sidebar_css, unsafe_allow_html=True)
 render_navbar()
 
+st.session_state.total_epoch = st.number_input("Total epoch", value=3)
 # 页面标题
 st.title("Data Synthesis")
 
@@ -77,7 +85,7 @@ if method == "MAGPIE":
 
         # Model Configuration
         st.subheader("Model Configuration")
-        cols = st.columns(3)
+        cols = st.columns(2)
         with cols[0]:
             model_id = st.text_input(
                 "Model ID",
@@ -85,12 +93,19 @@ if method == "MAGPIE":
                 value=st.session_state.get("magpie_model_id", ""),
             )
         with cols[1]:
+            output_path = st.text_input(
+                "Output Path",
+                placeholder="Please enter the output path",
+                value=st.session_state.get("self_instruct_output_path", "")
+            )
+        cols = st.columns(2)
+        with cols[0]:
             tensor_parallel = st.number_input(
                 "Tensor Parallel",
                 min_value=1,
                 value=st.session_state.get("magpie_tensor_parallel", 1),
             )
-        with cols[2]:
+        with cols[1]:
             gpu_utilization = st.slider(
                 "GPU Utilization",
                 0.0,
@@ -211,16 +226,18 @@ if method == "MAGPIE":
                 st.error(error_message)
             else:
                 script_content = f"""
-model_path={model_path}
-total_prompts={total_prompts}
-ins_topp={top_p}
-ins_temp={temperature}
-config={config_path}
-model_id={model_id}
-device="{",".join(map(str, devices))}"
-tensor_parallel={tensor_parallel}
-gpu_memory_utilization={gpu_utilization}
-n={n_samples}
+#!/usr/bin/bash
+# model_path={model_path}
+# total_prompts={total_prompts}
+# ins_topp={top_p}
+# ins_temp={temperature}
+# config={config_path}
+# model_id={model_id}
+# device="{','.join(map(str, devices))}"
+# tensor_parallel={tensor_parallel}
+# gpu_memory_utilization={gpu_utilization}
+# output_folder={output_path}
+# n={n_samples}
 
 # Get Current Time
 timestamp=$(date +%s)
@@ -248,18 +265,19 @@ echo "[magpie.sh] Job Name: $job_name"
 
 echo "[magpie.sh] Start Generating Instructions..."
 CUDA_VISIBLE_DEVICES=$device python src/autoalign/data/instruction/magpie.py \\
-    --device $device \\
-    --model_path $model_path \\
-    --total_prompts $total_prompts \\
-    --top_p $ins_topp \\
-    --temperature $ins_temp \\
-    --tensor_parallel $tensor_parallel \\
-    --gpu_memory_utilization $gpu_memory_utilization \\
-    --n $n \\
+    --device "{','.join(map(str, devices))}" \\
+    --model_path {model_path} \\
+    --total_prompts {total_prompts} \\
+    --top_p {top_p} \\
+    --temperature {temperature} \\
+    --tensor_parallel {tensor_parallel} \\
+    --gpu_memory_utilization {gpu_utilization} \\
+    --n {n_samples} \\
     --job_name $job_name \\
     --timestamp $timestamp \\
-    --model-id $model_id \\
-    --config $config
+    --model-id {model_id} \\
+    --output_folder {output_path} \\
+    --config {config_path}
 
 echo "[magpie.sh] Finish Generating Instructions!"
 """
@@ -280,19 +298,19 @@ elif method == "Self-Instruct":
             model_id = st.text_input(
                 "Model ID",
                 placeholder="Please enter the model name (customizable)",
-                value=st.session_state.get("self_instruct_model_id", ""),
+                value=st.session_state.get("self_instruct_model_id", "tests"),
             )
         with cols[1]:
             template_name = st.text_input(
                 "Template",
                 placeholder="Please enter the template name as per ATA regulations",
-                value=st.session_state.get("self_instruct_template_name", ""),
+                value=st.session_state.get("self_instruct_template_name", "qwen"),
             )
         with cols[2]:
             output_path = st.text_input(
                 "Output Path",
                 placeholder="Please enter the output path",
-                value=st.session_state.get("self_instruct_output_path", ""),
+                value=st.session_state.get("self_instruct_output_path", "testing-output"),
             )
 
         # Path Configuration
@@ -302,13 +320,13 @@ elif method == "Self-Instruct":
             question_gen_model_path = st.text_input(
                 "Self-Instruct Model Path",
                 placeholder="Please enter the model path",
-                value=st.session_state.get("self_instruct_question_gen_model_path", ""),
+                value=st.session_state.get("self_instruct_question_gen_model_path", "/141nfs/arknet/hf_models/Qwen1.5-1.8B-Chat/"),
             )
         with cols[1]:
             seed_data_path = st.text_input(
                 "Seed Data Path",
                 placeholder="Please enter the data path in ShareGPT format",
-                value=st.session_state.get("self_instruct_seed_data_path", ""),
+                value=st.session_state.get("self_instruct_seed_data_path", "testing-data/test1.json"),
             )
 
         # Inference Configuration
@@ -317,7 +335,7 @@ elif method == "Self-Instruct":
         with cols[0]:
             backend = st.selectbox(
                 "Inference Backend",
-                ["hf", "vllm"],
+                ["vllm", "hf"],
                 index=0
                 if st.session_state.get("self_instruct_backend", "hf") == "hf"
                 else 1,
@@ -399,18 +417,8 @@ python src/autoalign/data/instruction/self_instruct.py \\
     --seed-data-path {seed_data_path} \\
     --backend {backend} \\
     --num-prompts {num_prompts}\\
-    --output-path {output_path}
+    --output-path {output_path} 2>&1 | tee outputs/self-ins.log; echo "###page6###"  >> outputs/self-ins.log
 """
-                # current_dir = os.path.dirname(os.path.abspath(__file__))
-                # parent_dir = os.path.dirname(current_dir)
-                # parent_dir = parent_dir +"/sc/"
-                # if not os.path.exists(parent_dir):
-                #     os.makedirs(parent_dir)
-                # bash_file_path = os.path.join(parent_dir, "self_instruct.sh")
-                # # 将脚本内容保存到文件
-                # with open(bash_file_path, "w") as f:
-                #     f.write(script_content)
-                # st.success(f"Self-Instruct script saved successfully at: {bash_file_path}")
                 st.session_state.step1 = script_content
                 st.success("Configuration Saved!")
                 time.sleep(1.5)
@@ -426,23 +434,23 @@ elif method == "Back-Translation":
             unlabeled_data_path = st.text_input(
                 "Unlabeled Data Path",
                 placeholder="Please enter the unlabeled data path",
-                value=st.session_state.get("back_translation_unlabeled_data_path", ""),
+                value=st.session_state.get("back_translation_unlabeled_data_path", "testing-data/test.json"),
             )
         with cols[1]:
             output_path = st.text_input(
                 "Output File Path",
                 placeholder="Please enter the output file save path",
-                value=st.session_state.get("back_translation_output_path", ""),
+                value=st.session_state.get("back_translation_output_path", "testing-output"),
             )
         prompt_column_name = st.text_input(
             "prompt_column_name",
             placeholder="Please enter the prompt column name",
-            value=st.session_state.get("back_translation_prompt_column_name", ""),
+            value=st.session_state.get("back_translation_prompt_column_name", "aa"),
         )
         model_path = st.text_input(
             "Back-Translation Model Path",
             placeholder="Please enter the back-translation model path",
-            value=st.session_state.get("back_translation_model_path", ""),
+            value=st.session_state.get("back_translation_model_path", "/mnt/ceph_home/xudong2022/auto-alignment/models/Humback-Myx"),
         )
 
         st.subheader("Inference Configuration")
@@ -471,10 +479,6 @@ elif method == "Back-Translation":
 
         # Validation and Processing After Submission
         if saved:
-            # Save all inputs to session_state
-            # st.session_state["back_translation_temperature"] = temperature
-            # st.session_state["back_translation_top_p"] = top_p
-            # st.session_state["back_translation_max_length"] = max_length
             st.session_state["Syn_method"] = "Back-Translation"
             st.session_state["back_translation_unlabeled_data_path"] = (
                 unlabeled_data_path
@@ -540,34 +544,18 @@ elif method == "Back-Translation":
 
 export CUDA_VISIBLE_DEVICES={devices_str}
 
-model_path={model_path}
-data_filepath={unlabeled_data_path}
-save_filepath={output_path}
-prompt_column_name={prompt_column_name}
-tensor_parallel_size={tensor_parallel_size}
-
 python src/autoalign/data/instruction/back_translation.py \\
     --reverse \\
-    --model_path={model_path} \\
-    --data_filepath={unlabeled_data_path} \\
-    --save_filepath={output_path} \\
-    --prompt_column_name={prompt_column_name} \\
-    --tensor_parallel_size={tensor_parallel_size}
+    --model_path {model_path} \\
+    --data_filepath {unlabeled_data_path} \\
+    --save_filepath {output_path} \\
+    --prompt_column_name {prompt_column_name} \\
+    --tensor_parallel_size {tensor_parallel_size}
 """
-                # current_dir = os.path.dirname(os.path.abspath(__file__))
-                # parent_dir = os.path.dirname(current_dir)
-                # parent_dir = parent_dir +"/sc/"
-                # if not os.path.exists(parent_dir):
-                #     os.makedirs(parent_dir)
-                # bash_file_path = os.path.join(parent_dir, "back_translation.sh")
-                # # 将脚本内容保存到文件
-                # with open(bash_file_path, "w") as f:
-                #     f.write(script_content)
-                # st.success(f"Back-Translation script saved successfully at: {bash_file_path}")
                 st.session_state.step1 = script_content
                 st.success("Configuration Saved!")
                 time.sleep(1.5)
-                st.session_state.p1st.session_state.p1_fin = True
+                st.session_state.p1_fin = True
                 st.session_state.selected_button = "data_filter"
                 st.switch_page("pages/page2.py")
 

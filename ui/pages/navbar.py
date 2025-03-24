@@ -368,13 +368,13 @@ def render_navbar_visual():
     )
 
     labels = [
-        ("Generate Query", "I", "data_gen", "page1"),
+        ("Data Board", "V", "data_gen", "page5"),
         ("", "", "", ""),
-        ("Sample Answer", "II", "data_filter", "page2"),
+        ("Logs", "VI", "data_filter", "page6"),
         ("", "", "", ""),
-        ("Train", "III", "train", "page3"),
+        ("Train", "VII", "train", "page7"),
         ("", "", "", ""),
-        ("Eval", "IV", "eval", "page4"),
+        ("Eval", "VIII", "eval", "page8"),
     ]
 
     # 渲染导航栏
@@ -388,9 +388,9 @@ def render_navbar_visual():
                 with st.container():
                     if st.button(num, key=key):
                         st.session_state["selected_button"] = key
-                    st.markdown(
-                        f"<div class='btn-text'>{text}</div>", unsafe_allow_html=True
-                    )
+                    # st.markdown(
+                    #     f"<div class='btn-text'>{text}</div>", unsafe_allow_html=True
+                    # )
 
                     # 渲染按钮下方的文字
                     st.markdown(

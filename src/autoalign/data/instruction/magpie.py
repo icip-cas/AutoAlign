@@ -154,13 +154,16 @@ def main():
         torch.cuda.manual_seed_all(args.seed)
 
     # Create output file / folder
-    output_filename = f"Magpie_{args.model_path.split('/')[-1]}_{args.total_prompts}_{args.timestamp}_ins.json"
+    # output_filename = f"Magpie_{args.model_path.split('/')[-1]}_{args.total_prompts}_{args.timestamp}_ins.json"
+    output_filename = "magpie_output.json"
     if not args.job_name:
         if not os.path.exists(args.output_folder):
             os.makedirs(args.output_folder)
+        # output_dir = f"{args.output_folder}/{output_filename}"
         output_dir = f"{args.output_folder}/{output_filename}"
     else:
-        output_dir = f"{args.output_folder}/{args.job_name}/{output_filename}"
+        # output_dir = f"{args.output_folder}/{args.job_name}/{output_filename}"
+        output_dir = f"{args.output_folder}/{output_filename}"
 
     # Set the device
     os.environ["CUDA_VISIBLE_DEVICES"] = args.device

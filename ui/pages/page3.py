@@ -5,7 +5,14 @@ from pages.navbar import render_navbar, check_and_switch_page_3, init_session_st
 
 
 render_navbar()
-
+hide_sidebar_css = """
+<style>
+    section[data-testid="stSidebar"] {
+        display: none !important;
+    }
+</style>
+"""
+st.markdown(hide_sidebar_css, unsafe_allow_html=True)
 if "sub_sel_button" not in st.session_state:
     st.session_state.sub_sel_button = "SFT"
 st.session_state.sub_sel_button = st.selectbox(
@@ -16,10 +23,11 @@ with st.form("Train Configuration"):
     if st.session_state.sub_sel_button in ["SFT", "CAI_sft"]:
         cols = st.columns([3, 1, 1, 1])
         with cols[0]:
-            proj_name = st.text_input("Project Name")
-            model = st.text_input("Base Model")
-            dataset = st.text_input("Dataset Source")
-            output_dir = st.text_input("Output Dir")
+            proj_name = st.text_input("Project Name", value="aaa")
+            model = st.text_input("Base Model", value="/141nfs/arknet/hf_models/Qwen1.5-1.8B-Chat/")
+            dataset = st.text_input("Dataset Source", value="testing-output")
+            output_dir = st.text_input("Output Dir", value="testing-output")
+            st.session_state.model_dir = output_dir
         with cols[1]:
             train_batch_size = st.number_input("Train Batch Size per Device", value=4)
             chat_template = st.selectbox(
@@ -46,7 +54,7 @@ with st.form("Train Configuration"):
             learning_rate = st.text_input("Learning Rate", value="2e-5")
             lr_scheduler = st.selectbox("LR Scheduler", ("cosine"))
             logging_steps = st.number_input("Logging Steps", value=1)
-            deepspeed = st.text_input("Deepspeed", value="Deepspeed_dir")
+            deepspeed = st.text_input("Deepspeed", value="configs/zero3.json")
         with cols[3]:
             model_max_length = st.number_input("Model Max Length", value=4096)
             eval_num = st.number_input("Eval Num", value=0)
@@ -66,7 +74,7 @@ with st.form("Train Configuration"):
             save_strategy = st.selectbox("Save Strategy", ("epoch"))
             warmup_ratio = st.number_input("Warmup Ratio", value=0.04)
         with cols[4]:
-            logging_dir = st.text_input("Logging Dir")
+            logging_dir = st.text_input("Logging Dir", value="testing-output")
             gradient_checkpoint = st.selectbox("Gradient Checkpoint", (True, False))
         with cols[5]:
             lazy_preprocess = st.selectbox("Lazy Preprocess", (True, False))
@@ -224,32 +232,32 @@ with st.form("Train Configuration"):
 
             else:
                 script_content = f"""
-    autoalign-cli dpo \
-        --model_name_or_path {model} \
-        --data_path {dataset} \
-        --conv_template_name {chat_template} \
-        --bf16 {bf16} \
-        --output_dir {output_dir} \
-        --num_train_epochs {num_train_epoch} \
-        --per_device_train_batch_size {train_batch_size} \
-        --per_device_eval_batch_size {eval_batch_size} \
-        --gradient_accumulation_steps {gradient_accumulation_steps} \
-        --eval_strategy {eval_strategy} \
-        --eval_steps {eval_steps} \
-        --save_strategy {save_strategy} \
-        --save_steps {save_steps} \
-        --save_total_limit {save_total_limit} \
-        --learning_rate {learning_rate} \
-        --beta {beta} \
-        --weight_decay {weight_decay} \
-        --warmup_ratio {warmup_ratio} \
-        --lr_scheduler_type {lr_scheduler} \
-        --report_to {report_to} \
-        --logging_dir {logging_dir} \
-        --logging_steps {logging_steps} \
-        --gradient_checkpointing {gradient_checkpoint} \
-        --deepspeed {deepspeed} |& tee cai_dpo.log
-    """
+autoalign-cli dpo \
+    --model_name_or_path {model} \
+    --data_path {dataset} \
+    --conv_template_name {chat_template} \
+    --bf16 {bf16} \
+    --output_dir {output_dir} \
+    --num_train_epochs {num_train_epoch} \
+    --per_device_train_batch_size {train_batch_size} \
+    --per_device_eval_batch_size {eval_batch_size} \
+    --gradient_accumulation_steps {gradient_accumulation_steps} \
+    --eval_strategy {eval_strategy} \
+    --eval_steps {eval_steps} \
+    --save_strategy {save_strategy} \
+    --save_steps {save_steps} \
+    --save_total_limit {save_total_limit} \
+    --learning_rate {learning_rate} \
+    --beta {beta} \
+    --weight_decay {weight_decay} \
+    --warmup_ratio {warmup_ratio} \
+    --lr_scheduler_type {lr_scheduler} \
+    --report_to {report_to} \
+    --logging_dir {logging_dir} \
+    --logging_steps {logging_steps} \
+    --gradient_checkpointing {gradient_checkpoint} \
+    --deepspeed {deepspeed} 2>&1 | tee outputs/cai_dpo.log
+"""
 
                 # current_dir = os.path.dirname(os.path.abspath(__file__))
                 # # current_dir = "/141nfs/wangpengbo/auto_alignment/auto-alignment/algorithms/cai"
@@ -349,44 +357,34 @@ with st.form("Train Configuration"):
 
             else:
                 script_content = f"""
-    autoalign-cli sft \
-        --model_name_or_path {model} \
-        --data_path {dataset} \
-        --conv_template_name {chat_template} \
-        --bf16 {bf16} \
-        --output_dir {output_dir} \
-        --num_train_epochs {num_train_epoch} \
-        --per_device_train_batch_size {train_batch_size} \
-        --per_device_eval_batch_size {eval_batch_size} \
-        --gradient_accumulation_steps {gradient_accumulation_steps} \
-        --eval_strategy {eval_strategy} \
-        --eval_steps {eval_steps} \
-        --save_strategy {save_strategy} \
-        --learning_rate {learning_rate} \
-        --weight_decay {weight_decay} \
-        --warmup_ratio {warmup_ratio} \
-        --lr_scheduler_type {lr_scheduler} \
-        --report_to {report_to} \
-        --logging_dir {logging_dir} \
-        --logging_steps {logging_steps} \
-        --model_max_length {model_max_length} \
-        --gradient_checkpointing {gradient_checkpoint} \
-        --deepspeed {deepspeed} \
-        --ddp_timeout {ddp_timeout} \
-        --lazy_preprocess {lazy_preprocess} \
-        --eval_num {eval_num} \
-        --num_workers {num_workers} |& tee cai_sft.log
-    """
-
-                # current_dir = os.path.dirname(os.path.abspath(__file__))
-                # # current_dir = "/141nfs/wangpengbo/auto_alignment/auto-alignment/algorithms/cai"
-                # if st.session_state.sub_sel_button == 'CAI_sft':
-                #     bash_file_path = os.path.join(current_dir, "cai_sft.sh")
-                # else :
-                #     bash_file_path = os.path.join(current_dir, "sft.sh")
-                # # 将脚本内容保存到文件
-                # with open(bash_file_path, "w") as f:
-                #     f.write(script_content)
+autoalign-cli sft \
+    --model_name_or_path {model} \
+    --data_path {dataset} \
+    --conv_template_name {chat_template} \
+    --bf16 {bf16} \
+    --output_dir {output_dir} \
+    --num_train_epochs {num_train_epoch} \
+    --per_device_train_batch_size {train_batch_size} \
+    --per_device_eval_batch_size {eval_batch_size} \
+    --gradient_accumulation_steps {gradient_accumulation_steps} \
+    --eval_strategy {eval_strategy} \
+    --eval_steps {eval_steps} \
+    --save_strategy {save_strategy} \
+    --learning_rate {learning_rate} \
+    --weight_decay {weight_decay} \
+    --warmup_ratio {warmup_ratio} \
+    --lr_scheduler_type {lr_scheduler} \
+    --report_to {report_to} \
+    --logging_dir {logging_dir} \
+    --logging_steps {logging_steps} \
+    --model_max_length {model_max_length} \
+    --gradient_checkpointing {gradient_checkpoint} \
+    --deepspeed {deepspeed} \
+    --ddp_timeout {ddp_timeout} \
+    --lazy_preprocess {lazy_preprocess} \
+    --eval_num {eval_num} \
+    --num_workers {num_workers} 2>&1 | tee outputs/cai_sft.log; echo "###page8###" >> outputs/cai_sft.log
+"""
                 st.session_state.step3 = script_content
                 st.session_state.p3_fin = True
                 st.success("Configuration Saved!")

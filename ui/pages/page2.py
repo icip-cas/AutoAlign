@@ -5,7 +5,14 @@ from pages.navbar import render_navbar, check_and_switch_page_2, init_session_st
 
 
 render_navbar()
-
+hide_sidebar_css = """
+<style>
+    section[data-testid="stSidebar"] {
+        display: none !important;
+    }
+</style>
+"""
+st.markdown(hide_sidebar_css, unsafe_allow_html=True)
 st.session_state.method = st.selectbox(
     "Sample Method", ("RLCD", "SPIN", "CAI_sft", "CAI_dpo", "Self_Rewarding")
 )
@@ -399,15 +406,34 @@ elif st.session_state.method == "Self_Rewarding":
     with st.form("input"):
         cols = st.columns(3)
         with cols[0]:
-            st.session_state.self_re_model_path = st.text_input("Model path")
-            st.session_state.self_re_model_id = st.text_input("Model id")
-            st.session_state.self_re_template_name = st.text_input("Template name")
+            st.session_state.self_re_model_path = st.text_input("Model path", value="/141nfs/arknet/hf_models/Qwen1.5-1.8B-Chat/")
+            st.session_state.self_re_model_id = st.text_input("Model id", value="Qwen2.5-Ins")
+            st.session_state.self_re_template_name = st.selectbox(
+                "Template Select",
+                (
+                    "chatml",
+                    "vicuna_v1.1",
+                    "llama-2-chat",
+                    "llama-2-chat-keep-system",
+                    "chatml-keep-system",
+                    "llama-3-instruct",
+                    "mistral-instruct",
+                    "gemma",
+                    "zephyr",
+                    "chatml-idsys",
+                    "glm-4-chat",
+                    "glm-4-chat-keep-system",
+                    "default",
+                ),
+            )
         with cols[1]:
-            st.session_state.self_re_sft_base_model = st.text_input("SFT base model")
-            st.session_state.self_re_backend = st.text_input("Backend")
+            st.session_state.self_re_sft_base_model = st.selectbox("SFT base model", ("eft", "ift"))
+            st.session_state.self_re_backend = st.text_input("Backend", value="vllm")
+            st.session_state.output_path = st.text_input("Output Path", value="testing-output")
         with cols[2]:
-            st.session_state.self_re_num_iter = st.text_input("Num iter")
-            st.session_state.self_re_ins_path = st.text_input("Instruction path")
+            st.session_state.self_re_num_iter = st.text_input("Num iter", value=1)
+            st.session_state.self_re_ins_path = st.text_input("Instruction path", value="testing-output")
+            st.session_state.self_re_log_dir = st.text_input("Logging dir", value="outputs")
         submit_self_re = st.form_submit_button("→")
         if submit_self_re:
             missing_fields = []
@@ -426,6 +452,8 @@ elif st.session_state.method == "Self_Rewarding":
                 missing_fields.append("Num iter")
             if not st.session_state.self_re_ins_path.strip():
                 missing_fields.append("Instruction path")
+            if not st.session_state.self_re_log_dir.strip():
+                missing_fields.append("Log path")
             
             # 检查路径合法性
             invalid_paths = []
@@ -450,22 +478,20 @@ elif st.session_state.method == "Self_Rewarding":
 
                 st.error(error_message)
             else:
+                log_dir = os.path.join(st.session_state.self_re_log_dir, "self_rewarding_log.log")
                 script_content = f"""
-python src/dpo_dataset_generator.py    --model-path {st.session_state.self_re_model_path} \
+python algorithms/self-rewarding/src/dpo_dataset_generator.py    --model-path {st.session_state.self_re_model_path} \
                                        --model-id {st.session_state.self_re_model_id} \
                                        --template-name {st.session_state.self_re_template_name} \
                                        --sft-base-model {st.session_state.self_re_sft_base_model} \
                                        --backend {st.session_state.self_re_backend} \
                                        --num-iter {st.session_state.self_re_num_iter} \
-                                       --instruction-path {st.session_state.self_re_ins_path}
+                                       --instruction-path {st.session_state.self_re_ins_path} \
+                                       --output-path {st.session_state.output_path} 2>&1 | tee {log_dir}; echo "###page7###" >> {log_dir}
 """
-                # current_dir = os.path.dirname(os.path.abspath(__file__))
-                # bash_file_path = os.path.join(current_dir, "self_rewarding.sh")
-                # # 将脚本内容保存到文件
-                # with open(bash_file_path, "w") as f:
-                #     f.write(script_content)
                 st.session_state.step2 = script_content
                 st.session_state.p2_fin = True
+                st.session_state.selected_button = "train"
                 st.success("Configuration Saved!")
                 time.sleep(1.5)
                 st.switch_page("pages/page3.py")
