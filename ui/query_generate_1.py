@@ -149,7 +149,11 @@ if method == "MAGPIE":
                 script_content = f"""
 model_path={model_path}
 total_prompts={total_prompts}
+<<<<<<< Updated upstream
 ins_topp={round(top_p, 2)}
+=======
+ins_topp={top_p}
+>>>>>>> Stashed changes
 ins_temp={round(temperature, 2)}
 config={config_path}
 model_id={model_id}

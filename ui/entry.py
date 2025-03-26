@@ -1,4 +1,5 @@
 import streamlit as st
+<<<<<<< Updated upstream
 
 pg = st.navigation(
     [
@@ -14,3 +15,7 @@ pg = st.navigation(
     ]
 )
 pg.run()
+=======
+pg = st.navigation([st.Page("query_generate_1.py"), st.Page("eval_4.py")])
+pg.run()
+>>>>>>> Stashed changes

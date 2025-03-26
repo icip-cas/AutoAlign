@@ -17,10 +17,16 @@ if "per_model_gpu" not in st.session_state:
 if "batch_size" not in st.session_state:
     st.session_state["batch_size"] = 8
 
+<<<<<<< Updated upstream
 
 process_descriptions = {
     "objective_core": "GSM-8K(EN)，MATH(EN)，HumanEval(EN)，HumanEval-CN(CH)，BBH(EN)，IFEval(EN)，CONFIG_ALL：",
     "objective_all": "GSM-8K(EN)，MATH(EN)，HumanEval(EN)HumanEval-CN(CH)，BBH(EN)，IFEval(EN)，CMMLU(CH)，C-Eval(CH)，MBPP(EN)，MBPP-CN(CH)，GPQA(EN)",
+=======
+process_descriptions = {
+    "objective_core": "GSM-8K(EN)，MMLU，HumanEval(EN)，HumanEval-CN(CH)，BBH(EN)，IFEval(EN)，IFEval(EN)",
+    "objective_all": "GSM-8K(EN)，MMLU，HumanEval(EN)，HumanEval-CN(CH)，BBH(EN)，IFEval(EN)，IFEval, CMMLU(CH), C-Eval, MATH(EN), MBPP(EN)，MBPP-CN(CH)，GPQA(EN)",
+>>>>>>> Stashed changes
     "subjective": "MT-Bench and Alpaca-Eval",
 }
 

@@ -39,6 +39,10 @@ def read_log_file(log_file_path):
                     epoch_markers[int(epoch)] = step_counter
                 
                 step_counter += 1  # 增加 step
+<<<<<<< Updated upstream
+=======
+            
+>>>>>>> Stashed changes
             if progress_match:
                 progress.append(int(progress_match.group(1)))
     
@@ -261,8 +265,13 @@ def plot_curves(data, epoch_markers, progress):
             y=alt.Y('Gradient Norm', title='Gradient Norm'),
             tooltip=['Step', 'Gradient Norm']
         ).properties(
+<<<<<<< Updated upstream
             width=600,  
             height=400  
+=======
+            width=600,  # 增加宽度
+            height=400  # 增加高度
+>>>>>>> Stashed changes
         )
 
         # 添加 epoch 虚线标记（过滤掉 epoch=0）
@@ -321,7 +330,11 @@ def main():
     st.set_page_config(layout="wide", page_title="Training Log Viewer", page_icon="📊")
     st.title("📊 Training Log Viewer")
 
+<<<<<<< Updated upstream
     log_file_path = "/141nfs/maoyingzhi2024/output.log"  # 日志文件路径
+=======
+    log_file_path = "/141nfs/maoyingzhi2024/AutoAlign/a.log"  # 日志文件路径
+>>>>>>> Stashed changes
     
     # 初始化 session_state
     if "step_range" not in st.session_state:
@@ -351,7 +364,11 @@ def main():
         st.write("No training log data found.")
 
     # 每 5 秒自动刷新
+<<<<<<< Updated upstream
     time.sleep(5)
+=======
+    time.sleep(2)
+>>>>>>> Stashed changes
     st.rerun()
 
 if __name__ == "__main__":

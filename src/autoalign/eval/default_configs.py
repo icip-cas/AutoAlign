@@ -28,7 +28,7 @@ with read_base():
     from ..opencompass.configs.datasets.cmmlu.cmmlu_gen import cmmlu_datasets
     from ..opencompass.configs.datasets.ceval.ceval_gen import ceval_datasets
     from ..opencompass.configs.datasets.math.math_gen import math_datasets
-    from ..opencompass.configs.datasets.humaneval.humaneval_gen import humaneval_datasets
+    from ..opencompass.configs.datasets.IFEval.IFEval_gen import ifeval_datasets
     from ..opencompass.configs.datasets.humaneval_cn.humaneval_cn_gen import humaneval_cn_datasets
     from ..opencompass.configs.datasets.mbpp.mbpp_gen import mbpp_datasets
     from ..opencompass.configs.datasets.mbpp_cn.mbpp_cn_gen import mbpp_cn_datasets
