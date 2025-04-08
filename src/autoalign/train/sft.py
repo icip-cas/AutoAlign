@@ -22,8 +22,13 @@ from transformers import (
 from autoalign.conversation import Conversation
 from transformers import Qwen2Tokenizer, Qwen2TokenizerFast
 import transformers
-
-from autoalign.train.utils import configure_model
+import concurrent.futures
+from autoalign.train.patch import patch_for_block_diag_attn
+from autoalign.train.utils import (
+    configure_model,
+    greedy_knapsack,
+    pack_data_points_by_length,
+)
 
 local_rank = None
 
@@ -51,6 +56,17 @@ class DataArguments:
     lazy_preprocess: bool = False
     eval_num: int = field(
         default=0, metadata={"help": "number of data points for evaluation"}
+    )
+    # ref: llama-factory
+    neat_packing: bool = field(
+        default=False,
+        metadata={"help": "Enable sequence packing without cross-attention."},
+    )
+    packing_strategy: str = field(
+        default="sequentially",
+        metadata={
+            "help": 'The strategy of packing the data (merge short sequences into a long one). Available: "greedy" and "sequentially"'
+        },
     )
     # seed: int = field(
     #     default=42, metadata={"help": "random seed"}
@@ -88,8 +104,30 @@ def tokenize_conversation(
     )
     # print(conversation.get_conversation_str())
     # print(tokenized_conversation)
+    tokenized_conversation["attention_mask"] = [1] * len(
+        tokenized_conversation["input_ids"]
+    )
 
     return tokenized_conversation
+
+
+def packing_data(numbers: list[int], dataset: list[int]):
+    packed_input_ids, packed_attention_masks, packed_labels = [], [], []
+
+    for id, num in enumerate(numbers):
+        packed_input_ids += dataset[num]["input_ids"]
+        packed_labels += dataset[num]["labels"]
+        packed_attention_masks += [id + 1] * len(
+            dataset[num]["input_ids"]
+        )  # start from 1, 2 ...
+    print(len(packed_labels))
+    print(len(packed_input_ids))
+    print(len(packed_attention_masks))
+    return {
+        "input_ids": packed_input_ids,
+        "attention_mask": packed_attention_masks,
+        "labels": packed_labels,
+    }
 
 
 class LazySupervisedDataset(TorchDataset):
@@ -231,6 +269,37 @@ def run_sft():
                 remove_columns=list(dev_dataset.features),
                 num_proc=data_args.num_workers,
             )
+            if data_args.neat_packing:
+                lengths = [
+                    len(train_dataset[idx]["input_ids"])
+                    for idx in range(len(train_dataset))
+                ]
+                if data_args.packing_strategy == "greedy":
+                    knapsacks = greedy_knapsack(
+                        lengths, model_args.model_max_length - 1
+                    )
+                elif data_args.packing_strategy == "sequentially":
+                    knapsacks = pack_data_points_by_length(
+                        lengths, model_args.model_max_length - 1
+                    )
+                else:
+                    raise NotImplementedError(
+                        'Invalid packing strategy. Available: "greedy" and "sequentially"'
+                    )
+
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    # 提交任务到线程池
+                    futures = [
+                        executor.submit(packing_data, item, train_dataset)
+                        for item in knapsacks
+                    ]
+                    # 获取结果
+                    packed_train_data = [
+                        future.result()
+                        for future in concurrent.futures.as_completed(futures)
+                    ]
+                train_dataset = Dataset.from_list(packed_train_data)
+                patch_for_block_diag_attn(model_args.model_name_or_path)
 
     random_idx = random.randint(0, len(train_dataset) - 1)
     input_ids = train_dataset[random_idx]["input_ids"]
