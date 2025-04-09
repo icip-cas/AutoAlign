@@ -52,6 +52,7 @@ def inference_with_notemp(
             num_beams=1,
             top_p=1,
             temperature=temperature,
+            stop=stop,
         )
     if inst:
         try:

@@ -118,8 +118,9 @@ try:
         if os.getenv('syn_method') == "MAGPIE":
             step1_1 = modify_lines(step1, "output_folder", subdir)
         elif os.getenv('syn_method') == "Back-Translation":
-            step1_1 = appending(step1, "save_filepath", "data_gen/tests.json")
+            step1_1 = appending(step1, "save_filepath", "data_gen")
             step1_1 = modify_lines(step1_1, "save_filepath", subdir)
+            step1_1 = appending(step1_1, "save_filepath", "tests.json")
         elif os.getenv('syn_method') == "Self-Instruct":
             step1_1 = appending(step1, "output-path", "data_gen")
             step1_1 = appending(step1_1, "output-path", subdir)
@@ -150,8 +151,9 @@ try:
             step2_2 = rename_parameter(step2_2, "output-dir2", "output-dir")
 
             step2_2 = replace_input_files(step2_2, i+1)
-            step2_2 = appending(step2_2, "output-file-path", "sample_ans/preference_data.json")
+            step2_2 = appending(step2_2, "output-file-path", "sample_ans")
             step2_2 = modify_lines(step2_2, "output-file-path", subdir)
+            step2_2 = appending(step2_2, "output-file-path", "preference_data.json")
             print("###step2_2###",step2_2)
         elif os.getenv('method') == "SPIN":
             step2_2 = modify_lines(step2, "output-file-path", subdir)
@@ -160,22 +162,19 @@ try:
             step2_2 = modify_lines(step2_2, "instruction-path", subdir)
             step2_2 = appending(step2_2, "output-path", "sample_ans")
             step2_2 = modify_lines(step2_2, "output-path", subdir)
-        elif os.getenv('method') == "CAI_sft":
-            print("###step2###",step2)
-            step2_2 = appending(step2, "cai-file", "data_gen/tests.json")
-            step2_2 = modify_lines(step2_2, "cai-file", subdir)
+        elif os.getenv('method') == "CAI_sft":# TODO: 未测试，效果不明
+            step2_2 = 
             step2_2 = appending(step2_2, "input-file", "data_gen/tests.json")
             step2_2 = modify_lines(step2_2, "input-file", subdir)
-            step2_2 = appending(step2_2, "output-sft", "sample_ans/preference_data.json")
+            step2_2 = appending(step2_2, "output-sft", "sample_ans")
             step2_2 = modify_lines(step2_2, "output-sft", subdir)
-            print("###step2_2###",step2_2)
+            step2_2 = appending(step2_2, "output-sft", "preference_data.json")
         elif os.getenv('method') == "CAI_dpo":# TODO: 未测试实际效果
-            step2_2 = appending(step2, "cai-file", "data_gen/tests.json")
-            step2_2 = modify_lines(step2_2, "cai-file", subdir)
-            step2_2 = appending(step2_2, "input-file", "data_gen/tests.json")
+            step2_2 = appending(step2, "input-file", "data_gen/tests.json")
             step2_2 = modify_lines(step2_2, "input-file", subdir)
-            step2_2 = appending(step2_2, "output-file", "sample_ans/preference_data.json")
+            step2_2 = appending(step2_2, "output-file", "sample_ans")
             step2_2 = modify_lines(step2_2, "output-file", subdir)
+            step2_2 = appending(step2_2, "output-file", "preference_data.json")
         
         step3_3 = appending(step3, "data_path", "sample_ans")
         if i>0:

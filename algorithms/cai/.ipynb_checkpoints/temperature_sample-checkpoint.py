@@ -278,6 +278,7 @@ def judge(datas,x,y):
         max_new_tokens=1024,
         temperature=0,
         top_p=1,
+        stop=["Human:","===="]
     )
     tokenizer = inferencer.get_tokenizer()
     prompts = []

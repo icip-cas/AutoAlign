@@ -324,8 +324,8 @@ elif st.session_state.method == "CAI_sft":
             else:
                 log_dir = os.path.join(st.session_state.self_re_log_dir, "self_rewarding_log.log")
                 script_content = f"""
-python algorithms/cai/change.py --cai-file {st.session_state.cai_sft_input_path}
-echo "====================================change has done==============================================="
+python algorithms/cai/change.py --file {st.session_state.cai_sft_input_path}
+
 python algorithms/cai/prepare_for_cai.py   --model-name {st.session_state.cai_sft_model_name} \
                             --model-path {st.session_state.cai_sft_model_path} \
                             --input-file {st.session_state.cai_sft_input_path} \
@@ -334,7 +334,6 @@ python algorithms/cai/prepare_for_cai.py   --model-name {st.session_state.cai_sf
                             --output-rejected {st.session_state.cai_sft_output_rejected} \
                             --output-cai {st.session_state.cai_sft_output_cai} \
                             --output-sft {st.session_state.cai_sft_output_sft} 2>&1 | tee {log_dir}; echo "###page7###" >> {log_dir}
-echo "====================================prepare_for_cai has done==============================================="
 """
                 # current_dir = os.path.dirname(os.path.abspath(__file__))
                 # # current_dir = "/141nfs/wangpengbo/auto_alignment/auto-alignment/algorithms/cai/"
@@ -396,10 +395,8 @@ elif st.session_state.method == "CAI_dpo":
             else:
                 log_dir = os.path.join(st.session_state.self_re_log_dir, "self_rewarding_log.log")
                 script_content = f"""
-python algorithms/cai/change_dpo.py --cai-file {st.session_state.cai_dpo_input_path} \
-
-python algorithms/cai/temperature_sample.py   --model-name {st.session_state.cai_dpo_model_name} \
-                                --model-path {st.session_state.cai_dpo_model_path} \
+    python algorithms/cai/temperature_sample.py   --model-name {st.session_state.cai_dpo_model_name} \
+                                --model-path {st.session_state.cai_dpo_model_path}/checkpoint-* \
                                 --input-file {st.session_state.cai_dpo_input_path} \
                                 --output-file {st.session_state.cai_dpo_output_path} 2>&1 | tee {log_dir}; echo "###page7###" >> {log_dir}
     """
