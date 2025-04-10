@@ -20,7 +20,7 @@ The core functionalities of the toolkit include:
 - Automated model evaluation
 - After training intervertion methods (e.g., Represenatation Engineering, Model Averaging, etc.)
 
-![framework](./assets/framework.png)
+![framework](./assets/main_fig_v2.pdf)
 
 ## 🚀 News
 
