@@ -1,4 +1,4 @@
-![logo](/assets/auto_logo.png)
+![logo](./assets/auto_logo.png)
 
 <p align="center">
     <a href="#-quick-start">🔥Quick Start</a> •
@@ -20,7 +20,7 @@ The core functionalities of the toolkit include:
 - Automated model evaluation
 - After training intervertion methods (e.g., Represenatation Engineering, Model Averaging, etc.)
 
-![framework](./assets/framework.png)
+![framework](./assets/main_fig.png)
 
 ## 🚀 News
 
@@ -227,9 +227,10 @@ If you would like to contribute to this project, please follow these guidelines:
 
 ```bibtex
 @software{AutoALign,
-  author = {},
+  author = {Xinyu, Lu and Dong, Xu and Chunkang, Zhang and Xinyan, Guan and Junxiang, Wang and Qingyu, Zhang and Pengbo, Wang and Yingzhi, Mao and Hao, Xiang and Xueru, Wen and Zichao, Li and Yaojie, Lu and Hongyu, Lin and Le, Sun and Xianpei, Han},
   version = {0.0.1},
-  year = {2024}
+  year = {2024},
+  url = {https://github.com/icip-cas/AutoAlign}
 }
 ```
 
