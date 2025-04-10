@@ -7,7 +7,7 @@ import pathlib
 import random
 from accelerate.state import PartialState
 from typing import Dict
-
+from multiprocessing import Pool
 import torch
 from datasets import Dataset
 from torch.utils.data import Dataset as TorchDataset
@@ -22,7 +22,6 @@ from transformers import (
 from autoalign.conversation import Conversation
 from transformers import Qwen2Tokenizer, Qwen2TokenizerFast
 import transformers
-import concurrent.futures
 from autoalign.train.patch import patch_for_block_diag_attn
 from autoalign.train.utils import (
     configure_model,
@@ -120,9 +119,9 @@ def packing_data(numbers: list[int], dataset: list[int]):
         packed_attention_masks += [id + 1] * len(
             dataset[num]["input_ids"]
         )  # start from 1, 2 ...
-    print(len(packed_labels))
-    print(len(packed_input_ids))
-    print(len(packed_attention_masks))
+    # print(len(packed_labels))
+    # print(len(packed_input_ids))
+    # print(len(packed_attention_masks))
     return {
         "input_ids": packed_input_ids,
         "attention_mask": packed_attention_masks,
@@ -286,18 +285,10 @@ def run_sft():
                     raise NotImplementedError(
                         'Invalid packing strategy. Available: "greedy" and "sequentially"'
                     )
-
-                with concurrent.futures.ThreadPoolExecutor() as executor:
-                    # 提交任务到线程池
-                    futures = [
-                        executor.submit(packing_data, item, train_dataset)
-                        for item in knapsacks
-                    ]
-                    # 获取结果
-                    packed_train_data = [
-                        future.result()
-                        for future in concurrent.futures.as_completed(futures)
-                    ]
+                with Pool(data_args.num_workers) as p:
+                    packed_train_data = p.map(
+                        partial(packing_data, dataset=train_dataset), knapsacks
+                    )
                 train_dataset = Dataset.from_list(packed_train_data)
                 patch_for_block_diag_attn(model_args.model_name_or_path)
 

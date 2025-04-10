@@ -2,13 +2,9 @@ import torch
 import random
 import re
 import multiprocessing
-from multiprocessing import Pool
-from functools import partial
 import numpy as np
 from tqdm import tqdm
-from datasets import Dataset
 from copy import deepcopy
-from rouge_score import rouge_scorer
 import argparse
 import os
 from utils import (
@@ -54,7 +50,7 @@ def inference(
         if "backend" in infer_kwargs:
             infer_kwargs.pop("backend")
         for question in tqdm(questions):
-            assert "index" in question
+            assert "id" in question
             choices = []
             prompt = input_hook_fn(question, **kwargs)
             for i in range(num_choices):
@@ -64,10 +60,10 @@ def inference(
                     output = output_hook_fn(output, **kwargs)
                 except RuntimeError as e:
                     print(e)
-                    print("ERROR question ID: ", question["index"])
+                    print("ERROR question ID: ", question["id"])
                     output = "ERROR"
-                choices.append({"index": i, "output": output})
-            answers.append({"index": question["index"], "choices": choices})
+                choices.append({"id": i, "output": output})
+            answers.append({"id": question["id"], "choices": choices})
     elif kwargs["backend"] == "vllm":
         from vllm import LLM
         from vllm.sampling_params import SamplingParams
@@ -88,7 +84,7 @@ def inference(
         )
 
         for question in tqdm(questions):
-            assert "index" in question
+            assert "id" in question
             choices = []
             prompt = input_hook_fn(question, **kwargs)
             outputs = llm.generate(prompt, sampling_params)
@@ -97,8 +93,8 @@ def inference(
                 for idx, generated_output in enumerate(output.outputs):
                     generated_text = generated_output.text
                     completion = output_hook_fn(generated_text, **kwargs)
-                    choices.append({"index": idx, "output": completion})
-            answers.append({"index": question["index"], "choices": choices})
+                    choices.append({"id": idx, "output": completion})
+            answers.append({"id": question["id"], "choices": choices})
     return answers
 
 
@@ -115,8 +111,8 @@ def parallel_inference(
     random.shuffle(questions)
     try:
         gpus = os.environ["CUDA_VISIBLE_DEVICES"].split(",")
-    except Exception as e:
-        print(e)
+    except Exception:
+        # print(e)
         gpus = get_available_gpu_list()
     num_gpus_total = len(gpus)
     process_num = min(len(questions), num_gpus_total // num_gpus_per_model)
@@ -135,7 +131,7 @@ def parallel_inference(
             output_hook_fn,
             **kwargs,
         )
-        return sorted(results, key=lambda x: x["index"])
+        return sorted(results, key=lambda x: x["id"])
     elif process_num > 1:
         chunk_size = len(questions) // process_num
         if len(questions) % process_num == 0:
@@ -164,9 +160,7 @@ def parallel_inference(
                 gathered_responses = [
                     item for sublist in gathered_responses for item in sublist
                 ]
-                gathered_responses = sorted(
-                    gathered_responses, key=lambda x: x["index"]
-                )
+                gathered_responses = sorted(gathered_responses, key=lambda x: x["id"])
                 return gathered_responses
         else:
             flags = [i for i in range(0, len(questions), chunk_size)]
@@ -198,9 +192,7 @@ def parallel_inference(
                 gathered_responses = [
                     item for sublist in gathered_responses for item in sublist
                 ]
-                gathered_responses = sorted(
-                    gathered_responses, key=lambda x: x["index"]
-                )
+                gathered_responses = sorted(gathered_responses, key=lambda x: x["id"])
                 return gathered_responses
 
 
@@ -267,73 +259,17 @@ class DPODatasetGenerator:
     def __init__(
         self,
         model_name,
-        instruct_generator,
         template_name,
         backend,
-        ift_dataset,
         num_gpus_per_model,
     ):
         self.model_name = model_name
-        self.instruct_generator = instruct_generator
         self.template_name = template_name
         self.backend = backend
-        self.ift_dataset = Dataset.from_list(load_json(ift_dataset))
         self.num_gpus_per_model = num_gpus_per_model
 
-    def generate_prompts(self, num_prompts: int, num_examples: int = 6):
-        task_generation_prompts = []
-
-        for index in range(num_prompts):
-            rand_examples_idxs = random.sample(
-                range(0, len(self.ift_dataset)), k=num_examples
-            )
-            examples = []
-            for idx in rand_examples_idxs:
-                examples.append(self.ift_dataset[idx]["conversations"][0]["value"])
-            task_generation_prompts.append({"index": index, "examples": examples})
-        raw_task_prompts = parallel_inference(
-            model_name=self.instruct_generator,
-            questions=task_generation_prompts,
-            num_choices=1,
-            input_hook_fn=format_examples,
-            output_hook_fn=extract_prompts,
-            num_gpus_per_model=self.num_gpus_per_model,
-            temperature=0.6,
-            top_p=0.9,
-            max_new_tokens=512,
-            ift_dataset=self.ift_dataset,
-            instruction_pool=[],
-            template_name=self.template_name,
-            backend=self.backend,
-        )
-        task_prompts = []
-        for raw_prompt in raw_task_prompts:
-            task_prompts.extend(raw_prompt["choices"][0]["output"])
-
-        rem_dup_task_prompts = list(set(task_prompts))
-        new_prompts = post_process_instructs(rem_dup_task_prompts)
-        return new_prompts
-
-    def prompts_filter(self, prompts: list[dict]):
-        scorer = rouge_scorer.RougeScorer(["rougeL"], use_stemmer=False)
-        assert len(prompts) > 0
-        random.shuffle(prompts)
-        filtered_prompts = [prompts[0]]
-        for prompt in tqdm(prompts[1:]):
-            with Pool(64) as p:
-                rouge_scores = p.map(partial(scorer.score, prompt), filtered_prompts)
-            rouge_scores = [score["rougeL"].fmeasure for score in rouge_scores]
-            if max(rouge_scores) > 0.7:
-                continue
-            else:
-                filtered_prompts.append(prompt)
-        return [
-            {"index": index, "conversations": [{"from": "human", "value": prompt}]}
-            for index, prompt in enumerate(filtered_prompts)
-        ]
-
     def generate_responses(self, prompts, repeat_time=4):
-        prompts = sorted(prompts, key=lambda x: x["index"])
+        prompts = sorted(prompts, key=lambda x: x["id"])
         responses = parallel_inference(
             model_name=self.model_name,
             questions=prompts,
@@ -348,13 +284,13 @@ class DPODatasetGenerator:
             backend=self.backend,
         )
         prompt_response_pairs = []
-        prompts = sorted(prompts, key=lambda x: x["index"])
+        prompts = sorted(prompts, key=lambda x: x["id"])
         for prompt, response in zip(prompts, responses):
-            assert prompt["index"] == response["index"]
+            assert prompt["id"] == response["id"]
             for choice in response["choices"]:
                 prompt_response_pairs.append(
                     {
-                        "index": prompt["index"] * repeat_time + choice["index"],
+                        "id": prompt["id"] * repeat_time + choice["id"],
                         "instruct": prompt["conversations"][0]["value"],
                         "response": choice["output"],
                     }
@@ -380,10 +316,10 @@ class DPODatasetGenerator:
             backend=self.backend,
         )
 
-        instr_resp_pairs = sorted(instr_resp_pairs, key=lambda x: x["index"])
+        instr_resp_pairs = sorted(instr_resp_pairs, key=lambda x: x["id"])
         conv_score = []
         for pair, score in zip(instr_resp_pairs, raw_scores):
-            assert pair["index"] == score["index"]
+            assert pair["id"] == score["id"]
             assert len(score["choices"]) == score_time
             new_pair = deepcopy(pair)
             new_pair["score"] = score
@@ -397,7 +333,7 @@ class DPODatasetGenerator:
             if i % repeat_time == 0:
                 formed_data.append(
                     {
-                        "index": i // repeat_time,
+                        "id": i // repeat_time,
                         "instruct": conv_scores[i]["instruct"],
                         "responses": [],
                         "scores": [],
@@ -469,14 +405,7 @@ if __name__ == "__main__":
         help="The template name.",
     )
     parser.add_argument(
-        "--question-gen-model-path",
-        type=str,
-        required=True,
-        help="The path to the question generator (usually an instruct model) weights. \
-        This can be a local folder or a Hugging Face repo ID.",
-    )
-    parser.add_argument(
-        "--seed-data-path",
+        "--instruction-path",
         type=str,
         required=True,
         help="The path to the the seed data. This can be a local folder or a Hugging Face repo ID.",
@@ -521,65 +450,40 @@ if __name__ == "__main__":
         help="The number of GPUs per model.",
     )
     parser.add_argument(
-        "--num-prompts",
-        type=int,
-        default=1000,
-        help="The times to sample from the sample",
+        "--output-path",
+        type=str,
+        required=True,
+        help="The path to the the output data.",
     )
 
     args = parser.parse_args()
 
     generator = DPODatasetGenerator(
         model_name=args.model_path,
-        instruct_generator=args.question_gen_model_path,
-        ift_dataset=args.seed_data_path,
         template_name=args.template_name,
         backend=args.backend,
         num_gpus_per_model=args.num_gpus_per_model,
     )
 
-    raw_prompts = generator.generate_prompts(num_prompts=args.num_prompts)
-
-    dump_json(
-        raw_prompts,
-        "exp/{}/{}/iter{}/raw_prompts.json".format(
-            args.model_id, args.sft_base_model, str(args.num_iter)
-        ),
-        indent=2,
-    )
-
-    filtered_prompt = generator.prompts_filter(prompts=raw_prompts)
-    dump_json(
-        filtered_prompt,
-        "exp/{}/{}/iter{}/filtered_prompts.json".format(
-            args.model_id, args.sft_base_model, str(args.num_iter)
-        ),
-        indent=2,
-    )
-
+    filtered_prompt = load_json(f"{str(args.instruction_path)}")
+    print(f"Data Length: {len(filtered_prompt)}")
     prompt_response_pairs = generator.generate_responses(prompts=filtered_prompt)
     dump_json(
         prompt_response_pairs,
-        "exp/{}/{}/iter{}/prompts_responses.json".format(
-            args.model_id, args.sft_base_model, str(args.num_iter)
-        ),
+        f"{args.output_path}/{args.model_id}/{args.sft_base_model}/iter{str(args.num_iter)}/prompts_responses.json",
         indent=2,
     )
 
     conv_scores = generator.generate_scores(instr_resp_pairs=prompt_response_pairs)
     dump_json(
         conv_scores,
-        "exp/{}/{}/iter{}/conv_scores.json".format(
-            args.model_id, args.sft_base_model, str(args.num_iter)
-        ),
+        f"{args.output_path}/{args.model_id}/{args.sft_base_model}/iter{str(args.num_iter)}/conv_scores.json",
         indent=2,
     )
     # scores = json.load(open("data/{}/conv_scores.json".format(args.model_id), 'r'))
     preference_data = generator.generate_preferences(conv_scores=conv_scores)
     dump_json(
         preference_data,
-        "exp/{}/{}/iter{}/preference_data.json".format(
-            args.model_id, args.sft_base_model, str(args.num_iter)
-        ),
+        f"{args.output_path}/{args.model_id}/{args.sft_base_model}/iter{str(args.num_iter)}/preference_data.json",
         indent=2,
     )

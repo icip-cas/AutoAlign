@@ -38,7 +38,10 @@ dependencies = [
     "tenacity",
     "vllm==0.6.4",
     "langdetect",
+    "torchmetrics==1.6.2",
+    # ui
     "gradio<5",
+    "streamlit==1.42.2",
     # mt-bench
     "openai>=1.0.0",
     # alpaca_eval
