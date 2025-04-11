@@ -155,7 +155,7 @@ def main():
 
     # Create output file / folder
     # output_filename = f"Magpie_{args.model_path.split('/')[-1]}_{args.total_prompts}_{args.timestamp}_ins.json"
-    output_filename = "magpie_output.json"
+    output_filename = "tests.json"
     if not args.job_name:
         if not os.path.exists(args.output_folder):
             os.makedirs(args.output_folder)
