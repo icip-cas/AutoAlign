@@ -90,7 +90,7 @@ for idx, input_file in enumerate(args.input_files):
         if idx == 0:
             for d in tqdm(data):
                 # for id contains "chosen" and "rejected"
-                d["id"] = d["id"].replace("_chosen", "").replace("_rejected", "")
+                d["id"] = str(d["id"]).replace("_chosen", "").replace("_rejected", "")
 
                 if idx == set_idx:
                     d["source"] = set_tag
@@ -116,7 +116,7 @@ for idx, input_file in enumerate(args.input_files):
             for d, p in tqdm(zip(data, preferences_store)):
                 # for id contains "chosen" and "rejected"
                 if "id" in d:
-                    d["id"] = d["id"].replace("_chosen", "").replace("_rejected", "")
+                    d["id"] = str(d["id"]).replace("_chosen", "").replace("_rejected", "")
 
                 if idx == set_idx:
                     d["source"] = set_tag

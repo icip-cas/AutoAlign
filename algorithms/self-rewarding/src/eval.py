@@ -198,7 +198,8 @@ def objective_eval(
         batch_size,
         template_name,
     )
-    work_dir = "outputs/{model_name}/opencompass_log/".format(model_name=model_name)
+    # work_dir = "outputs/{model_name}/opencompass_log/".format(model_name=model_name)
+    work_dir = "outputs/eval"
     # start_opencompass process
     start_opencompass(work_dir, config_path, opencompass_path, reuse)
 
