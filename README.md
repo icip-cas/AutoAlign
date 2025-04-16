@@ -5,7 +5,8 @@
     <a href="#-features">📪Features</a> •
     <a href="#-reference-results">📈Results</a> •
     <a href="#-issues">🐛Issues</a> •
-    <a href="#-citation">📜Citation</a>
+    <a href="#-citation">📜Citation</a> •
+    <a href="https://lxylab.oss-cn-shanghai.aliyuncs.com/Auto-Alignment/Ata.mp4">📽️Demo Video</a>
 </p>
 
 ## 📣 About
@@ -196,15 +197,8 @@ Documents of this toolkit is stored at ```./docs/```.
 - Chat-Arena-Hard
 - AlignBench
 
-### Algorithms to be implemented at v0.2.x:
-
-- SALMON
-- West-of-N
-- Iterative DPO
-
 ### Features to be supported at v0.2.x:
 
-- Packing
 - Representation Engineering
 
 ## 🤝 Contributing
