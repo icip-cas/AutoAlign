@@ -52,6 +52,7 @@ flagged/
 /outputs
 /build
 /results
+/my_scripts
 
 /opencompass
 ip.sh

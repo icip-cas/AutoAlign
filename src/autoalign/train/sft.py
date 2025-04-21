@@ -1,7 +1,8 @@
 """finetune"""
 import json
+from tqdm import tqdm
 from functools import partial
-from itertools import groupby
+from itertools import groupby, chain
 from dataclasses import dataclass, field
 import pathlib
 import random
@@ -25,9 +26,11 @@ import transformers
 from autoalign.train.patch import patch_for_block_diag_attn
 from autoalign.train.utils import (
     configure_model,
+    split_list,
     greedy_knapsack,
     pack_data_points_by_length,
 )
+import multiprocessing
 
 local_rank = None
 
@@ -50,7 +53,8 @@ class DataArguments:
     data_path: str
     conv_template_name: str = field(metadata={"help": "name of conversation template"})
     num_workers: int = field(
-        default=8, metadata={"help": "number of workers for tokenization"}
+        default=0, 
+        metadata={"help": "number of workers for tokenization, defaults to CPU count - 1"}
     )
     lazy_preprocess: bool = False
     eval_num: int = field(
@@ -110,18 +114,16 @@ def tokenize_conversation(
     return tokenized_conversation
 
 
-def packing_data(numbers: list[int], dataset: list[int]):
+def packing_data(numbers: list[int], dataset: list):
     packed_input_ids, packed_attention_masks, packed_labels = [], [], []
 
-    for id, num in enumerate(numbers):
+    for idx, num in enumerate(numbers):
         packed_input_ids += dataset[num]["input_ids"]
         packed_labels += dataset[num]["labels"]
-        packed_attention_masks += [id + 1] * len(
+        packed_attention_masks += [idx + 1] * len(
             dataset[num]["input_ids"]
         )  # start from 1, 2 ...
-    # print(len(packed_labels))
-    # print(len(packed_input_ids))
-    # print(len(packed_attention_masks))
+
     return {
         "input_ids": packed_input_ids,
         "attention_mask": packed_attention_masks,
@@ -173,6 +175,11 @@ def run_sft():
 
     global local_rank
     local_rank = training_args.local_rank
+
+    if data_args.num_workers == 0:
+        cpu_count = multiprocessing.cpu_count()
+        data_args.num_workers = min(64, max(1, cpu_count - 1))
+
     rank0_print(f"{model_args = }")
     rank0_print(f"{data_args = }")
 
@@ -270,25 +277,30 @@ def run_sft():
             )
             if data_args.neat_packing:
                 lengths = [
-                    len(train_dataset[idx]["input_ids"])
+                    (idx, len(train_dataset[idx]["input_ids"]))
                     for idx in range(len(train_dataset))
                 ]
-                if data_args.packing_strategy == "greedy":
-                    knapsacks = greedy_knapsack(
-                        lengths, model_args.model_max_length - 1
-                    )
-                elif data_args.packing_strategy == "sequentially":
-                    knapsacks = pack_data_points_by_length(
-                        lengths, model_args.model_max_length - 1
-                    )
-                else:
-                    raise NotImplementedError(
-                        'Invalid packing strategy. Available: "greedy" and "sequentially"'
-                    )
+                lengths_para = split_list(lengths, data_args.num_workers)
                 with Pool(data_args.num_workers) as p:
-                    packed_train_data = p.map(
+                    if data_args.packing_strategy == "greedy":
+                        knapsacks_para = p.map(
+                            partial(greedy_knapsack, capacity=model_args.model_max_length - 1), lengths_para
+                        )   
+                    elif data_args.packing_strategy == "sequentially":
+                        knapsacks_para = p.map(
+                            partial(pack_data_points_by_length, capacity=model_args.model_max_length - 1), lengths_para
+                        )
+                    else:
+                        raise NotImplementedError(
+                            'Invalid packing strategy. Available: "greedy" and "sequentially"'
+                        )
+                knapsacks = list(chain(*knapsacks_para))
+                
+                with Pool(data_args.num_workers) as p:
+                    packed_train_data = list(tqdm(p.map(
                         partial(packing_data, dataset=train_dataset), knapsacks
-                    )
+                    ), total=len(knapsacks)))
+                
                 train_dataset = Dataset.from_list(packed_train_data)
                 patch_for_block_diag_attn(model_args.model_name_or_path)
 
