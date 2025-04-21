@@ -1,12 +1,12 @@
 # 评测的模型标识名称
 # Identifying name of the model to evaluate
-model_name: Qwen2.5-1.5B-Instruct
+model_name: qwen2.5-7b_m0_3epoch
 
 # 评测时使用的上下文模板，可见src/autoalign/conversation.py中的TEMPLATES
 template_name: chatml-keep-system
 # 评测的模型路径
 # The path of the model to evaluate
-model_path: Qwen/Qwen2.5-1.5B-Instruct
+model_path: ./saved_models/qwen2.5-7b_m0_3epoch
 # 评测的类型
 # The type of evaluation
 # 可选项：
