@@ -30,7 +30,6 @@ from autoalign.train.utils import (
     greedy_knapsack,
     pack_data_points_by_length,
 )
-import multiprocessing
 
 local_rank = None
 
@@ -53,8 +52,7 @@ class DataArguments:
     data_path: str
     conv_template_name: str = field(metadata={"help": "name of conversation template"})
     num_workers: int = field(
-        default=0, 
-        metadata={"help": "number of workers for tokenization, defaults to CPU count - 1"}
+        default=8, metadata={"help": "number of workers for tokenization"}
     )
     lazy_preprocess: bool = False
     eval_num: int = field(
@@ -174,11 +172,6 @@ def run_sft():
 
     global local_rank
     local_rank = training_args.local_rank
-
-    if data_args.num_workers == 0:
-        cpu_count = multiprocessing.cpu_count()
-        data_args.num_workers = min(64, max(1, cpu_count - 1))
-
     rank0_print(f"{model_args = }")
     rank0_print(f"{data_args = }")
 
