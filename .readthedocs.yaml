@@ -1,12 +1,13 @@
 version: 2
-
+build:
+  os: ubuntu-22.04  # 必须指定操作系统
+  tools:
+    python: "3.10"  # 您可以保留原来的Python版本
 python:
-  version: 3.10
   install:
     - method: pip
       path: .
       extra_requirements:
         - doc
-
 sphinx:
   configuration: docs/conf.py
