@@ -110,7 +110,7 @@ def greedy_knapsack(
     sorted_indices, numbers = zip(*index_numbers)
     knapsacks = []
 
-    while tqdm(numbers):
+    while numbers:
         current_knapsack = []
         remaining_capacity = capacity
 
