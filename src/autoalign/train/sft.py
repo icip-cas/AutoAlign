@@ -1,6 +1,6 @@
 """finetune"""
 import json
-from tqdm import tqdm
+from tqdm.auto import tqdm
 from functools import partial
 from itertools import groupby, chain
 from dataclasses import dataclass, field
@@ -105,8 +105,7 @@ def tokenize_conversation(
         tokenizer=tokenizer,
         model_max_length=model_max_length,
     )
-    # print(conversation.get_conversation_str())
-    # print(tokenized_conversation)
+
     tokenized_conversation["attention_mask"] = [1] * len(
         tokenized_conversation["input_ids"]
     )
@@ -276,6 +275,7 @@ def run_sft():
                 num_proc=data_args.num_workers,
             )
             if data_args.neat_packing:
+                rank0_print("-----------Start Knapsacking-----------")
                 lengths = [
                     (idx, len(train_dataset[idx]["input_ids"]))
                     for idx in range(len(train_dataset))
@@ -283,26 +283,45 @@ def run_sft():
                 lengths_para = split_list(lengths, data_args.num_workers)
                 with Pool(data_args.num_workers) as p:
                     if data_args.packing_strategy == "greedy":
-                        knapsacks_para = p.map(
-                            partial(greedy_knapsack, capacity=model_args.model_max_length - 1), lengths_para
-                        )   
+                        knapsacks_para = p.starmap_async(
+                            greedy_knapsack,
+                            tqdm(
+                                [
+                                    (para, model_args.model_max_length - 1)
+                                    for para in lengths_para
+                                ]
+                            ),
+                        )
                     elif data_args.packing_strategy == "sequentially":
-                        knapsacks_para = p.map(
-                            partial(pack_data_points_by_length, capacity=model_args.model_max_length - 1), lengths_para
+                        knapsacks_para = p.starmap_async(
+                            pack_data_points_by_length,
+                            tqdm(
+                                [
+                                    (para, model_args.model_max_length - 1)
+                                    for para in lengths_para
+                                ]
+                            ),
                         )
                     else:
                         raise NotImplementedError(
                             'Invalid packing strategy. Available: "greedy" and "sequentially"'
                         )
-                knapsacks = list(chain(*knapsacks_para))
-                
+                    knapsacks = [knap for knap in knapsacks_para.get()]
+                    knapsacks = list(chain(*knapsacks))
+                    p.close()
+                    p.join()
+                rank0_print("-----------Start Packing-----------")
                 with Pool(data_args.num_workers) as p:
-                    packed_train_data = list(tqdm(p.map(
-                        partial(packing_data, dataset=train_dataset), knapsacks
-                    ), total=len(knapsacks)))
-                
+                    packing_train_data = p.starmap_async(
+                        packing_data,
+                        tqdm([(knapsack, train_dataset) for knapsack in knapsacks]),
+                    )
+                    packed_train_data = [pack for pack in packing_train_data.get()]
+                    p.close()
+                    p.join()
                 train_dataset = Dataset.from_list(packed_train_data)
                 patch_for_block_diag_attn(model_args.model_name_or_path)
+                rank0_print("-----------Packing Completed-----------")
 
     random_idx = random.randint(0, len(train_dataset) - 1)
     input_ids = train_dataset[random_idx]["input_ids"]

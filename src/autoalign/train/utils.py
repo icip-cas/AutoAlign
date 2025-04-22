@@ -1,6 +1,5 @@
 import bisect
-from typing import List, Sequence
-from tqdm import tqdm
+from typing import List, Sequence, Tuple
 from autoalign.conversation import Conversation
 
 
@@ -31,6 +30,7 @@ def configure_model(conv_template_name, tokenizer, model):
 
     return None
 
+
 def split_list(lst, k):
     n = len(lst)
     base = n // k
@@ -46,8 +46,10 @@ def split_list(lst, k):
         result.append(lst[start:end])
         start = end
     return result
+
+
 def pack_data_points_by_length(
-   index_numbers: List[tuple], capacity: int, max_size: int = -1
+    index_numbers: List[Tuple[int, int]], capacity: int, max_size: int = -1
 ) -> List[List[int]]:
     """given lengths of data points, we merge consecutive data points into a new data point, as long as the concatenated length is less than max_length
     Args:
@@ -66,7 +68,7 @@ def pack_data_points_by_length(
     result = []
     current_concatenated_length = 0
     current_list = []
-    for idx, cur_length in tqdm(index_numbers):
+    for idx, cur_length in index_numbers:
         if cur_length + current_concatenated_length <= capacity and (
             max_size == -1 or len(current_list) < max_size
         ):
@@ -95,14 +97,16 @@ def search_for_fit(numbers: Sequence[int], capacity: int) -> int:
 
 
 def greedy_knapsack(
-    index_numbers: List[tuple],  capacity: int, max_size: int = -1
+    index_numbers: List[Tuple[int, int]], capacity: int, max_size: int = -1
 ) -> List[List[int]]:
     r"""
     An efficient greedy algorithm with binary search for the knapsack problem.
     """
     lengths = len(index_numbers)
     # sorted_indices = [idx for idx, _ in sorted(enumerate(numbers), key=lambda x: x[1])]
-    index_numbers.sort(key=lambda x: x[1])  # sort numbers in ascending order for binary search
+    index_numbers.sort(
+        key=lambda x: x[1]
+    )  # sort numbers in ascending order for binary search
     sorted_indices, numbers = zip(*index_numbers)
     knapsacks = []
 
