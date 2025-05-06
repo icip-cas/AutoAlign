@@ -409,6 +409,21 @@ TEMPLATES = {
         offset=0,
         stop_str="<|eot_id|>",
     ),
+    "llama-4-instruct": ConversationTemplate(
+        name="llama-3-instruct",
+        role_starts={
+            Role.SYSTEM: "<|header_start|>system<|header_end|>\n\n",
+            Role.HUMAN: "<|header_start|>user<|header_end|>\n\n",
+            Role.ASSISTANT: "<|header_start|>assistant<|header_end|>\n\n",
+        },
+        role_ends={
+            Role.SYSTEM: "<|eot|>",
+            Role.HUMAN: "<|eot|>",
+            Role.ASSISTANT: "<|eot|>",
+        },
+        offset=0,
+        stop_str="<|eot|>",
+    ),
     "mistral-instruct": ConversationTemplate(
         name="mistral-instruct",
         role_starts={
@@ -453,6 +468,21 @@ TEMPLATES = {
         },
         offset=0,
         stop_str="</s>",
+    ),
+    "chatml-with-empty-think": ConversationTemplate(
+        name="chatml-keep-system",
+        role_starts={
+            Role.SYSTEM: "<|im_start|>system\n",
+            Role.HUMAN: "<|im_start|>user\n",
+            Role.ASSISTANT: "<|im_start|>assistant\n",
+        },
+        role_ends={
+            Role.SYSTEM: "<|im_end|>\n",
+            Role.HUMAN: "<|im_end|>\n",
+            Role.ASSISTANT: "<|im_end|>\n<think>\n\n</think>\n\n",
+        },
+        offset=0,
+        stop_str="<|im_end|>",
     ),
     "chatml-idsys": ConversationTemplate(
         name="chatml-idsys",
