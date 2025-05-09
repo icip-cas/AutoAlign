@@ -300,6 +300,34 @@ class Llama2Strategy(RenderStrategy):
         return labels
 
 
+class InstructionGenerateConversation(Conversation):
+    def swap_eos_token(self):
+        temp = self.template.role_ends[Role.HUMAN]
+        self.template.role_ends[Role.HUMAN] = self.template.role_ends[Role.ASSISTANT]
+        self.template.role_ends[Role.ASSISTANT] = temp
+
+    def get_conversation_str(self, add_generation_prompt: str = "assistant") -> str:
+        """Get full conversation str"""
+        if self.template.strategy:
+            return self.template.strategy.get_conversation_str(
+                self.messages, self.template.get_attributes(), add_generation_prompt
+            )
+
+        ret = ""
+        for role, message in self.messages:
+            ret += (
+                self.template.role_starts[role]
+                + message
+                + self.template.role_ends[role]
+            )
+        if add_generation_prompt:
+            if add_generation_prompt == "assistant":
+                ret += self.template.role_starts[Role.ASSISTANT]
+            elif add_generation_prompt == "human":
+                ret += self.template.role_starts[Role.HUMAN]
+        return ret
+
+
 TEMPLATES = {
     "gpt-4": ConversationTemplate(
         name="gpt-4",
@@ -496,6 +524,22 @@ and you only answer questions related to computer science. For politically sensi
 and other non-computer science questions, you will refuse to answer\n",
         offset=0,
         stop_str="<|EOT|>",
+    ),
+    "deepseek-v3": ConversationTemplate(
+        name="deepseek-v3",
+        role_starts={
+            Role.SYSTEM: "",
+            Role.HUMAN: "<｜User｜>",
+            Role.ASSISTANT: "<｜Assistant｜>",
+        },
+        role_ends={
+            Role.SYSTEM: "",
+            Role.HUMAN: "",
+            Role.ASSISTANT: "<｜end▁of▁sentence｜>",
+        },
+        default_system_message="",
+        offset=0,
+        stop_str="<｜end▁of▁sentence｜>",
     ),
 }
 
