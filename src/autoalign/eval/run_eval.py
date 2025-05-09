@@ -10,6 +10,9 @@ import tqdm
 import pandas as pd
 import signal
 from argparse import ArgumentParser
+import re
+import json
+import pandas as pd
 
 from autoalign.conversation import Conversation, Role, TEMPLATES
 from autoalign.utils import get_logger, remove_file_if_user_confirms
@@ -524,7 +527,6 @@ def run_objective_eval(
     eval_type,
     per_model_gpu,
     batch_size,
-    opencompass_path,
     backend,
     template_name,
     args,
@@ -582,6 +584,101 @@ def run_objective_eval(
     )
 
 
+def run_safety_eval(
+    model_name,
+    model_path,
+    per_model_gpu,
+    batch_size,
+    backend,
+    template_name,
+    wildguard_model_path,
+    toxigen_roberta_model_path,
+    llama_guard_model_path,
+    args,
+):
+    logger.info(
+        f"Running safety-eval evaluation for model: {model_name}, model_path: {model_path}"
+    )
+    if backend == "vllm":
+        use_vllm = "--use_vllm"
+    elif backend == "hf":
+        use_vllm = ""
+    else:
+        raise ValueError("Error backend. Acceptable backend value: [hf, vllm]")
+
+    if os.path.exists(wildguard_model_path):
+        logger.info(f"Using wildguard model in {wildguard_model_path} to evaluate")
+    else:
+        logger.info(f"{wildguard_model_path} doesn't exist any model. Using allenai/wildguard in hf cache instead")
+        wildguard_model_path = ""
+    if os.path.exists(toxigen_roberta_model_path):
+        logger.info(f"Using toxigen roberta in {toxigen_roberta_model_path} to evaluate")
+    else:
+        logger.info(f"{toxigen_roberta_model_path} doesn't exist any model. Using tomh/toxigen_roberta in hf cache instead")
+        toxigen_roberta_model_path = ""
+    if os.path.exists(llama_guard_model_path):
+        logger.info(f"Using Llama-Guard-3-8B in {llama_guard_model_path} to evaluate")
+    else:
+        logger.info(f"{llama_guard_model_path} doesn't exist any model. Using meta-llama/Llama-Guard-3-8B in hf cache instead")
+        llama_guard_model_path = ""
+
+    os.environ['OPENAI_API_KEY'] = 'xxx'
+    tasks = "wildguardtest,harmbench,toxigen:tiny,xstest,coconot"
+    from .safety.safety_eval_evaluation import eval
+
+    command = f"""python {eval.__file__} generators {use_vllm} \
+    --model_name_or_path {model_path} \
+    --model_input_template_path_or_name {template_name} \
+    --tasks {tasks} \
+    --batch_size {batch_size} \
+    --tensor_parallel_size {per_model_gpu} \
+    --wildguard_model_path {wildguard_model_path} \
+    --toxigen_roberta_model_path {toxigen_roberta_model_path} \
+    --llama_guard_model_path {llama_guard_model_path} \
+    --report_output_path outputs/{model_name}.safety_eval_metrics.json \
+    --save_individual_results_path outputs/{model_name}.safety_eval_all_res.json"""
+
+    logger.info(f"Start running safety-eval with \n {command=}")
+    process = subprocess.run(command, shell=True)
+    if process.returncode != 0:
+        logger.error(
+            "Fail to run safety-eval without coconot."
+        )
+    else:
+        logger.info(f"safety-eval results saved in outputs/{model_name}")
+
+    results = {}
+    results_dir_path = "outputs"
+    pattern = r'^(.+)\.safety_eval_metrics\.json$'
+    for root, _, files in os.walk(results_dir_path):
+        for file in files:
+            match = re.match(pattern, file)
+            if match:
+                model_name = match.group(1)
+                with open(root+"/"+file, "r", encoding="utf-8") as f:
+                    results[model_name] = json.loads(f.read())
+
+    for model_name, result in results.items():
+        formatted_result = {}
+        formatted_result["wildguardtest"] = 1 - result["wildguardtest"]["micro harm (lower)"]
+        formatted_result["harmbench"] = 1 - result["harmbench"]["micro ASR (lower)"]
+        formatted_result["toxigen:tiny"] = 1 - result["toxigen:tiny"]["overall"]
+        formatted_result["xstest"] = result["xstest"]["overall_accuracy"]
+        formatted_result["coconot"] = 1 - result["coconot"]["harmful response rate (lower is better)"]
+        results[model_name] = formatted_result
+    
+    results = pd.DataFrame(results).T
+    results = results.reset_index()
+    results = results.rename(columns={'index': 'model_name'})
+    cols = ['model_name'] + [col for col in results.columns if col != 'model_name']
+    results = results[cols]
+    results.to_csv(f"{results_dir_path}/safety_eval_total_results.tsv", index=False, sep="\t")
+
+    logger.info("safety-eval finished")
+
+    return
+
+
 def run_eval(args) -> None:
     # 若args中存在config_path
     args = parse_args(args)
@@ -602,6 +699,9 @@ def run_eval(args) -> None:
     opencompass_path = config["opencompass_path"]
     opencompass_backend = backend = config["backend"]
     judge_model = config["judge_model"]
+    wildguard_model_path = config["wildguard_model_path"] if "wildguard_model_path" in config else ""
+    toxigen_roberta_model_path = config["toxigen_roberta_model_path"] if "toxigen_roberta_model_path" in config else ""
+    llama_guard_model_path = config["llama_guard_model_path"] if "llama_guard_model_path" in config else ""
 
     if eval_type.startswith("objective"):
         run_objective_eval(
@@ -638,6 +738,19 @@ def run_eval(args) -> None:
             judge_model,
             alpaca_path,
             backend,
+            args,
+        )
+    elif eval_type == "safety_eval":
+        run_safety_eval(
+            model_name,
+            model_path,
+            per_model_gpu,
+            batch_size,
+            backend,
+            template_name,
+            wildguard_model_path,
+            toxigen_roberta_model_path,
+            llama_guard_model_path,
             args,
         )
     else:

@@ -44,3 +44,4 @@ mt_path: data/eval/mt-bench
 # use weighted_alpaca_eval_gpt4_turbo if you want the high agreement with humans.
 # use chatgpt_fn if you are on a tight budget.
 judge_model: chatgpt_fn
+
