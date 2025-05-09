@@ -34,3 +34,10 @@ opencompass_path: opencompass
 # ==============MTbench 设置================
 # mtbench文件夹的路径
 mt_path: data/eval/mt-bench
+
+
+# ==============Safety-eval 设置================
+# 在safety-eval中会用到的3个测评模型的模型路径，若不指定，会直接从hf cache中加载
+wildguard_model_path: /mnt/data1/hf_models/wildguard
+toxigen_roberta_model_path: /mnt/data1/hf_models/toxigen_roberta
+llama_guard_model_path: /mnt/data1/hf_models/Llama-Guard-3-8B
