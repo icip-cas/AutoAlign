@@ -7,7 +7,7 @@ from datasets import Dataset
 from utils import dump_json, load_jsonlines
 
 from autoalign.conversation import Role
-from autoalign.conversation_instr import InstructionGenerateConversation
+from autoalign.conversation import InstructionGenerateConversation
 
 
 def apply_template(conv, conv_template_name, key_name):

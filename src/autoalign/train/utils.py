@@ -1,5 +1,5 @@
 import bisect
-from typing import List, Sequence
+from typing import List, Sequence, Tuple
 from autoalign.conversation import Conversation
 
 
@@ -31,8 +31,25 @@ def configure_model(conv_template_name, tokenizer, model):
     return None
 
 
+def split_list(lst, k):
+    n = len(lst)
+    base = n // k
+    remainder = n % k
+    result = []
+    start = 0
+    for i in range(k):
+        if i < remainder:
+            sub_len = base + 1
+        else:
+            sub_len = base
+        end = start + sub_len
+        result.append(lst[start:end])
+        start = end
+    return result
+
+
 def pack_data_points_by_length(
-    lengths: List[int], max_length: int, max_size: int = -1
+    index_numbers: List[Tuple[int, int]], capacity: int, max_size: int = -1
 ) -> List[List[int]]:
     """given lengths of data points, we merge consecutive data points into a new data point, as long as the concatenated length is less than max_length
     Args:
@@ -51,24 +68,23 @@ def pack_data_points_by_length(
     result = []
     current_concatenated_length = 0
     current_list = []
-    for i in range(len(lengths)):
-        cur_length = lengths[i]
-        if cur_length + current_concatenated_length <= max_length and (
+    for idx, cur_length in index_numbers:
+        if cur_length + current_concatenated_length <= capacity and (
             max_size == -1 or len(current_list) < max_size
         ):
             current_concatenated_length += cur_length
-            current_list.append(i)
+            current_list.append(idx)
         else:  # current_list is done, create a new one
             if len(current_list) > 0:
                 result.append(current_list)
-            current_list = [i]
+            current_list = [idx]
             current_concatenated_length = cur_length
 
     if len(current_list) > 0:
         result.append(current_list)
 
     # assert to make sure no indices were missing
-    assert sum([len(indices) for indices in result]) == len(lengths)
+    assert sum([len(indices) for indices in result]) == len(index_numbers)
     return result
 
 
@@ -81,21 +97,24 @@ def search_for_fit(numbers: Sequence[int], capacity: int) -> int:
 
 
 def greedy_knapsack(
-    numbers: List[int], capacity: int, max_size: int = -1
+    index_numbers: List[Tuple[int, int]], capacity: int, max_size: int = -1
 ) -> List[List[int]]:
     r"""
     An efficient greedy algorithm with binary search for the knapsack problem.
     """
-    lengths = len(numbers)
-    sorted_indices = [idx for idx, _ in sorted(enumerate(numbers), key=lambda x: x[1])]
-    numbers.sort()  # sort numbers in ascending order for binary search
+    lengths = len(index_numbers)
+    # sorted_indices = [idx for idx, _ in sorted(enumerate(numbers), key=lambda x: x[1])]
+    index_numbers.sort(
+        key=lambda x: x[1]
+    )  # sort numbers in ascending order for binary search
+    sorted_indices, numbers = zip(*index_numbers)
     knapsacks = []
 
     while numbers:
         current_knapsack = []
         remaining_capacity = capacity
 
-        while max_size < 0 or len(current_knapsack) < max_size:
+        while max_size <= 0 or len(current_knapsack) < max_size:
             index = search_for_fit(numbers, remaining_capacity)
             if index == -1:
                 break  # no more numbers fit in this knapsack
