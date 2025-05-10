@@ -1,2 +1,0 @@
-task_class: WildJailbreakValidationBenign
-classifier_model_name: OpenInstructGPTJailbreakTriggerClassifier
