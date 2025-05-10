@@ -527,6 +527,7 @@ def run_objective_eval(
     eval_type,
     per_model_gpu,
     batch_size,
+    opencompass_path,
     backend,
     template_name,
     args,
@@ -624,7 +625,7 @@ def run_safety_eval(
 
     os.environ['OPENAI_API_KEY'] = 'xxx'
     tasks = "wildguardtest,harmbench,toxigen:tiny,xstest,coconot"
-    from .safety.safety_eval_evaluation import eval
+    from .safety import eval
 
     command = f"""python {eval.__file__} generators {use_vllm} \
     --model_name_or_path {model_path} \

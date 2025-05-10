@@ -13,7 +13,6 @@ import tqdm
 from huggingface_hub import list_repo_files
 from huggingface_hub.utils._errors import RepositoryNotFoundError
 from huggingface_hub.utils._validators import HFValidationError
-from peft import PeftConfig, PeftModel
 from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
 from transformers import StoppingCriteria
 from vllm import LLM, SamplingParams, RequestOutput
@@ -237,16 +236,6 @@ def score_completions(model, tokenizer, scoring_examples, batch_size=1, aggregat
     return rolled_up_scores
 
 
-def is_adapter_model(model_name_or_path: str, revision: str = "main") -> bool:
-    try:
-        # Try first if model on a Hub repo
-        repo_files = list_repo_files(model_name_or_path, revision=revision)
-    except (HFValidationError, RepositoryNotFoundError):
-        # If not, check local repo
-        repo_files = os.listdir(model_name_or_path)
-    return "adapter_model.safetensors" in repo_files or "adapter_model.bin" in repo_files
-
-
 def load_hf_lm_and_tokenizer(
         model_name_or_path,
         tokenizer_name_or_path=None,
@@ -260,42 +249,30 @@ def load_hf_lm_and_tokenizer(
         token=os.getenv("HF_TOKEN", None)
 ):
     from transformers import AutoModelForCausalLM, AutoTokenizer, OPTForCausalLM, GPTNeoXForCausalLM
-    if is_adapter_model(model_name_or_path):
-        peft_config = PeftConfig.from_pretrained(model_name_or_path)
-        base_model = AutoModelForCausalLM.from_pretrained(
-            peft_config.base_model_name_or_path,
+    if gptq_model:
+        from auto_gptq import AutoGPTQForCausalLM
+        model_wrapper = AutoGPTQForCausalLM.from_quantized(
+            model_name_or_path, device="cuda:0", use_triton=True
         )
-        model = PeftModel.from_pretrained(
-            base_model,
+        model = model_wrapper.model
+    elif load_in_8bit:
+        model = AutoModelForCausalLM.from_pretrained(
             model_name_or_path,
+            device_map=device_map,
+            load_in_8bit=True,
+            token=token
         )
-        if torch.cuda.is_available():
-            model = model.cuda()
     else:
-        if gptq_model:
-            from auto_gptq import AutoGPTQForCausalLM
-            model_wrapper = AutoGPTQForCausalLM.from_quantized(
-                model_name_or_path, device="cuda:0", use_triton=True
-            )
-            model = model_wrapper.model
-        elif load_in_8bit:
-            model = AutoModelForCausalLM.from_pretrained(
-                model_name_or_path,
-                device_map=device_map,
-                load_in_8bit=True,
-                token=token
-            )
+        if device_map:
+            model = AutoModelForCausalLM.from_pretrained(model_name_or_path, device_map=device_map,
+                                                         torch_dtype=torch_dtype, token=token)
         else:
-            if device_map:
-                model = AutoModelForCausalLM.from_pretrained(model_name_or_path, device_map=device_map,
-                                                             torch_dtype=torch_dtype, token=token)
-            else:
-                model = AutoModelForCausalLM.from_pretrained(model_name_or_path, torch_dtype=torch_dtype, token=token,
-                                                             device_map="auto")
-                if torch.cuda.is_available():
-                    model = model.cuda()
-            if convert_to_half:
-                model = model.half()
+            model = AutoModelForCausalLM.from_pretrained(model_name_or_path, torch_dtype=torch_dtype, token=token,
+                                                         device_map="auto")
+            if torch.cuda.is_available():
+                model = model.cuda()
+        if convert_to_half:
+            model = model.half()
     model.eval()
 
     if not tokenizer_name_or_path:

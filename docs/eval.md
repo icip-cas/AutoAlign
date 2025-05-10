@@ -36,4 +36,4 @@ Set `eval_type` to `safety_eval`, which means Safety evaluation.
 `per_model_gpu` represents the number of GPUs occupied by a single model worker. Since the data for Safety evaluation is not very large, multiple instances will not be deployed, and only a single instance with multiple GPUs will be used.
 The recommended `backend` is `hf`, which is faster.
 The path of the model used for evaluation, including `wildguard`, `toxigen roberta`, and `llama guard 3`, can be specified in the `configs/eval_safety.yaml`. If it is not specified, it will be directly loaded from the `hf` cache.  
-The results for for one model will be stored in `outputs/{model_name}.safety_eval_metrics.json`, `outputs/{model_name}.safety_eval_all_res.json`. The total results will be stored in `outputs/safety_eval_total_results.tsv`
+The results for one model will be stored in `outputs/{model_name}.safety_eval_metrics.json`, `outputs/{model_name}.safety_eval_all_res.json`. The total results will be stored in `outputs/safety_eval_total_results.tsv`
