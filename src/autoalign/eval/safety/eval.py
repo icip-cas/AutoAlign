@@ -2,10 +2,10 @@ import time
 
 import fire
 
-from autoalign.eval.safety.safety_eval_utils.models import load_generative_model
-from autoalign.eval.safety.safety_eval_utils.schemas import OpenEndedTaskBase, VllmGeneratorModel
-from autoalign.eval.safety.safety_eval_utils.tasks import load_evaluation_tasks
-from autoalign.eval.safety.safety_eval_utils.utils import maybe_load_evaluation_report, save_evaluation_report
+from autoalign.eval.safety.utils.models import load_generative_model
+from autoalign.eval.safety.utils.schemas import OpenEndedTaskBase, VllmGeneratorModel
+from autoalign.eval.safety.utils.tasks import load_evaluation_tasks
+from autoalign.eval.safety.utils.utils import maybe_load_evaluation_report, save_evaluation_report
 
 
 def generators(model_name_or_path: str,

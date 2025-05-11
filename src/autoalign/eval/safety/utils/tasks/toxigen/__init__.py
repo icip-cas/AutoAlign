@@ -6,8 +6,8 @@ import torch
 from tqdm import trange
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
-from autoalign.eval.safety.safety_eval_utils.schemas import OpenEndedTaskBase, GeneratorModelBase
-from autoalign.eval.safety.safety_eval_utils.tasks.metrics import get_average
+from autoalign.eval.safety.utils.schemas import OpenEndedTaskBase, GeneratorModelBase
+from autoalign.eval.safety.utils.tasks.metrics import get_average
 
 
 @torch.no_grad()

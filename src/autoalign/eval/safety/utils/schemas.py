@@ -12,14 +12,14 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from vllm import LLM
 from vllm import RequestOutput
 
-from autoalign.eval.safety.safety_eval_utils.classifier_models.base import (
+from autoalign.eval.safety.utils.classifier_models.base import (
     SafetyClassifierBase,
     PromptHarmfulness,
     ResponseHarmfulness,
 )
-from autoalign.eval.safety.safety_eval_utils.classifier_models.loader import load_classifier_model
-from autoalign.eval.safety.safety_eval_utils.generation_utils import delete_vllm_model, subprocess_inference_with_vllm
-from autoalign.eval.safety.safety_eval_utils.generation_utils import (
+from autoalign.eval.safety.utils.classifier_models.loader import load_classifier_model
+from autoalign.eval.safety.utils.generation_utils import delete_vllm_model, subprocess_inference_with_vllm
+from autoalign.eval.safety.utils.generation_utils import (
     load_hf_lm_and_tokenizer,
     generate_completions,
     query_openai_chat_model,

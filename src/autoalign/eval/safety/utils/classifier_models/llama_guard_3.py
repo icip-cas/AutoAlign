@@ -4,14 +4,14 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 import re
 from vllm import LLM
 
-from autoalign.eval.safety.safety_eval_utils.classifier_models.base import (
+from autoalign.eval.safety.utils.classifier_models.base import (
     SafetyClassifierOutput,
     SafetyClassifierBase,
     PromptHarmfulness,
     ResponseRefusal,
     ResponseHarmfulness,
 )
-from autoalign.eval.safety.safety_eval_utils.generation_utils import subprocess_inference_with_vllm, inference_with_vllm
+from autoalign.eval.safety.utils.generation_utils import subprocess_inference_with_vllm, inference_with_vllm
 
 
 class LlamaGuard3(SafetyClassifierBase, ABC):

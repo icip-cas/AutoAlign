@@ -5,7 +5,7 @@ from typing import Sequence
 
 import yaml
 
-from autoalign.eval.safety.safety_eval_utils.schemas import TaskBase
+from autoalign.eval.safety.utils.schemas import TaskBase
 
 
 def load_evaluation_tasks(tasks: list[str], wildguard_model_path: str = "", toxigen_roberta_model_path: str = "", llama_guard_model_path: str = "") -> Sequence[TaskBase]:
