@@ -17,7 +17,7 @@ from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
 from transformers import StoppingCriteria
 from vllm import LLM, SamplingParams, RequestOutput
 
-from autoalign.eval.safety.safety_eval_utils.dispatch_openai_requests import dispatch_openai_chat_requests
+from autoalign.eval.safety.utils.dispatch_openai_requests import dispatch_openai_chat_requests
 
 
 class KeyWordsCriteria(StoppingCriteria):

@@ -7,10 +7,10 @@ import torch
 import json
 import pandas as pd
 
-from autoalign.eval.safety.safety_eval_utils.schemas import OpenEndedTaskBase, GeneratorModelBase
-from autoalign.eval.safety.safety_eval_utils.classifier_models.base import SafetyClassifierBase, ResponseHarmfulness
-from autoalign.eval.safety.safety_eval_utils.classifier_models.loader import load_classifier_model
-from autoalign.eval.safety.safety_eval_utils.tasks.metrics import get_average
+from autoalign.eval.safety.utils.schemas import OpenEndedTaskBase, GeneratorModelBase
+from autoalign.eval.safety.utils.classifier_models.base import SafetyClassifierBase, ResponseHarmfulness
+from autoalign.eval.safety.utils.classifier_models.loader import load_classifier_model
+from autoalign.eval.safety.utils.tasks.metrics import get_average
 
 
 class CoCoNot(OpenEndedTaskBase, ABC):

@@ -6,10 +6,10 @@ import os
 import pandas as pd
 import torch
 
-from autoalign.eval.safety.safety_eval_utils.schemas import OpenEndedTaskBase, GeneratorModelBase
-from autoalign.eval.safety.safety_eval_utils.tasks.xstest import metrics
-from autoalign.eval.safety.safety_eval_utils.classifier_models.base import SafetyClassifierBase, ResponseRefusal
-from autoalign.eval.safety.safety_eval_utils.classifier_models.loader import load_classifier_model
+from autoalign.eval.safety.utils.schemas import OpenEndedTaskBase, GeneratorModelBase
+from autoalign.eval.safety.utils.tasks.xstest import metrics
+from autoalign.eval.safety.utils.classifier_models.base import SafetyClassifierBase, ResponseRefusal
+from autoalign.eval.safety.utils.classifier_models.loader import load_classifier_model
 
 
 class XSTestBase(OpenEndedTaskBase, abc.ABC):

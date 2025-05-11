@@ -1,6 +1,6 @@
 import os
 
-from autoalign.eval.safety.safety_eval_utils.schemas import (
+from autoalign.eval.safety.utils.schemas import (
     GeneratorModelBase,
     VllmGeneratorModel,
     HfGeneratorModel,
