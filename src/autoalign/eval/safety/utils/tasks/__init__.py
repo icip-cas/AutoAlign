@@ -29,7 +29,7 @@ def load_evaluation_tasks(tasks: list[str], wildguard_model_path: str = "", toxi
         task_config_file = os.path.join(tasks_dir, task_name, f"{config_file_name}.yaml")
 
         # import the task module and check if the config file exists.
-        module = import_module(f"safety_eval_utils.tasks.{task_name}")
+        module = import_module(f"utils.tasks.{task_name}")
         if not os.path.exists(task_config_file):
             raise FileNotFoundError(f"Task config file {task_config_file} does not exist.")
 
