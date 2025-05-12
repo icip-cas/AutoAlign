@@ -650,13 +650,11 @@ def run_safety_eval(
 
     results = {}
     results_dir_path = "outputs"
-    pattern = r'^(.+)\.safety_eval_metrics\.json$'
     for root, _, files in os.walk(results_dir_path):
-        for file in files:
-            match = re.match(pattern, file)
-            if match:
-                model_name = match.group(1)
-                with open(root+"/"+file, "r", encoding="utf-8") as f:
+        for model_name in files:
+            file_path = os.path.join(root, model_name, "safety_eval_metrics.json")
+            if os.path.exists(file_path):
+                with open(file_path, "r", encoding="utf-8") as f:
                     results[model_name] = json.loads(f.read())
 
     for model_name, result in results.items():
