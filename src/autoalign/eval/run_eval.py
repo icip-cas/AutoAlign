@@ -623,7 +623,7 @@ def run_safety_eval(
         logger.info(f"{llama_guard_model_path} doesn't exist any model. Using meta-llama/Llama-Guard-3-8B in hf cache instead")
         llama_guard_model_path = ""
 
-    os.environ['OPENAI_API_KEY'] = 'xxx'
+    os.environ['OPENAI_API_KEY'] = 'token-abc'
     tasks = "wildguardtest,harmbench,toxigen:tiny,xstest,coconot"
     from .safety import eval
 
@@ -636,8 +636,8 @@ def run_safety_eval(
     --wildguard_model_path {wildguard_model_path} \
     --toxigen_roberta_model_path {toxigen_roberta_model_path} \
     --llama_guard_model_path {llama_guard_model_path} \
-    --report_output_path outputs/{model_name}.safety_eval_metrics.json \
-    --save_individual_results_path outputs/{model_name}.safety_eval_all_res.json"""
+    --report_output_path outputs/{model_name}/safety_eval_metrics.json \
+    --save_individual_results_path outputs/{model_name}/safety_eval_all_res.json"""
 
     logger.info(f"Start running safety-eval with \n {command=}")
     process = subprocess.run(command, shell=True)
