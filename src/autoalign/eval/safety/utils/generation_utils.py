@@ -10,9 +10,6 @@ from typing import Callable, Optional
 import openai
 import torch
 import tqdm
-from huggingface_hub import list_repo_files
-from huggingface_hub.utils._errors import RepositoryNotFoundError
-from huggingface_hub.utils._validators import HFValidationError
 from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
 from transformers import StoppingCriteria
 from vllm import LLM, SamplingParams, RequestOutput
