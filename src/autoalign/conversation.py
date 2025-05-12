@@ -478,8 +478,8 @@ TEMPLATES = {
         },
         role_ends={
             Role.SYSTEM: "<|im_end|>\n",
-            Role.HUMAN: "<|im_end|>\n",
-            Role.ASSISTANT: "<|im_end|>\n<think>\n\n</think>\n\n",
+            Role.HUMAN: "<|im_end|>\n<think>\n\n</think>\n\n",
+            Role.ASSISTANT: "<|im_end|>\n",
         },
         offset=0,
         stop_str="<|im_end|>",
