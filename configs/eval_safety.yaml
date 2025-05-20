@@ -1,30 +1,36 @@
 # 评测的模型标识名称
 # Identifying name of the model to evaluate
-model_name: Qwen2.5-1.5B-Instruct
+model_name: Qwen2.5-7B-Instruct
 
 # 评测时使用的上下文模板，可见src/autoalign/conversation.py中的TEMPLATES
-template_name: chatml-keep-system
+template_name: chatml
 # 评测的模型路径
 # The path of the model to evaluate
-model_path: Qwen/Qwen2.5-1.5B-Instruct
+model_path: Qwen/Qwen2.5-7B-Instruct
+# Qwen/Qwen2.5-1.5B-Instruct
 # 评测的类型
 # The type of evaluation
 # 可选项：
 # objective_core: 评测模型的核心客观指标，是objective_all对应指标的真子集。(evaluating the core objective metrics, a subset of the metrics in objective_all, of the model)
 # objective_all: 评测模型的所有客观指标。(evaluating all the objective metrics of the model)
 # subjective: 评测模型的主观指标。(evaluating the subjective metrics of the model)
-eval_type: objective_all
+# safety_eval: 安全相关的测评
+eval_type: safety_eval
 # 单个模型 worker 所占用的GPU数量
 # The number of GPUs occupied by a single model worker
-per_model_gpu: 1
+# safety-eval由于数据不是很多，所以不会部署多个实例，只会多卡单实例
+# 该设置仅针对backend=vllm有用, 若使用backend=hf, 会直接使用设备上的所有卡，可自行设置CUDA_VISIBLE_DEVICES设置
+per_model_gpu: 4
 
 # 单个 worker 的 batch_size
 # The batch size of a single worker
-batch_size: 64
+batch_size: 256
 
 # 推理 backend
 # The inference backend
-backend: vllm
+# safety配置更建议hf
+backend: hf
+
 
 # ==============Opencompass 设置================
 # opencompass文件夹的路径
@@ -44,3 +50,10 @@ mt_path: data/eval/mt-bench
 # use weighted_alpaca_eval_gpt4_turbo if you want the high agreement with humans.
 # use chatgpt_fn if you are on a tight budget.
 judge_model: chatgpt_fn
+
+
+# ==============Safety-eval 设置================
+# 在safety-eval中会用到的3个测评模型的模型路径，若不指定，会直接从hf cache中加载
+wildguard_model_path: /mnt/data1/hf_models/wildguard
+toxigen_roberta_model_path: /mnt/data1/hf_models/toxigen_roberta
+llama_guard_model_path: /mnt/data1/hf_models/Llama-Guard-3-8B
