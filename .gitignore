@@ -52,6 +52,9 @@ flagged/
 /outputs
 /build
 /results
+/my_scripts
+/my_configs
+/my_data
 
 /opencompass
 ip.sh
@@ -59,3 +62,5 @@ ip.sh
 *.tar.gz
 
 docs/_*
+
+!__init__.py

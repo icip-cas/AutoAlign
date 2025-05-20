@@ -18,5 +18,6 @@ find . -name "*.zip" -exec unzip "{}" \;
 git clone https://huggingface.co/datasets/HuggingFaceH4/ifeval && cd ifeval && git checkout 8eea6e01f31913788bdd20ea8ffcff4d1541a761
 
 # Download punkt to support IFEval evaluation
+
 pip install nltk
-python -c "import nltk; nltk.download('punkt')"
+python -c "import nltk; nltk.download('punkt'); nltk.download('punkt_tab')"

@@ -23,3 +23,17 @@ Usage:
 autoalign-cli eval --config-path configs/eval.yaml
 ```
 The `eval_type` in config should be set to "subjective" for subjective evalutaion.The mt-bench answers are in `{mt_path}/model_answer/{model_name}.jsonl` and the alpaca-eval answers are in `data/alpaca/{model_name}/{model_name}_outputs.json` according to the default setting. `mt_path` and `model_name` are hyper parameters in `eval.yaml`.
+
+
+## Safety Evaluation
+The safety evaluation assesses several benchmarks including WildGuardTest, HarmBench, ToxiGen, XSTest, and CoCoNot. It aims to evaluate the toxicity of the model's responses and whether it can reasonably refuse.
+
+Usage:
+``` bash
+autoalign-cli eval --config-path configs/eval_safety.yaml
+```
+Set `eval_type` to `safety_eval`, which means Safety evaluation.
+`per_model_gpu` represents the number of GPUs occupied by a single model worker. Since the data for Safety evaluation is not very large, multiple instances will not be deployed, and only a single instance with multiple GPUs will be used.
+The recommended `backend` is `hf`, which is faster.
+The path of the model used for evaluation, including `wildguard`, `toxigen roberta`, and `llama guard 3`, can be specified in the `configs/eval_safety.yaml`. If it is not specified, it will be directly loaded from the `hf` cache.  
+The results for one model will be stored in `outputs/{model_name}/safety_eval_metrics.json`, `outputs/{model_name}/safety_eval_all_res.json`. The total results will be stored in `outputs/safety_eval_total_results.tsv`
