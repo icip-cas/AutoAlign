@@ -1,0 +1,78 @@
+[
+  {
+    "prompt": "Please have a look at my PowerShell script.",
+    "uuid": "c91d880c20fb5b6ffe0f4f28d68aa4b86c2436be645ec15bc20b53d47dc89c59",
+    "history": [],
+    "p_system": "good principle",
+    "n_system": "bad principle",
+    "system": "",
+    "chosen": [
+      {
+        "value": "Please have a look at my PowerShell script.",
+        "from": "human"
+      },
+      {
+        "value": "1. red_treasure_chest\nexplanation",
+        "from": "gpt"
+      }
+    ],
+    "rejected": [
+      {
+        "value": "Please have a look at my PowerShell script.",
+        "from": "human"
+      },
+      {
+        "value": "1. red_treasure_chest\nexplanation",
+        "from": "gpt"
+      }
+    ],
+    "raw": [
+      {
+        "value": "Please have a look at my PowerShell script.",
+        "from": "human"
+      },
+      {
+        "value": "1. red_treasure_chest\nexplanation",
+        "from": "gpt"
+      }
+    ]
+  },
+  {
+    "prompt": "Please have a look at my PowerShell script.",
+    "uuid": "c91d880c20fb5b6ffe0f4f28d68aa4b86c2436be645ec15bc20b53d47dc89c59",
+    "history": [],
+    "p_system": "good principle",
+    "n_system": "bad principle",
+    "system": "",
+    "chosen": [
+      {
+        "value": "Please have a look at my PowerShell script.",
+        "from": "human"
+      },
+      {
+        "value": "1. red_treasure_chest\nexplanation",
+        "from": "gpt"
+      }
+    ],
+    "rejected": [
+      {
+        "value": "Please have a look at my PowerShell script.",
+        "from": "human"
+      },
+      {
+        "value": "1. red_treasure_chest\nexplanation",
+        "from": "gpt"
+      }
+    ],
+    "raw": [
+      {
+        "value": "Please have a look at my PowerShell script.",
+        "from": "human"
+      },
+      {
+        "value": "1. red_treasure_chest\nexplanation",
+        "from": "gpt"
+      }
+    ]
+  }
+]
