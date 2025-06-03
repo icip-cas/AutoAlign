@@ -1,0 +1,30 @@
+[
+    {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+    {
+        "id": "1",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Hi'."
+            }
+        ],
+        "golden": "Hi"
+    }
+]

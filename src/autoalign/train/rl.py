@@ -30,6 +30,9 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 import trl
 import torch
 
+from autoalign.train.utils import load_json
+from datasets import load_dataset, Dataset
+
 logger = logging.getLogger(__name__)
 
 def init_wandb_training(training_args):
@@ -42,6 +45,49 @@ def init_wandb_training(training_args):
         os.environ["WANDB_PROJECT"] = training_args.wandb_project
     if training_args.wandb_run_group is not None:
         os.environ["WANDB_RUN_GROUP"] = training_args.wandb_run_group
+
+def make_conversation(example, conv_column: str="messages", answer_column: str="golden"):
+    """
+    Convert data example into conversation format with prompts and ensure answer is preserved.
+
+    data example should contain:
+        - conv_column: List of messages in the conversation
+        - answer_column: The answer to the conversation
+        - system: Optional system prompt to add at the beginning of the conversation
+    
+    Example:
+        {
+            "conv_column": [{"role": "user", "content": "What is the capital of France?"}],
+            "answer": "Paris",
+        }
+    
+    Args:
+        example (dict): Data example containing prompt and answer
+        conv_column (str): Column name for the conv
+        answer_column (str): Column name for the answer
+        system_prompt (str, optional): System prompt to add
+        
+    Returns:
+        dict: Formatted conversation with prompt and answer
+    """
+    prompt = []
+
+    # Check if required columns exist
+    if conv_column not in example:
+        raise ValueError(f"Dataset Prompt Field Error: {conv_column} is not found in the data.")
+    
+    # if the first message is a system prompt, prompt is example[conv_column][:2]
+    if example.get(conv_column)[0].get("role") == "system":
+        prompt = example[conv_column][:2]  # first two messages are system and user
+    elif example.get(conv_column)[0].get("role") == "user":
+        prompt = example[conv_column][:1]
+    else:
+        raise ValueError(f"Dataset Prompt Field Error: The first message in {conv_column} should be a system or user message.")
+
+    return {
+        "prompt": prompt,
+        "answer": example[answer_column]
+    }
 
 @dataclass
 class GRPOConfig(trl.GRPOConfig):
@@ -56,10 +102,6 @@ class GRPOConfig(trl.GRPOConfig):
         default_factory=lambda: [], metadata={"help": "The callbacks to run during training."}
     )
     chat_template: Optional[str] = field(default=None, metadata={"help": "The chat template to use."})
-    system_prompt: Optional[str] = field(
-        default=None,
-        metadata={"help": "The optional system prompt to use."},
-    )
     wandb_entity: Optional[str] = field(
         default=None,
         metadata={"help": ("The entity to store runs under.")},
@@ -101,6 +143,10 @@ class GRPOScriptArguments(trl.ScriptArguments):
             "help": "List of reward functions. Possible values: 'accuracy', 'format', 'reasoning_steps', 'cosine', 'repetition_penalty', 'length', tag_count', 'code', 'code_format'"
         },
     )
+    data_path: str = field(
+        default="data/dummy_rl.json",
+        metadata={"help": "Path to the training data file."},
+    )
     cosine_min_value_wrong: float = field(
         default=0.0,
         metadata={"help": "Minimum reward for wrong answers"},
@@ -130,9 +176,13 @@ class GRPOScriptArguments(trl.ScriptArguments):
         metadata={"help": "Maximum (negative) penalty for for repetition penalty reward"},
     )
 
-    dataset_prompt_column: str = field(
-        default="prompt",
-        metadata={"help": "Column to use as prompts for training."},
+    dataset_conv_column: str = field(
+        default="messages",
+        metadata={"help": "Column containing the conversation messages."},
+    )
+    dataset_answer_column: str = field(
+        default="golden",
+        metadata={"help": "Column containing the answer to the conversation."},
     )
 
 
@@ -171,8 +221,15 @@ def main(script_args, training_args, model_args):
     if "wandb" in training_args.report_to:
         init_wandb_training(training_args)
 
-    # Load the dataset
-    dataset = load_dataset(script_args.dataset_name)
+    data = load_json(script_args.data_path)
+
+    # Create datasets
+    train_dataset = Dataset.from_list(data)
+    
+    # Create dataset dict
+    dataset_dict = {script_args.dataset_train_split: train_dataset}
+    
+    dataset = datasets.DatasetDict(dataset_dict)
 
     tokenizer = AutoTokenizer.from_pretrained(
         model_args.model_name_or_path,
@@ -199,24 +256,14 @@ def main(script_args, training_args, model_args):
     # Get reward functions from the registry
     reward_funcs = get_reward_funcs(script_args)
 
-    # Format into conversation
-    def make_conversation(example, prompt_column: str = script_args.dataset_prompt_column):
-        prompt = []
+    def format_conversation(example):
+        return make_conversation(
+            example, 
+            conv_column=script_args.dataset_conv_column,
+            answer_column=script_args.dataset_answer_column
+        )
 
-        if training_args.system_prompt is not None:
-            prompt.append({"role": "system", "content": training_args.system_prompt})
-
-        if prompt_column not in example:
-            raise ValueError(f"Dataset Question Field Error: {prompt_column} is not supported.")
-
-        prompt.append({"role": "user", "content": example[prompt_column]})
-        return {"prompt": prompt}
-
-    dataset = dataset.map(make_conversation)
-
-    for split in dataset:
-        if "messages" in dataset[split].column_names:
-            dataset[split] = dataset[split].remove_columns("messages")
+    dataset = dataset.map(format_conversation)
 
     trainer = GRPOTrainer(
         model=model,
