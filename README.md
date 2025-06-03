@@ -15,7 +15,7 @@ Auto-Alignment is a package focusing on scalable and automated alignment methods
 
 The core functionalities of the toolkit include:
 
-- Implementation of common alignment operators (e.g., SFT, RM, DPO, etc.)
+- Implementation of common alignment operators (e.g., SFT, RM, DPO, GRPO, etc.)
 - Implementation of various automatic model alignment algorithms (e.g., CAI, SPIN, RLCD, etc.)
 - Efficient model sampling
 - Automated model evaluation
@@ -53,7 +53,7 @@ bash ./scripts/post_install.sh
 
 ### 📂 Data
 
-To facilite the community with out-of-box alignment data. We publicly release a collection of SFT data [here](). This toolkit currently utilizes the format in ```data/dummy_sft.json``` for supervised fine-tuning and the format in ```data/dummy_dpo.json``` for the reinforcement learning process. Please refer to these files for more details.
+To facilite the community with out-of-box alignment data. We publicly release a collection of SFT data [here](https://lxylab.oss-cn-shanghai.aliyuncs.com/Auto-Alignment/data/inst_data.tar.gz). This toolkit currently utilizes the format in ```data/dummy_sft.json``` for supervised fine-tuning and the format in ```data/dummy_dpo.json``` for the reinforcement learning process. Please refer to these files for more details.
 
 ### 📚 Basic Alignment Operators
 
