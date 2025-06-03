@@ -60,7 +60,8 @@ eval = [
   "torchaudio==2.5.1",
   "human-eval==1.0.3",
   "alpaca-eval==0.6.3",
-  "huggingface-hub<=0.24.7"
+  "huggingface-hub<=0.24.7",
+  "httpx[socks]",
 ]
 doc = [
   "sphinx",
