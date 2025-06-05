@@ -27,3 +27,16 @@ source prepare_for_dpo.sh
 ```bash
 bash train_dpo.sh
 ```
+
+## Citation
+
+```
+@misc{chen2024selfplay,
+      title={Self-Play Fine-Tuning Converts Weak Language Models to Strong Language Models}, 
+      author={Zixiang Chen and Yihe Deng and Huizhuo Yuan and Kaixuan Ji and Quanquan Gu},
+      year={2024},
+      eprint={2401.01335},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG}
+}
+```
