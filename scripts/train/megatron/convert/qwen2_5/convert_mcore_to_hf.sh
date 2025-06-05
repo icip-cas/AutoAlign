@@ -1,22 +1,31 @@
 #!/bin/bash
-set -e
+export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
+ROOT=${ROOT:-"../../autoalign"}
+
+MODEL_SIZE=${MODEL_SIZE:-"7B"}
+TP=${TP:-"2"}
+PP=${PP:-"2"}
+MG_MODEL_PATH=${MG_MODEL_PATH:-"${ROOT}/mg_models/Qwen2.5-${MODEL_SIZE}-hf-to-mcore-te-tp${TP}-pp${PP}"}
+HF_MODEL_PATH=${HF_MODEL_PATH:-"${ROOT}/hf_models/Qwen2.5-${MODEL_SIZE}-mcore-to-hf-tp${TP}-pp${PP}"}
+PRECISION=${PRECISION:-"fp32"}
+USE_TE=${USE_TE:-"true"}
+MG2HF=${MG2HF:-"true"}
+HF_MODEL_SOURCE=${HF_MODEL_SOURCE:-"${ROOT}/hf_models/Qwen2.5-${MODEL_SIZE}"}
+
+
 START_TIME=$SECONDS
 MASTER_ADDR=localhost
 MASTER_PORT=$(shuf -n 1 -i 10000-65535)
 
-MODEL_SIZE=$1
-SOURCE_CKPT_PATH=$2
-TARGET_CKPT_PATH=$3
-TP=$4
-PP=$5
-PR=$6
-USE_TE=$7
-MG2HF=$8
-HF_CKPT_PATH=${9}
-
-CURRENT_DIR="$( cd "$( dirname "$0" )" && pwd )"
-MEGATRON_PATH=$( dirname $(dirname $( dirname ${CURRENT_DIR})))
-
+MODEL_SIZE=${MODEL_SIZE}
+SOURCE_CKPT_PATH=${HF_MODELS}/Qwen2.5-${MODEL_SIZE}
+TARGET_CKPT_PATH=${ROOT}/mg_models/Qwen2.5-${MODEL_SIZE}-hf-to-mcore-te-tp${TP}-pp${PP}
+TP=${TP}
+PP=${PP}
+PR=${PRECISION}
+USE_TE=${USE_TE}
+MG2HF=${MG2HF}
+HF_CKPT_PATH=${HF_MODEL_SOURCE}
 
 if [ $MODEL_SIZE = 0.5B ]; then
 
@@ -185,7 +194,7 @@ fi
 
 DISTRIBUTED_ARGS="--nproc_per_node 1 --nnodes 1 --node_rank 0 --master_addr $MASTER_ADDR --master_port $MASTER_PORT"
 
-torchrun ${DISTRIBUTED_ARGS} hf2mcore_qwen2_dense_and_moe_gqa.py \
+torchrun ${DISTRIBUTED_ARGS} dpo.py \
     --load ${SOURCE_CKPT_PATH} \
     --save ${TARGET_CKPT_PATH} \
     --target-tensor-model-parallel-size ${TP} \
