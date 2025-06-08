@@ -7,13 +7,12 @@ export OMP_NUM_THREADS=1
 # ==============================
 # Path Configuration
 # ==============================
-ROOT=${ROOT:-"../../autoalign"}
-SRC_TRAIN_MEGATRON_PATH="${ROOT}/megatron_autoalign"
-DATASET_PATH=${DATASET_PATH:-"${ROOT}/data/dpo/"}
-VALID_DATASET_PATH=${VALID_DATASET_PATH:-"${ROOT}/data/dpo/"}
+ROOT=${ROOT:-"AutoAlign"}
+SRC_TRAIN_MEGATRON_PATH="${ROOT}/src/megatron_autoalign"
+DATASET_PATH=${DATASET_PATH:-"${ROOT}/data/megatron/dummy_dpo"}
+VALID_DATASET_PATH=${VALID_DATASET_PATH:-"${ROOT}/data/megatron/dummy_dpo"}
 PRETRAIN_CHECKPOINT_PATH=${PRETRAIN_CHECKPOINT_PATH:-"${ROOT}/mg_models/"}
 OUTPUT_BASEPATH=${OUTPUT_BASEPATH:-"${ROOT}/checkpoint/dpo/"}
-cd "${SRC_TRAIN_MEGATRON_PATH}/examples/qwen2"
 
 # ==============================
 # Compute Resources Configuration
@@ -394,7 +393,7 @@ megatron_options="  \
 # Tranin!
 # ==============================
 DISTRIBUTED_ARGS="--nproc_per_node $GPUS_PER_NODE --nnodes $NNODES --node_rank $NODE_RANK --master_addr $MASTER_ADDR --master_port $MASTER_PORT"
-run_cmd="torchrun $DISTRIBUTED_ARGS dpo_qwen.py
+run_cmd="torchrun $DISTRIBUTED_ARGS ${SRC_TRAIN_MEGATRON_PATH}/examples/qwen2/dpo_qwen.py
  ${megatron_options} ${dataset_option} ${pr_options} ${load_options} ${te_options} ${activation_checkpoint_options} \
  ${do_options} ${sp_options} ${gqa_options} ${offload_option} ${comm_overlap_option} ${dpo_option} ${tie_option}"
 

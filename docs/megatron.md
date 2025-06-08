@@ -11,7 +11,7 @@ This repository is based on [alibaba/Pai-Megatron-Patch](https://github.com/alib
 
 ### Environment Configuration 🔧
 ```bash
-bash megatron_autoalign/scripts_megatron/env_install.sh
+bash AutoAlign/scripts/train/megatron/env_install.sh
 ```
 > You can also refer to the docker images(`dsw-registry.cn-wulanchabu.cr.aliyuncs.com/pai/pai-megatron-patch:24.07`)  provided in the Pai-Megatron-Patch repository.
 ## Training Pipeline 🔄
@@ -21,33 +21,37 @@ All scripts should be executed from the `megatron_autoalign/` directory.
 ### 1. Model Weight Conversion (HF → Megatron) 🔄
 
 ```bash
-export CUDA_VISIBLE_DEVICES=0
-cd AutoAlign/megatron_autoalign/toolkits/model_checkpoints_convertor/qwen
-bash hf2mcore_qwen2.5_convertor.sh \
-    1.5B \ # Model size selection (1.5B)
-    ${HF_MODEL_PATH} \ # HF model path
-    ${OUTPUT_MG_MODEL_PATH} \ # Output Megatron model path
-    2 \ # TP (Tensor Parallelism)
-    2 \ # PP (Pipeline Parallelism)
-    bf16 \ # Precision (bf16)
-    true \ # USE_TE (default:true)
-    false # MG2HF (default:false)
+bash AutoAlign/scripts/train/megatron/convert/qwen2_5/convert_hf_to_mcore.sh
+```
+> config in convert_hf_to_mcore.sh
+```bash
+HF_MODELS=${HF_MODELS:-"${ROOT}/hf_models"} # HF model path
+MODEL_SIZE=${MODEL_SIZE:-"7B"}
+TP=${TP:-"2"}  # Tensor Parallelism
+PP=${PP:-"2"}  # Pipeline Parallelism
+PRECISION=${PRECISION:-"bf16"}
+USE_TE=${USE_TE:-"true"}
+MG2HF=${MG2HF:-"false"}
+HF_CKPT_PATH=${HF_CKPT_PATH:-"${ROOT}/hf_models/Qwen2.5-${MODEL_SIZE}"}
+SOURCE_CKPT_PATH=${HF_MODELS}/Qwen2.5-${MODEL_SIZE} 
+TARGET_CKPT_PATH=${ROOT}/mg_models/Qwen2.5-${MODEL_SIZE}-hf-to-mcore-te-tp${TP}-pp${PP} # Output Megatron model path
 ```
 
 ### 2. Data Preprocessing 📊
 
 ```bash
-export PYTHONPATH=$(dirname $(dirname $(pwd))):$PYTHONPATH
-cd AutoAlign/megatron_autoalign/toolkits/sft_conv_data_preprocessing
-bash run_build_idxmap_sft_conv_dataset.sh \
-    ${INPUT_JSON_PATH} \ # Input JSON path
-    conversations \ # Key for conversation data
-    Qwen2Tokenizer \ # Tokenizer class
-    8192 \ # Sequence length
-    ${OUTPUT_TOKENIZED_PATH} \ # Output tokenized data path
-    ${HF_MODEL_PATH} \ # HF model path
-    ${EXTRA_VOCAB_SIZE} \ # Extra vocab size
-    ${TEMPLATE} # Chat Template 
+bash AutoAlign/scripts/train/megatron/preprocess/sft_conv.sh
+```
+> config in convert_hf_to_mcore.sh
+```bash
+INPUT_JSON=${INPUT_JSON:-"${ROOT}/data/dummy_sft.json"} # Input JSON path
+DATA_TYPE=${DATA_TYPE:-"conversations"} # Key for conversation data
+TOKENIZER=${TOKENIZER:-"Qwen2Tokenizer"} # Tokenizer class
+SEQ_LEN=${SEQ_LEN:-4096} # Sequence length
+OUTPUT_DATA_PREFIX=${OUTPUT_DATA_PREFIX:-"${ROOT}/data/megatron/dummy_sft"} # Output tokenized data path
+HF_MODEL_PATH=${HF_MODEL_PATH:-"${ROOT}/hf_models/Qwen2.5-7B"} # HF model path
+EXTRA_VOCAB_SIZE=${EXTRA_VOCAB_SIZE:-421} # Extra vocab size
+TEMPLATE=${TEMPLATE:-"chatml-idsys"} # Chat Template 
 ```
 
 Required data format:
@@ -70,7 +74,7 @@ Required data format:
 
 ### 3. Training Configuration 🎯
 
-Key configurations in `AutoAlign/megatron_autoalign/scripts_megatron/train/qwen2_5/sft_conv.sh`:
+Key configurations in `AutoAlign/scripts/train/megatron/train/qwen2_5/sft_conv.sh`:
 
 ```bash
 # Paths
@@ -109,8 +113,7 @@ dataset_option=" \
 ### 4. Model Weight Conversion (Megatron → HF) 🔄
 
 ```bash
-export CUDA_VISIBLE_DEVICES=0
-cd AutoAlign/megatron_autoalign/toolkits/model_checkpoints_convertor/qwen
+bash AutoAlign/scripts/train/megatron/convert/qwen2_5/convert_mcore_to_hf.sh
 bash hf2mcore_qwen2.5_convertor.sh \
     1.5B \ # Model size selection (1.5B)
     ${MG_CHECKPOINT_PATH} \ # Megatron model path
@@ -121,6 +124,19 @@ bash hf2mcore_qwen2.5_convertor.sh \
     true \ # USE_TE (default:true)
     true \ # MG2HF (default:false)
     ${ORIGINAL_HF_PATH} # Original HF model path
+```
+
+> config in convert_hf_to_mcore.sh
+```bash
+MODEL_SIZE=${MODEL_SIZE:-"7B"}
+TP=${TP:-"2"}  # Tensor Parallelism
+PP=${PP:-"2"}  # Pipeline Parallelism
+MG_MODEL_PATH=${MG_MODEL_PATH:-"${ROOT}/mg_models/Qwen2.5-${MODEL_SIZE}-hf-to-mcore-te-tp${TP}-pp${PP}"} # Megatron model path
+HF_MODEL_PATH=${HF_MODEL_PATH:-"${ROOT}/hf_models/Qwen2.5-${MODEL_SIZE}-mcore-to-hf-tp${TP}-pp${PP}"} # Output HF model path
+PRECISION=${PRECISION:-"fp32"}
+USE_TE=${USE_TE:-"true"}
+MG2HF=${MG2HF:-"true"}
+HF_MODEL_SOURCE=${HF_MODEL_SOURCE:-"${ROOT}/hf_models/Qwen2.5-${MODEL_SIZE}"}  # Original HF model path
 ```
 
 ## Troubleshooting 🔧
