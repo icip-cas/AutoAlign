@@ -1,16 +1,17 @@
 #! /bin/bash
 START_TIME=$SECONDS
 
-input_data_path=$1
-json_keys=$2
-tokenizer=$3
-seq_len=$4
-output_data_path=$5
-load_dir=$6
-extra_vocab_size=$7
-template=$8
+ROOT=${ROOT:-"AutoAlign"}
+INPUT_JSON=${INPUT_JSON:-"${ROOT}/data/dummy_sft.json"}
+DATA_TYPE=${DATA_TYPE:-"conversations"}
+TOKENIZER=${TOKENIZER:-"Qwen2Tokenizer"}
+SEQ_LEN=${SEQ_LEN:-4096}
+OUTPUT_DATA_PREFIX=${OUTPUT_DATA_PREFIX:-"${ROOT}/data/megatron/dummy_dpo"}
+HF_MODEL_PATH=${HF_MODEL_PATH:-"${ROOT}/hf_models/Qwen2.5-7B"}
+EXTRA_VOCAB_SIZE=${EXTRA_VOCAB_SIZE:-421}
+TEMPLATE=${TEMPLATE:-"chatml-idsys"}
 
-python toolkits/dpo/preprocess.py \
+python ${ROOT}/src/megatron_autoalign/toolkits/dpo/preprocess.py \
   --dpo \
   --mask \
   --input ${input_data_path} \

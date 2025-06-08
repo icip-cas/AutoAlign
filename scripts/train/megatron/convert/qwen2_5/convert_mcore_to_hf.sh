@@ -1,7 +1,6 @@
 #!/bin/bash
 export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
-ROOT=${ROOT:-"../../autoalign"}
-
+ROOT=${ROOT:-"AutoAlign"}
 MODEL_SIZE=${MODEL_SIZE:-"7B"}
 TP=${TP:-"2"}
 PP=${PP:-"2"}
@@ -194,7 +193,7 @@ fi
 
 DISTRIBUTED_ARGS="--nproc_per_node 1 --nnodes 1 --node_rank 0 --master_addr $MASTER_ADDR --master_port $MASTER_PORT"
 
-torchrun ${DISTRIBUTED_ARGS} dpo.py \
+torchrun ${DISTRIBUTED_ARGS} ${ROOT}/src/megatron_autoalign/toolkits/checkpoint/qwen/dpo.py \
     --load ${SOURCE_CKPT_PATH} \
     --save ${TARGET_CKPT_PATH} \
     --target-tensor-model-parallel-size ${TP} \
