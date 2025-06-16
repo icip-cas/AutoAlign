@@ -3,16 +3,16 @@ set -e
 export CUDA_DEVICE_MAX_CONNECTIONS=1
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 export OMP_NUM_THREADS=1
+export CUDA_HOME=$CONDA_PREFIX
+export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
 
 # ==============================
 # Path Configuration
 # ==============================
-ROOT=${ROOT:-"AutoAlign"}
-SRC_TRAIN_MEGATRON_PATH="${ROOT}/src/megatron_autoalign"
-DATASET_PATH=${DATASET_PATH:-"${ROOT}/data/megatron/dummy_sft"}
-VALID_DATASET_PATH=${VALID_DATASET_PATH:-"${ROOT}/data/megatron/dummy_sft"}
-PRETRAIN_CHECKPOINT_PATH=${PRETRAIN_CHECKPOINT_PATH:-"${ROOT}/mg_models/"}
-OUTPUT_BASEPATH=${OUTPUT_BASEPATH:-"${ROOT}/checkpoints/sft/"}
+DATASET_PATH=${DATASET_PATH:-"./data/dummy_sft_mg_conversations_maxlen_4096"}
+VALID_DATASET_PATH=${VALID_DATASET_PATH:-"./data/dummy_sft_mg_conversations_maxlen_4096"}
+PRETRAIN_CHECKPOINT_PATH=${PRETRAIN_CHECKPOINT_PATH:-"./mg_models/Qwen2.5-3B-hf-to-mcore-te-tp2-pp2"}
+OUTPUT_BASEPATH=${OUTPUT_BASEPATH:-"./checkpoints/sft/"}
 
 # ==============================
 # Compute Resources Configuration
@@ -28,9 +28,9 @@ GPUS_PER_NODE=${GPUS_PER_NODE:-8}
 # ==============================
 # Training Hyperparameters
 # ==============================
-MODEL_SIZE=${MODEL_SIZE:-"7B"}
+MODEL_SIZE=${MODEL_SIZE:-"3B"}
 BATCH_SIZE=${BATCH_SIZE:-4}
-GLOBAL_BATCH_SIZE=${GLOBAL_BATCH_SIZE:-512}
+GLOBAL_BATCH_SIZE=${GLOBAL_BATCH_SIZE:-16}
 LR=${LR:-5e-6}
 MIN_LR=${MIN_LR:-0.0}
 SEQ_LEN=${SEQ_LEN:-4096}
@@ -41,7 +41,7 @@ PAD_LEN=${PAD_LEN:-4096}
 # Parallelism Configuration
 # ==============================
 TP=${TP:-2}
-PP=${PP:-1}
+PP=${PP:-2}
 SP=${SP:-false}
 CP=${CP:-1}
 
@@ -60,7 +60,7 @@ dataset_option=" \
     --data-path ${DATASET_PATH} \
     --split 100,0,0 \
     --dataset mmap  \
-    --epochs ${EPOCHS:-3}"
+    --epochs ${EPOCHS:-10}"
 
 
 # ==============================
@@ -75,8 +75,6 @@ PREFIX="sft-mcore-qwen2_5-${MODEL_SIZE}-lr-${LR}-minlr-${MIN_LR}-bs-${BATCH_SIZE
 sft_option=" \
     --eod-mask-loss \
     --train-mode sft"
-
-
 
 # ==============================
 # FlashAttention Or FusedAttention
@@ -317,7 +315,7 @@ te_options=" \
 # ==============================
 # Output Configuration
 # ==============================
-NAME="${PREFIX}-pr-${PR}-tp-${TP}-pp-${PP}-cp-${CP}-ac-${AC}-do-${DO}-sp-${SP}-ti-${TRAIN_ITERS}-wi-${LR_WARMUP_ITERS}"
+NAME="${PREFIX}-pr-${PR}-tp-${TP}-pp-${PP}-cp-${CP}-ac-${AC}-do-${DO}-sp-${SP}-ti-${TRAIN_ITERS}-wf-${LR_WARMUP_FRACTION}"
 mkdir -p "${OUTPUT_BASEPATH}/tensorboard/"
 mkdir -p "${OUTPUT_BASEPATH}/checkpoint/"
 mkdir -p "${OUTPUT_BASEPATH}/log/"
@@ -359,7 +357,7 @@ megatron_options="  \
         --max-padding-length ${PAD_LEN} \
         --log-interval 1 \
         --log-throughput \
-        --eval-interval 10000 \
+        --eval-interval 1 \
         --eval-iters 10 \
         --save-interval ${SAVE_INTERVAL} \
         --tensorboard-queue-size 1 \
@@ -393,7 +391,7 @@ megatron_options="  \
 # Tranin!
 # ==============================
 DISTRIBUTED_ARGS="--nproc_per_node $GPUS_PER_NODE --nnodes $NNODES --node_rank $NODE_RANK --master_addr $MASTER_ADDR --master_port $MASTER_PORT"
-run_cmd="torchrun $DISTRIBUTED_ARGS ${SRC_TRAIN_MEGATRON_PATH}/examples/qwen2/sft_qwen.py
+run_cmd="torchrun $DISTRIBUTED_ARGS -m autoalign_megatron.examples.qwen2.sft_qwen
  ${megatron_options} ${dataset_option} ${pr_options} ${load_options} ${te_options} ${activation_checkpoint_options} \
  ${do_options} ${sp_options} ${gqa_options} ${offload_option} ${comm_overlap_option} ${sft_option} ${tie_option}"
 

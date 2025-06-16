@@ -3,8 +3,8 @@ from functools import lru_cache
 import numpy as np
 import sys
 import torch
-from megatron_patch.tokenizer import build_tokenizer, get_tokenizer
-from indexed_dataset_dpo import MMapIndexedDatasetDPO
+from megatron_patch.tokenizer import get_tokenizer
+from .indexed_dataset_sft_conv import MMapIndexedDatasetSFTConv
 from megatron.training import get_args
 
 def print_rank_0(message):
@@ -14,7 +14,8 @@ def print_rank_0(message):
             print(message, flush=True)
     else:
         print(message, flush=True)
-class GPTDatasetDPO(torch.utils.data.Dataset):
+        
+class GPTDatasetSFTConv(torch.utils.data.Dataset):
 
     def __init__(self, 
                  name, 
@@ -27,10 +28,10 @@ class GPTDatasetDPO(torch.utils.data.Dataset):
         self.seq_length = seq_length
         self.seed = seed
         self.numpy_random_state = np.random.RandomState(seed)
-        self.dpo_idx = self._initialize_and_shuffle_indices(documents)
+        self.sft_conv_idx = self._initialize_and_shuffle_indices(documents)
             
         
-        self.cur_tokenizer = get_tokenizer(self.args)
+        self.cur_tokenizer = get_tokenizer()
         self.mask_id = self.cur_tokenizer.vocab_size + 1
     
         if hasattr(self.cur_tokenizer, 'pad_token_id'):
@@ -39,31 +40,24 @@ class GPTDatasetDPO(torch.utils.data.Dataset):
             self.pad = 0
 
     def __len__(self):
-        return len(self.dpo_idx)
+        return len(self.sft_conv_idx)
 
     def __getitem__(self, idx):
         # Get the shuffled index.
-        assert idx < len(self.dpo_idx) and idx >= 0
-        idx = self.dpo_idx[idx]
+        assert idx < len(self.sft_conv_idx) and idx >= 0
+        idx = self.sft_conv_idx[idx]
         
         # Get the data from indexed_dataset
         data = self.indexed_dataset.get(idx)
-        chosen_input, chosen_label = data['chosen']
-        rejected_input, rejected_label = data['rejected']
-
-        # Process chosen data
-        chosen_padded = self._pad_and_mask(chosen_input, chosen_label)
-
-        # Process rejected data
-        rejected_padded = self._pad_and_mask(rejected_input, rejected_label)
+        conv_input, conv_label = data['conv']
         
-
+        conv_padded = self._pad_and_mask(conv_input, conv_label)
+        
         return {
-            "chosen_text": np.array(chosen_padded['text'], dtype=np.int64),
-            "chosen_label": np.array(chosen_padded['label'], dtype=np.int64),
-            "rejected_text": np.array(rejected_padded['text'], dtype=np.int64),
-            "rejected_label": np.array(rejected_padded['label'], dtype=np.int64),
+            "conv_text": np.array(conv_padded['text'], dtype=np.int64),
+            "conv_label": np.array(conv_padded['label'], dtype=np.int64),
         }
+        
 
         
     def _pad_and_mask(self, sample, label_sample):
@@ -142,17 +136,17 @@ def _get_train_valid_test_split_(splits_string, size):
     return splits_index
 
 
-def make_indexed_dataset_dpo(path, impl, skip_warmup=False):
-    if not MMapIndexedDatasetDPO.exists(path):
+def make_indexed_dataset_sft_conv(path, impl, skip_warmup=False):
+    if not MMapIndexedDatasetSFTConv.exists(path):
         raise FileNotFoundError("Dataset not found: {}".format(path))
-    elif impl == "mmap" and MMapIndexedDatasetDPO.exists(path):
-        return MMapIndexedDatasetDPO(path, skip_warmup=skip_warmup)
+    elif impl == "mmap" and MMapIndexedDatasetSFTConv.exists(path):
+        return MMapIndexedDatasetSFTConv(path, skip_warmup=skip_warmup)
     print_rank_0(f"Unknown dataset implementation: {impl}")
     return None
 
 
 
-def _build_train_valid_test_datasets_dpo(
+def _build_train_valid_test_datasets_sft_conv(
     data_prefix,
     data_impl,
     splits_string,
@@ -163,7 +157,7 @@ def _build_train_valid_test_datasets_dpo(
     
     print_rank_0(' > building dataset indexed dataset ...')
     start_time = time.time()
-    indexed_dataset =  make_indexed_dataset_dpo(data_prefix, data_impl) # get MMapIndexedDataset_DPO
+    indexed_dataset =  make_indexed_dataset_sft_conv(data_prefix, data_impl) # get MMapIndexedDataset_SFT_Conv
     print_rank_0(' > finished creating indexed dataset in {:4f} '
                  'seconds'.format(time.time() - start_time))
     print_rank_0(' > number of indexed dataset: {}'.format(indexed_dataset.sizes.shape[0]))
@@ -183,21 +177,21 @@ def _build_train_valid_test_datasets_dpo(
     print_split_stats("valid", 1)
     print_split_stats("test", 2)
 
-    def build_dataset_dpo(index, name):
+    def build_dataset_sft_conv(index, name):
         dataset = None
         if splits[index+1] > splits[index]:
             documents = np.arange(start=splits[index], stop=splits[index+1], step=1, dtype=np.int32)
-            dataset = GPTDatasetDPO(name, documents, indexed_dataset,
+            dataset = GPTDatasetSFTConv(name, documents, indexed_dataset,
                                  seq_length, seed)
         return dataset
     
-    train_dataset = build_dataset_dpo(0,"train")
-    valid_dataset = build_dataset_dpo(1,"valid")
-    test_dataset = build_dataset_dpo(2,"test")
+    train_dataset = build_dataset_sft_conv(0,"train")
+    valid_dataset = build_dataset_sft_conv(1,"valid")
+    test_dataset = build_dataset_sft_conv(2,"test")
 
     return (train_dataset, valid_dataset, test_dataset)
 
-def build_train_valid_test_datasets_dpo(
+def build_train_valid_test_datasets_sft_conv(
     data_prefix,
     data_impl,
     splits_string,
@@ -209,11 +203,12 @@ def build_train_valid_test_datasets_dpo(
         print_rank_0(' > Single data path provided for train / valid / test')
 
     
-    return _build_train_valid_test_datasets_dpo(
+    return _build_train_valid_test_datasets_sft_conv(
             data_prefix[0],
             data_impl,
             splits_string,
             seq_length,
             seed,
         )
+
     

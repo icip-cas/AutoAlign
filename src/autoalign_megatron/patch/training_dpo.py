@@ -75,9 +75,9 @@ from megatron.training.initialize import (
 
 from megatron.training.memory_tracer.memstats_collector import MemStatsCollector
 from megatron.training.optimizer_param_scheduler import OptimizerParamScheduler
-from megatron_patch_autoalign.data.indexed_dataset_dpo import chosen_idx_file_path
-from megatron_patch_autoalign.data.gpt_dataset_dpo import _get_train_valid_test_split_
-from megatron_patch_autoalign.core.pipeline_parallel import get_forward_backward_func
+from autoalign_megatron.patch.data.indexed_dataset_dpo import chosen_idx_file_path
+from autoalign_megatron.patch.data.gpt_dataset_dpo import _get_train_valid_test_split_
+from autoalign_megatron.patch.core.pipeline_parallel.schedules import get_forward_backward_func
 from megatron.training import one_logger_utils
 
 from megatron.training.async_utils import maybe_finalize_async_save

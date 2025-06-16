@@ -1,21 +1,19 @@
 #!/bin/bash
-export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
+export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-7}
+export CUDA_HOME=$CONDA_PREFIX
+export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
 START_TIME=$SECONDS
 MASTER_ADDR=localhost
 MASTER_PORT=$(shuf -n 1 -i 10000-65535)
 
-ROOT=${ROOT:-"AutoAlign"}
-HF_MODELS=${HF_MODELS:-"${ROOT}/hf_models"}
-MODEL_SIZE=${MODEL_SIZE:-"7B"}
+MODEL_SIZE=${MODEL_SIZE:-"3B"}
 TP=${TP:-"2"}
 PP=${PP:-"2"}
 PRECISION=${PRECISION:-"bf16"}
 USE_TE=${USE_TE:-"true"}
 MG2HF=${MG2HF:-"false"}
-HF_CKPT_PATH=${HF_CKPT_PATH:-"${ROOT}/hf_models/Qwen2.5-${MODEL_SIZE}"}
-SOURCE_CKPT_PATH=${HF_MODELS}/Qwen2.5-${MODEL_SIZE}
-TARGET_CKPT_PATH=${ROOT}/mg_models/Qwen2.5-${MODEL_SIZE}-hf-to-mcore-te-tp${TP}-pp${PP}
-
+HF_CKPT_PATH=${HF_CKPT_PATH:-"Qwen/Qwen2.5-3B-Instruct"}
+TARGET_CKPT_PATH="./mg_models/Qwen2.5-${MODEL_SIZE}-hf-to-mcore-te-tp${TP}-pp${PP}"
 
 
 if [ $MODEL_SIZE = 0.5B ]; then
@@ -67,7 +65,7 @@ gqa_options=" \
 		    --group-query-attention \
 		    --num-query-groups ${NUM_KEY_VALUE_HEADS}"
 
-tie_option=""
+tie_option="--untie-embeddings-and-output-weights"
 cpu_options=""
 
 elif [ $MODEL_SIZE = 7B ]; then
@@ -172,11 +170,11 @@ elif [ $USE_TE = false ]; then
                 "
 fi
 
-if [ $PR = fp16 ]; then
+if [ "$PR" = "fp16" ]; then
     pr_options=" \
 		    --fp16"
 
-elif [ $PR = bf16 ]; then
+elif [ "$PR" = "bf16" ]; then
     pr_options=" \
         --bf16"
 
@@ -185,8 +183,8 @@ fi
 
 DISTRIBUTED_ARGS="--nproc_per_node 1 --nnodes 1 --node_rank 0 --master_addr $MASTER_ADDR --master_port $MASTER_PORT"
 
-torchrun ${DISTRIBUTED_ARGS} ${ROOT}/src/megatron_autoalign/toolkits/checkpoint/qwen/common.py \
-    --load ${SOURCE_CKPT_PATH} \
+torchrun ${DISTRIBUTED_ARGS} -m autoalign_megatron.toolkits.checkpoint.qwen.common \
+    --load ${HF_CKPT_PATH} \
     --save ${TARGET_CKPT_PATH} \
     --target-tensor-model-parallel-size ${TP} \
     --target-pipeline-model-parallel-size ${PP} \

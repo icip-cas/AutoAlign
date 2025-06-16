@@ -35,7 +35,7 @@ fi
 
 # Check Python version
 PYTHON_VERSION=$(python -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')
-if [ "$(printf '%s\n' "3.10" "$PYTHON_VERSION" | sort -V | head -n1)" = "3.10" ] && [ "$PYTHON_VERSION" != "3.10" ]; then
+if [ "$(printf '%s\n' "3.10" "$PYTHON_VERSION" | sort -V | head -n1)" != "3.10" ]; then
     print_error "Python 3.10 or higher is required, current version is $PYTHON_VERSION"
     exit 1
 fi
@@ -111,7 +111,7 @@ print_success "PyTorch installation completed"
 
 # Install dependencies
 print_section "3. INSTALLING BUILD TOOLS AND DEPENDENCIES"
-pip install -U pip packaging ninja psutil six transformers datasets pybind11
+pip install -U pip packaging ninja psutil six transformers==4.46.3 datasets pybind11
 if [ $? -ne 0 ]; then
     print_error "Dependencies installation failed"
     exit 1

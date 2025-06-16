@@ -1,15 +1,15 @@
 START_TIME=$SECONDS
-ROOT=${ROOT:-"AutoAlign"}
-INPUT_JSON=${INPUT_JSON:-"${ROOT}/data/dummy_sft.json"}
+
+INPUT_JSON=${INPUT_JSON:-"./data/dummy_sft.json"}
 DATA_TYPE=${DATA_TYPE:-"conversations"}
 TOKENIZER=${TOKENIZER:-"Qwen2Tokenizer"}
 SEQ_LEN=${SEQ_LEN:-4096}
-OUTPUT_DATA_PREFIX=${OUTPUT_DATA_PREFIX:-"${ROOT}/data/megatron/dummy_sft"}
-HF_MODEL_PATH=${HF_MODEL_PATH:-"${ROOT}/hf_models/Qwen2.5-7B"}
-EXTRA_VOCAB_SIZE=${EXTRA_VOCAB_SIZE:-421}
+OUTPUT_DATA_PREFIX=${OUTPUT_DATA_PREFIX:-"./data/dummy_sft_mg"}
+HF_MODEL_PATH=${HF_MODEL_PATH:-"Qwen/Qwen2.5-3B-Instruct"}
+EXTRA_VOCAB_SIZE=${EXTRA_VOCAB_SIZE:-293}
 TEMPLATE=${TEMPLATE:-"chatml-idsys"}
 
-python ${ROOT}/src/megatron_autoalign/toolkits/sft/preprocess.py \
+python -m autoalign_megatron.toolkits.sft.preprocess \
   --sft_conv \
   --mask \
   --input ${INPUT_JSON} \

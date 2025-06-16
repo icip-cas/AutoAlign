@@ -11,7 +11,7 @@
 #
 #     http://www.apache.org/licenses/LICENSE-2.0
 
-"""DPO"""
+"""SFT"""
 
 import os
 from functools import partial
@@ -20,35 +20,34 @@ from typing import Union
 import torch
 import torch._dynamo
 from megatron.core import mpu
+from megatron.core.datasets.utils import get_blend_from_list
 from megatron.core.enums import ModelType
 from megatron.training import get_args, get_timers, print_rank_0
 from megatron.training.arguments import core_transformer_config_from_args
 from megatron.training.utils import (
     average_losses_across_data_parallel_group,
 )
+from megatron.core.packed_seq_params import PackedSeqParams
 
-from megatron_patch_autoalign.training_dpo import dpo
+from autoalign_megatron.patch.data.gpt_dataset_sft_conv import build_train_valid_test_datasets_sft_conv
+from autoalign_megatron.patch.data.utils import get_batch_on_this_tp_rank_idxmap_sft_conv
+from autoalign_megatron.patch.training_sft import sft
+from autoalign_megatron.patch.arguments import get_patch_args
+
 from megatron_patch.model.qwen2.layer_specs import (
     get_gpt_layer_local_spec,
     get_gpt_layer_with_transformer_engine_spec,
 )
-
-
+from megatron_patch.model.qwen2.model import GPTModel
 from megatron_patch.model.qwen2.transformer_config import Qwen2TransformerConfig
-from megatron_patch.tokenizer import build_tokenizer
-from megatron_patch_autoalign.data.gpt_dataset_dpo import build_train_valid_test_datasets_dpo
-from megatron_patch_autoalign.data.utils import get_batch_on_this_tp_rank_idxmap_dpo
-from megatron_patch_autoalign.model.qwen2.model_dpo import GPTModelDPO
-from megatron_patch_autoalign.arguments import get_patch_args
-
-from megatron.core.packed_seq_params import PackedSeqParams
+from megatron_patch.tokenizer import build_tokenizer, get_tokenizer
 
 torch._dynamo.config.suppress_errors = True
 
 
 def model_provider(
     pre_process=True, post_process=True
-) -> Union[GPTModelDPO]:
+) -> Union[GPTModel]:
 
     args = get_args()
     build_tokenizer(args)
@@ -68,7 +67,7 @@ def model_provider(
             args.num_experts, args.moe_grouped_gemm, args.qk_layernorm
         )
 
-    model = GPTModelDPO(
+    model = GPTModel(
         config=config,
         transformer_layer_spec=transformer_layer_spec,
         vocab_size=args.padded_vocab_size,
@@ -82,16 +81,8 @@ def model_provider(
         rotary_percent=args.rotary_percent,
         rotary_base=args.rotary_base,
         seq_len_interpolation_factor=args.rotary_seq_len_interpolation_factor,
-        beta=args.beta,
-        label_smoothing=args.label_smoothing,
-        loss_type=args.loss_type,
-        ftx_gamma=args.ftx_gamma,
-        model_using=args.model_using,
-        forward_without_loss=args.forward_without_loss,
-        dpo_loss_of_orion=args.dpo_loss_of_orion,
-        orpo_loss=args.orpo_loss,
     )
-        
+
     return model
 
 
@@ -104,7 +95,7 @@ def get_batch(data_iterator):
 
     # get batches based on the TP rank you are on
 
-    batch = get_batch_on_this_tp_rank_idxmap_dpo(data_iterator)
+    batch = get_batch_on_this_tp_rank_idxmap_sft_conv(data_iterator)
     packed_seq_params = None
     
     return tuple([*batch.values(), packed_seq_params])
@@ -119,7 +110,16 @@ def loss_func(loss_mask: torch.Tensor, output_tensor: torch.Tensor):
         output_tensor (torch.Tensor): The tensor with the losses
     """
     args = get_args()
-    loss, metrics = output_tensor
+    losses = output_tensor.float()
+    loss_mask = loss_mask.view(-1).float()
+    if args.context_parallel_size > 1:
+        loss = torch.cat(
+            [torch.sum(losses.view(-1) * loss_mask).view(1), loss_mask.sum().view(1)]
+        )
+        torch.distributed.all_reduce(loss, group=mpu.get_context_parallel_group())
+        loss = loss[0] / loss[1]
+    else:
+        loss = torch.sum(losses.view(-1) * loss_mask) / loss_mask.sum()
 
     # Check individual rank losses are not NaN prior to DP all-reduce.
     if args.check_for_nan_in_loss_and_grad:
@@ -135,12 +135,12 @@ def loss_func(loss_mask: torch.Tensor, output_tensor: torch.Tensor):
     return loss * args.context_parallel_size, {"lm loss": averaged_loss[0]}
 
 
-def forward_step(data_iterator, model: GPTModelDPO):
+def forward_step(data_iterator, model: GPTModel):
     """Forward training step.
 
     Args:
         data_iterator : Input data iterator
-        model (GPTModel_DPO): The GPT Model
+        model (GPTModel): The GPT Model
     """
     timers = get_timers()
     args = get_args()
@@ -168,7 +168,7 @@ def train_valid_test_datasets_provider(train_valid_test_num_samples):
     args = get_args()
     print_rank_0("> building train, validation, and test datasets for GPT ...")
 
-    train_ds, valid_ds, test_ds = build_train_valid_test_datasets_dpo(
+    train_ds, valid_ds, test_ds = build_train_valid_test_datasets_sft_conv(
         data_prefix=args.data_path,
         data_impl=args.dataset,
         splits_string=args.split,
@@ -185,7 +185,7 @@ if __name__ == "__main__":
 
     train_valid_test_datasets_provider.is_distributed = True
 
-    dpo(
+    sft(
         train_valid_test_datasets_provider,
         model_provider,
         ModelType.encoder_or_decoder,
