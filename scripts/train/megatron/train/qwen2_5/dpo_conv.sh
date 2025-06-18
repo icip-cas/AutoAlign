@@ -12,7 +12,7 @@ export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
 DATASET_PATH=${DATASET_PATH:-"./data/dummy_dpo_mg_conversations_maxlen_4096"}
 VALID_DATASET_PATH=${VALID_DATASET_PATH:-"./data/dummy_dpo_mg_conversations_maxlen_4096"}
 PRETRAIN_CHECKPOINT_PATH=${PRETRAIN_CHECKPOINT_PATH:-"./mg_models/Qwen2.5-3B-hf-to-mcore-te-tp2-pp2"}
-OUTPUT_BASEPATH=${OUTPUT_BASEPATH:-"./checkpoint/dpo/"}
+OUTPUT_BASEPATH=${OUTPUT_BASEPATH:-"./checkpoints/dpo"}
 
 # ==============================
 # Compute Resources Configuration
@@ -35,6 +35,7 @@ LR=${LR:-5e-6}
 MIN_LR=${MIN_LR:-0.0}
 SEQ_LEN=${SEQ_LEN:-4096}
 PAD_LEN=${PAD_LEN:-4096}
+EPOCHS=${EPOCHS:-1000}
 
 
 # ==============================
@@ -60,7 +61,7 @@ dataset_option=" \
     --data-path ${DATASET_PATH} \
     --split 100,0,0 \
     --dataset mmap  \
-    --epochs ${EPOCHS:-10}"
+    --epochs ${EPOCHS}"
 
 
 # ==============================
@@ -330,7 +331,6 @@ find ${PRETRAIN_CHECKPOINT_PATH} -maxdepth 1 -type f -name "merge*" -print0 | xa
 # ==============================
 # 模型完整配置
 # ==============================
-# PRETRAIN_CHECKPOINT_PATH
 load_options=" \
         --load $PRETRAIN_CHECKPOINT_PATH"
 megatron_options="  \
