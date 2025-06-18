@@ -43,7 +43,6 @@ from megatron_patch.tokenizer import get_tokenizer
 
 from megatron_patch.model.qwen2.transformer_block import TransformerBlock
 from megatron_patch.model.qwen2.model import GPTModel
-from copy import deepcopy
 
 
 class GPTModelDPO(GPTModel):

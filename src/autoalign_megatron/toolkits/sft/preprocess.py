@@ -43,7 +43,7 @@ from datetime import datetime
 import torch
 
 from megatron_patch.tokenizer import build_tokenizer
-from megatron_patch_autoalign.data.indexed_dataset_sft_conv import make_sft_conv_builder
+from autoalign_megatron.patch.data.indexed_dataset_sft_conv import make_sft_conv_builder
 from collections import defaultdict
 from src.autoalign.conversation import TEMPLATES, Role, Conversation, IGNORED_TOKEN_ID
 

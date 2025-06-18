@@ -307,7 +307,8 @@ def dpo(
     print_datetime('after model, optimizer, and learning rate ' 'scheduler are built')
     app_metrics['app_build_optimizer_finish_time'] = one_logger_utils.get_timestamp_in_ms()
     config = get_model_config(model[0])
-
+    
+    
     # Data stuff.
     app_metrics['app_build_dataiters_start_time'] = one_logger_utils.get_timestamp_in_ms()
     timers('train/valid/test-data-iterators-setup', log_level=0).start(barrier=True)
@@ -512,7 +513,6 @@ def get_model(model_provider_func, model_type=ModelType.encoder_or_decoder, wrap
     # Only parameters that are already tensor model parallel have these
     # attributes set for them. We should make sure the default attributes
     # are set for all params so the optimizer can use them.
-
     for model_module in model:
         for param in model_module.parameters():
             tensor_parallel.set_defaults_if_not_set_tensor_model_parallel_attributes(param)

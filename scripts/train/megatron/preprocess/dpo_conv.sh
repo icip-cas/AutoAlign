@@ -1,7 +1,7 @@
 #! /bin/bash
 START_TIME=$SECONDS
 
-INPUT_JSON=${INPUT_JSON:-"./data/dummy_dpo_1024.json"}
+INPUT_JSON=${INPUT_JSON:-"./data/dummy_dpo.json"}
 DATA_TYPE=${DATA_TYPE:-"conversations"}
 TOKENIZER=${TOKENIZER:-"Qwen2Tokenizer"}
 SEQ_LEN=${SEQ_LEN:-4096}

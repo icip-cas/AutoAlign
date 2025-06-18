@@ -31,7 +31,7 @@ gqa_options=" \
 		    --num-query-groups ${NUM_KEY_VALUE_HEADS}"
 
 
-tie_option=""
+tie_option="--untie-embeddings-and-output-weights"
 cpu_options=""
 
 elif [ $MODEL_SIZE = 1.5B ]; then
@@ -48,7 +48,7 @@ gqa_options=" \
 		    --group-query-attention \
 		    --num-query-groups ${NUM_KEY_VALUE_HEADS}"
 
-tie_option=""
+tie_option="--untie-embeddings-and-output-weights"
 cpu_options=""
 
 elif [ $MODEL_SIZE = 3B ]; then
@@ -65,7 +65,7 @@ gqa_options=" \
 		    --group-query-attention \
 		    --num-query-groups ${NUM_KEY_VALUE_HEADS}"
 
-tie_option=""
+tie_option="--untie-embeddings-and-output-weights"
 cpu_options=""
 
 elif [ $MODEL_SIZE = 7B ]; then

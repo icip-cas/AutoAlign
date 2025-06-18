@@ -12,7 +12,7 @@ export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
 DATASET_PATH=${DATASET_PATH:-"./data/dummy_sft_mg_conversations_maxlen_4096"}
 VALID_DATASET_PATH=${VALID_DATASET_PATH:-"./data/dummy_sft_mg_conversations_maxlen_4096"}
 PRETRAIN_CHECKPOINT_PATH=${PRETRAIN_CHECKPOINT_PATH:-"./mg_models/Qwen2.5-3B-hf-to-mcore-te-tp2-pp2"}
-OUTPUT_BASEPATH=${OUTPUT_BASEPATH:-"./checkpoints/sft/"}
+OUTPUT_BASEPATH=${OUTPUT_BASEPATH:-"./checkpoints/sft"}
 
 # ==============================
 # Compute Resources Configuration
@@ -35,6 +35,7 @@ LR=${LR:-5e-6}
 MIN_LR=${MIN_LR:-0.0}
 SEQ_LEN=${SEQ_LEN:-4096}
 PAD_LEN=${PAD_LEN:-4096}
+EPOCHS=${EPOCHS:-1000}
 
 
 # ==============================
@@ -60,14 +61,14 @@ dataset_option=" \
     --data-path ${DATASET_PATH} \
     --split 100,0,0 \
     --dataset mmap  \
-    --epochs ${EPOCHS:-10}"
+    --epochs ${EPOCHS}"
 
 
 # ==============================
 # SFT Settings
 # ==============================
 SFT=${SFT:-True}
-SAVE_INTERVAL=${SAVE_INTERVAL:-5000}
+SAVE_INTERVAL=${SAVE_INTERVAL:-10}
 
 TRAIN_ITERS=${TRAIN_ITERS:-10000}
 LR_WARMUP_FRACTION=$(echo "${GLOBAL_BATCH_SIZE} * 0.00001" | bc -l)
@@ -357,7 +358,7 @@ megatron_options="  \
         --max-padding-length ${PAD_LEN} \
         --log-interval 1 \
         --log-throughput \
-        --eval-interval 1 \
+        --eval-interval 10000 \
         --eval-iters 10 \
         --save-interval ${SAVE_INTERVAL} \
         --tensorboard-queue-size 1 \
@@ -381,11 +382,10 @@ megatron_options="  \
         --rotary-percent 1.0 \
         --rotary-base 1000000 \
         --rotary-seq-len-interpolation-factor 1 \
-        --no-save-optim \
-        --no-load-optim \
-        --no-load-rng \
         "
-
+        # --no-save-optim \
+        # --no-load-optim \
+        # --no-load-rng \
 
 # ==============================
 # Tranin!
