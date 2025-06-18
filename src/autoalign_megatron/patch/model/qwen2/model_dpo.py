@@ -43,9 +43,10 @@ from megatron_patch.tokenizer import get_tokenizer
 
 from megatron_patch.model.qwen2.transformer_block import TransformerBlock
 from megatron_patch.model.qwen2.model import GPTModel
+from copy import deepcopy
 
 
-class GPTModelDPO(LanguageModule):
+class GPTModelDPO(GPTModel):
     """GPT Transformer language model.
     """
        
@@ -66,41 +67,37 @@ class GPTModelDPO(LanguageModule):
         rotary_percent: float = 1.0,
         rotary_base: int = 10000,
         seq_len_interpolation_factor: Optional[float] = None,
-        
         beta: float = 0.1,
         label_smoothing: float = 0,
         loss_type: str ='sigmoid',
     ) -> None:
-        super().__init__(config=config)
         args = get_args()
-        
         self.parallel_output = parallel_output
         self.pre_process = pre_process
         self.post_process = post_process
         self.fp16_lm_cross_entropy = args.fp16_lm_cross_entropy
         self.untie_embeddings_and_output_weights = args.untie_embeddings_and_output_weights
         self.share_embeddings_and_output_weights = share_embeddings_and_output_weights
-        
         self.beta = beta
         self.label_smoothing = label_smoothing
         self.loss_type = loss_type
         self.tokenizer = get_tokenizer()
         
-        self.policy_model = GPTModel(
-                                config = config,
-                                transformer_layer_spec = transformer_layer_spec,
-                                vocab_size = vocab_size,
-                                max_sequence_length = max_sequence_length,
-                                pre_process = pre_process,
-                                post_process = post_process,
-                                fp16_lm_cross_entropy = fp16_lm_cross_entropy,
-                                parallel_output = parallel_output,
-                                share_embeddings_and_output_weights = share_embeddings_and_output_weights,
-                                position_embedding_type = position_embedding_type,
-                                rotary_percent = rotary_percent,
-                                rotary_base = rotary_base,
-                                seq_len_interpolation_factor = seq_len_interpolation_factor
-                            )
+        super().__init__(
+            config = config,
+            transformer_layer_spec = transformer_layer_spec,
+            vocab_size = vocab_size,
+            max_sequence_length = max_sequence_length,
+            pre_process = pre_process,
+            post_process = post_process,
+            fp16_lm_cross_entropy = fp16_lm_cross_entropy,
+            parallel_output = parallel_output,
+            share_embeddings_and_output_weights = share_embeddings_and_output_weights,
+            position_embedding_type = position_embedding_type,
+            rotary_percent = rotary_percent,
+            rotary_base = rotary_base,
+            seq_len_interpolation_factor = seq_len_interpolation_factor
+        )
         
         
         self.ref_model = GPTModel(
@@ -118,9 +115,12 @@ class GPTModelDPO(LanguageModule):
                                 rotary_base = rotary_base,
                                 seq_len_interpolation_factor = seq_len_interpolation_factor
                             )
-
+        
+        
         for param in self.ref_model.parameters():
             param.requires_grad = False
+    
+    
 
     def set_input_tensor(self, input_tensor: Tensor) -> None:
         """Sets input tensor to the model.
@@ -138,11 +138,11 @@ class GPTModelDPO(LanguageModule):
         assert len(input_tensor) == 1, 'input_tensor should only be length 1 for gpt/bert'
         
         if input_tensor[0] is None:
-            self.policy_model.set_input_tensor(None)
+            super().set_input_tensor(None)
             self.ref_model.set_input_tensor(None)
         else:
             policy_, ref_ = input_tensor[0].chunk(2, dim=1)
-            self.policy_model.set_input_tensor(policy_)
+            super().set_input_tensor(policy_)
             self.ref_model.set_input_tensor(ref_)
 
     def forward(
@@ -156,7 +156,7 @@ class GPTModelDPO(LanguageModule):
         packed_seq_params: PackedSeqParams = None,
         extra_block_kwargs: dict = None,
     ) -> Tensor:
-        hidden_states = self.policy_model(
+        hidden_states = super().forward(
             input_ids,
             position_ids,
             attention_mask,
@@ -196,7 +196,7 @@ class GPTModelDPO(LanguageModule):
     def state_dict_for_save_checkpoint(self, prefix='', keep_vars=False):
         """Customized save for policy_model and ref_model, to avoid checkpoint mismatch in resume training"""
         state_dict_ = {}
-        state_dict_['policy_model'] = self.policy_model.state_dict_for_save_checkpoint(
+        state_dict_['policy_model'] = super().state_dict_for_save_checkpoint(
             prefix=prefix, keep_vars=keep_vars)
         
         state_dict_['ref_model'] = self.ref_model.state_dict_for_save_checkpoint(
@@ -208,21 +208,20 @@ class GPTModelDPO(LanguageModule):
     def load_state_dict(self, state_dict, strict=True):
         """Customized load."""
 
-        if 'ref_model' not in state_dict: # for iter 0
-            policy_state_dict = ref_state_dict = state_dict
-        else: # for resume condition when policy param has been trained and both policy and ref param has been saved
-            ref_model = state_dict.pop('ref_model')
-            policy_state_dict, ref_state_dict = state_dict, ref_model
-        
+        if 'ref_model' in state_dict:
+            print_rank_0("Resuming DPO training from checkpoint. Loading distinct states for policy and reference models...")
+            ref_state_dict = state_dict.pop('ref_model')
+            policy_state_dict = state_dict
+            super().load_state_dict(policy_state_dict, strict=strict)
+            self.ref_model.load_state_dict(ref_state_dict, strict=strict)
 
-        self.policy_model.load_state_dict(policy_state_dict, strict=strict)
-        self.ref_model.load_state_dict(ref_state_dict, strict=strict)
-        
-        if self.post_process and not self.untie_embeddings_and_output_weights: # all reduce embedding grad will call self.word_embeddings
-            self.word_embeddings = self.policy_model.word_embeddings
-        
-        
-        return [],[]
+        else:
+            print_rank_0("Starting new DPO training from a base model. Initializing policy and reference models to be identical...")
+            policy_state_dict = state_dict
+            super().load_state_dict(policy_state_dict, strict=strict)
+            self.ref_model.load_state_dict(self.state_dict(), strict=strict)
+            
+        return [], []
     
     def get_batch_logps(self, logits, labels, average_log_prob=False):
         # Save the original batch size and sequence length
@@ -326,5 +325,3 @@ class GPTModelDPO(LanguageModule):
         }
 
         return losses, metrics
-        
-    

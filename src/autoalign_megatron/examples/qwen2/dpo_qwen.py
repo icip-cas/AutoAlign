@@ -83,11 +83,6 @@ def model_provider(
         beta=args.beta,
         label_smoothing=args.label_smoothing,
         loss_type=args.loss_type,
-        ftx_gamma=args.ftx_gamma,
-        model_using=args.model_using,
-        forward_without_loss=args.forward_without_loss,
-        dpo_loss_of_orion=args.dpo_loss_of_orion,
-        orpo_loss=args.orpo_loss,
     )
         
     return model
