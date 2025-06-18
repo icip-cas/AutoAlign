@@ -44,8 +44,9 @@ from datetime import datetime
 import torch
 
 from megatron_patch.tokenizer import build_tokenizer
-from megatron_patch_autoalign.data.indexed_dataset_dpo import make_dpo_builder
 from collections import defaultdict
+
+from autoalign_megatron.patch.data.indexed_dataset_dpo import make_dpo_builder
 
 from src.autoalign.conversation import TEMPLATES, Role, Conversation, IGNORED_TOKEN_ID
 
@@ -144,7 +145,6 @@ def dpo_encode_provide(json_line): # chatlm conversations templates
     rejected_ids = {}
     chosen_data = json_line['chosen']
     rejected_data = json_line['rejected']
-
     Chat_Template = TEMPLATES[template]
     conversation = ConversationDPO(Chat_Template)
 
@@ -154,7 +154,7 @@ def dpo_encode_provide(json_line): # chatlm conversations templates
     chosen_doc_ids = Encoder.tokenizer(chosen_conversation_str,padding='do_not_pad',truncation=True, max_length=args.model_max_length)
     chosen_ids_len = len(chosen_doc_ids.input_ids)
     chosen_doc_lable_ids = conversation._generate_labels(
-        chosen_ids, Encoder.tokenizer, args.model_max_length, mask_id=Encoder.mask_id
+        chosen_doc_ids, Encoder.tokenizer, args.model_max_length, mask_id=Encoder.mask_id
     )
     
     assert len(chosen_doc_ids.input_ids) == len(chosen_doc_lable_ids )
@@ -168,7 +168,7 @@ def dpo_encode_provide(json_line): # chatlm conversations templates
     rejected_doc_ids = Encoder.tokenizer(rejected_conversation_str,padding='do_not_pad',truncation=True, max_length=args.model_max_length)
     rejected_ids_len = len(rejected_doc_ids.input_ids)
     rejected_doc_lable_ids = conversation._generate_labels(
-        rejected_ids, Encoder.tokenizer, args.model_max_length, mask_id=Encoder.mask_id
+        rejected_doc_ids, Encoder.tokenizer, args.model_max_length, mask_id=Encoder.mask_id
     )
     
     assert len(rejected_doc_ids.input_ids) == len(rejected_doc_lable_ids )

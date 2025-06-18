@@ -3,16 +3,16 @@ set -e
 export CUDA_DEVICE_MAX_CONNECTIONS=1
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 export OMP_NUM_THREADS=1
+export CUDA_HOME=$CONDA_PREFIX
+export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
 
 # ==============================
 # Path Configuration
 # ==============================
-ROOT=${ROOT:-"AutoAlign"}
-SRC_TRAIN_MEGATRON_PATH="${ROOT}/src/megatron_autoalign"
-DATASET_PATH=${DATASET_PATH:-"${ROOT}/data/megatron/dummy_dpo"}
-VALID_DATASET_PATH=${VALID_DATASET_PATH:-"${ROOT}/data/megatron/dummy_dpo"}
-PRETRAIN_CHECKPOINT_PATH=${PRETRAIN_CHECKPOINT_PATH:-"${ROOT}/mg_models/"}
-OUTPUT_BASEPATH=${OUTPUT_BASEPATH:-"${ROOT}/checkpoint/dpo/"}
+DATASET_PATH=${DATASET_PATH:-"./data/dummy_dpo_mg_conversations_maxlen_4096"}
+VALID_DATASET_PATH=${VALID_DATASET_PATH:-"./data/dummy_dpo_mg_conversations_maxlen_4096"}
+PRETRAIN_CHECKPOINT_PATH=${PRETRAIN_CHECKPOINT_PATH:-"./mg_models/Qwen2.5-3B-hf-to-mcore-te-tp2-pp2"}
+OUTPUT_BASEPATH=${OUTPUT_BASEPATH:-"./checkpoint/dpo/"}
 
 # ==============================
 # Compute Resources Configuration
@@ -28,9 +28,9 @@ GPUS_PER_NODE=${GPUS_PER_NODE:-8}
 # ==============================
 # Training Hyperparameters
 # ==============================
-MODEL_SIZE=${MODEL_SIZE:-"7B"}
+MODEL_SIZE=${MODEL_SIZE:-"3B"}
 BATCH_SIZE=${BATCH_SIZE:-4}
-GLOBAL_BATCH_SIZE=${GLOBAL_BATCH_SIZE:-512}
+GLOBAL_BATCH_SIZE=${GLOBAL_BATCH_SIZE:-16}
 LR=${LR:-5e-6}
 MIN_LR=${MIN_LR:-0.0}
 SEQ_LEN=${SEQ_LEN:-4096}
@@ -41,7 +41,7 @@ PAD_LEN=${PAD_LEN:-4096}
 # Parallelism Configuration
 # ==============================
 TP=${TP:-2}
-PP=${PP:-1}
+PP=${PP:-2}
 SP=${SP:-false}
 CP=${CP:-1}
 
@@ -60,14 +60,14 @@ dataset_option=" \
     --data-path ${DATASET_PATH} \
     --split 100,0,0 \
     --dataset mmap  \
-    --epochs ${EPOCHS:-3}"
+    --epochs ${EPOCHS:-10}"
 
 
 # ==============================
 # DPO Settings
 # ==============================
 DPO=${DPO:-True}
-SAVE_INTERVAL=${SAVE_INTERVAL:-5000}
+SAVE_INTERVAL=${SAVE_INTERVAL:-10}
 
 TRAIN_ITERS=${TRAIN_ITERS:-10000}
 LR_WARMUP_FRACTION=$(echo "${GLOBAL_BATCH_SIZE} * 0.00001" | bc -l)
@@ -75,8 +75,6 @@ PREFIX="dpo-mcore-qwen2_5-${MODEL_SIZE}-lr-${LR}-minlr-${MIN_LR}-bs-${BATCH_SIZE
 dpo_option=" \
     --eod-mask-loss \
     --train-mode dpo"
-
-
 
 # ==============================
 # FlashAttention Or FusedAttention
@@ -317,7 +315,7 @@ te_options=" \
 # ==============================
 # Output Configuration
 # ==============================
-NAME="${PREFIX}-pr-${PR}-tp-${TP}-pp-${PP}-cp-${CP}-ac-${AC}-do-${DO}-sp-${SP}-ti-${TRAIN_ITERS}-wi-${LR_WARMUP_ITERS}"
+NAME="${PREFIX}-pr-${PR}-tp-${TP}-pp-${PP}-cp-${CP}-ac-${AC}-do-${DO}-sp-${SP}-ti-${TRAIN_ITERS}-wf-${LR_WARMUP_FRACTION}"
 mkdir -p "${OUTPUT_BASEPATH}/tensorboard/"
 mkdir -p "${OUTPUT_BASEPATH}/checkpoint/"
 mkdir -p "${OUTPUT_BASEPATH}/log/"
@@ -332,6 +330,7 @@ find ${PRETRAIN_CHECKPOINT_PATH} -maxdepth 1 -type f -name "merge*" -print0 | xa
 # ==============================
 # 模型完整配置
 # ==============================
+# PRETRAIN_CHECKPOINT_PATH
 load_options=" \
         --load $PRETRAIN_CHECKPOINT_PATH"
 megatron_options="  \
@@ -383,17 +382,16 @@ megatron_options="  \
         --rotary-percent 1.0 \
         --rotary-base 1000000 \
         --rotary-seq-len-interpolation-factor 1 \
-        --no-save-optim \
-        --no-load-optim \
-        --no-load-rng \
         "
-
+        # --no-save-optim \
+        # --no-load-optim \
+        # --no-load-rng \
 
 # ==============================
 # Tranin!
 # ==============================
 DISTRIBUTED_ARGS="--nproc_per_node $GPUS_PER_NODE --nnodes $NNODES --node_rank $NODE_RANK --master_addr $MASTER_ADDR --master_port $MASTER_PORT"
-run_cmd="torchrun $DISTRIBUTED_ARGS ${SRC_TRAIN_MEGATRON_PATH}/examples/qwen2/dpo_qwen.py
+run_cmd="torchrun $DISTRIBUTED_ARGS -m autoalign_megatron.examples.qwen2.dpo_qwen
  ${megatron_options} ${dataset_option} ${pr_options} ${load_options} ${te_options} ${activation_checkpoint_options} \
  ${do_options} ${sp_options} ${gqa_options} ${offload_option} ${comm_overlap_option} ${dpo_option} ${tie_option}"
 

@@ -15,8 +15,6 @@ HF_CKPT_PATH=${HF_CKPT_PATH:-"Qwen/Qwen2.5-3B-Instruct"}
 PRECISION=${PRECISION:-"fp32"}
 USE_TE=${USE_TE:-"true"}
 MG2HF=${MG2HF:-"true"}
-
-SOURCE_CKPT_PATH=${HF_MODELS}/Qwen2.5-${MODEL_SIZE}
 TARGET_CKPT_PATH="./hf_models_from_mg/Qwen2.5-${MODEL_SIZE}-hf-to-mcore-te-tp${TP}-pp${PP}"
 
 
@@ -69,7 +67,7 @@ gqa_options=" \
 		    --group-query-attention \
 		    --num-query-groups ${NUM_KEY_VALUE_HEADS}"
 
-tie_option="--untie-embeddings-and-output-weights"
+tie_option=""
 cpu_options=""
 
 elif [ $MODEL_SIZE = 7B ]; then
@@ -174,11 +172,11 @@ elif [ $USE_TE = false ]; then
                 "
 fi
 
-if [ $PR = fp16 ]; then
+if [ "$PR" = "fp16" ]; then
     pr_options=" \
 		    --fp16"
 
-elif [ $PR = bf16 ]; then
+elif [ "$PR" = "bf16" ]; then
     pr_options=" \
         --bf16"
 
