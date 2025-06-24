@@ -78,6 +78,35 @@ def pad_to_length(tensor: torch.Tensor, length: int, pad_value: Union[int, float
             dim=dim,
         )
 
+def flush_right(mask: torch.Tensor, *tensors: torch.Tensor) -> Union[torch.Tensor, tuple[torch.Tensor, ...]]:
+    """
+    Shift non-zero elements in the mask and corresponding tensors to the right. See `flush_left` for details.
+    """
+    _, M = mask.shape
+
+    # Create copy of mask and tensors
+    mask_copy = mask.clone()
+    tensors = [t.clone() for t in tensors]
+
+    # Shift non-zero values to the right
+    flipped_mask = torch.fliplr(mask_copy)
+    first_non_zero = flipped_mask.argmax(dim=1)
+    pos = torch.arange(M, device=mask_copy.device).unsqueeze(0)
+    idx_roll = (pos - first_non_zero.unsqueeze(1)) % M
+    mask_roll = mask_copy.gather(1, idx_roll)
+    rolled_tensors = [t.gather(1, idx_roll) for t in tensors]
+
+    # Truncate leading columns that are all zeros in mask_roll
+    col_sums = mask_roll.sum(dim=0)
+    non_empty_cols = col_sums != 0
+    first_non_empty_col = int(non_empty_cols.to(torch.int8).argmax()) if non_empty_cols.any() else M
+    flushed_mask = mask_roll[:, first_non_empty_col:]
+    flushed_tensors = [t[:, first_non_empty_col:] for t in rolled_tensors]
+
+    if not flushed_tensors:
+        return flushed_mask
+    return flushed_mask, *flushed_tensors
+
 def flush_left(mask: torch.Tensor, *tensors: torch.Tensor) -> tuple[torch.Tensor, ...]:
     # Create copy of mask and tensors
     mask = mask.clone()
@@ -119,39 +148,38 @@ def selective_log_softmax(logits, index):
         per_token_logps = torch.stack(per_token_logps)
     return per_token_logps
 
-def process_inputs_and_get_logits(self, attention_mask, input_ids, loss_mask):
+def process_inputs_and_get_logits(self, model, attention_mask, input_ids, loss_mask):
     model_kwargs = {}
     if self.aux_loss_enabled:
         model_kwargs["output_router_logits"] = True
 
-    if self.use_logits_to_keep:
-        # 找到 loss_mask 第一个为 True 的位置
-        first_compute_index = loss_mask.nonzero(as_tuple=True)[1].min()
-        logits_to_keep = (loss_mask.shape[1] - first_compute_index).item() + 1  # +1 包含第一个label
-        model_kwargs["logits_to_keep"] = logits_to_keep
+    # if self.use_logits_to_keep:
+    #     # 找到 loss_mask 第一个为 True 的位置
+    #     first_compute_index = loss_mask.nonzero(as_tuple=True)[1].min()
+    #     logits_to_keep = (loss_mask.shape[1] - first_compute_index).item() + 1  # +1 包含第一个label
+    #     model_kwargs["logits_to_keep"] = logits_to_keep
 
     position_ids = 0
-    if self.padding_free:
-        # 压缩输入（去除 padding），重新生成 position_ids
-        input_ids = input_ids[attention_mask.bool()].unsqueeze(0)
-        loss_mask = loss_mask[attention_mask.bool()].unsqueeze(0)
-        position_ids = attention_mask.cumsum(1)[attention_mask.bool()].unsqueeze(0) - 1
-        model_kwargs["position_ids"] = position_ids
-    else:
-        model_kwargs["attention_mask"] = attention_mask
-
+    # if self.padding_free:
+    #     # 压缩输入（去除 padding），重新生成 position_ids
+    #     input_ids = input_ids[attention_mask.bool()].unsqueeze(0)
+    #     loss_mask = loss_mask[attention_mask.bool()].unsqueeze(0)
+    #     position_ids = attention_mask.cumsum(1)[attention_mask.bool()].unsqueeze(0) - 1
+    #     model_kwargs["position_ids"] = position_ids
+    # else:
+    model_kwargs["attention_mask"] = attention_mask
     # 调用模型前向推理
-    outputs = self.model(input_ids, **model_kwargs)
+    outputs = model(input_ids, **model_kwargs)
     logits = outputs.logits
 
     # 将 input_ids 和 loss_mask 向左滚动一位，得到对应的 labels 和 loss_mask
     labels = torch.roll(input_ids, shifts=-1, dims=1)
     loss_mask = torch.roll(loss_mask, shifts=-1, dims=1).bool()
 
-    if self.use_logits_to_keep:
-        # 根据 logits_to_keep 切片 labels 和 loss_mask，只保留需要的部分
-        labels = labels[:, -logits_to_keep:]
-        loss_mask = loss_mask[:, -logits_to_keep:]
+    # if self.use_logits_to_keep:
+    #     # 根据 logits_to_keep 切片 labels 和 loss_mask，只保留需要的部分
+    #     labels = labels[:, -logits_to_keep:]
+    #     loss_mask = loss_mask[:, -logits_to_keep:]
 
     return outputs, logits, labels, loss_mask, position_ids
 
@@ -256,7 +284,6 @@ class SSOTrainer(DPOTrainer):
     @staticmethod
     def tokenize_row(features, processing_class, max_prompt_length, max_completion_length, add_special_tokens):
         tokenizer = processing_class  # the processing class is a tokenizer
-
         prompt_input_ids = tokenizer(features["prompt"], add_special_tokens=False)["input_ids"]
         chosen_input_ids = tokenizer(features["chosen"], add_special_tokens=False)["input_ids"]
         rejected_input_ids = tokenizer(features["rejected"], add_special_tokens=False)["input_ids"]
@@ -301,7 +328,6 @@ class SSOTrainer(DPOTrainer):
             p_rejected_input_ids = p_rejected_input_ids[:max_completion_length]
             n_chosen_input_ids = n_chosen_input_ids[:max_completion_length]
             n_rejected_input_ids = n_rejected_input_ids[:max_completion_length]
-
         return {
             "prompt_input_ids": prompt_input_ids,
             "chosen_input_ids": chosen_input_ids,
@@ -455,10 +481,58 @@ class SSOTrainer(DPOTrainer):
                 (torch.zeros_like(n_prompt_attention_mask), n_completion_attention_mask),
                 dim=1,
             )
+            
+            # # Flush and truncate
+            # if self.max_length is not None and self.max_length < attention_mask.size(1):
+            #     print("self.max_length is not None and self.max_length < attention_mask.size(1)")
+            #     if self.truncation_mode == "keep_start":
+            #         # Flush left to reduce the memory usage
+            #         # [[0, 0, x, x, x, x],  ->  [[x, x, x, x],
+            #         #  [0, x, x, x, 0, 0]]       [x, x, x, 0]]
+            #         attention_mask, input_ids, loss_mask = flush_left(attention_mask, input_ids, loss_mask)
+            #         attention_mask = attention_mask[:, : self.max_length]
+            #         input_ids = input_ids[:, : self.max_length]
+            #         loss_mask = loss_mask[:, : self.max_length]
 
-            # Flush left to reduce the memory usage
-            # [[0, 0, x, x, x, x],  ->  [[x, x, x, x],
-            #  [0, x, x, x, 0, 0]]       [x, x, x, 0]]
+            #         p_attention_mask, p_input_ids, p_loss_mask = flush_left(p_attention_mask, p_input_ids, p_loss_mask)
+            #         p_attention_mask = p_attention_mask[:, : self.max_length]
+            #         p_input_ids = p_input_ids[:, : self.max_length]
+            #         p_loss_mask = p_loss_mask[:, : self.max_length]
+
+            #         n_attention_mask, n_input_ids, n_loss_mask = flush_left(n_attention_mask, n_input_ids, n_loss_mask)
+            #         n_attention_mask = n_attention_mask[:, : self.max_length]
+            #         n_input_ids = n_input_ids[:, : self.max_length]
+            #         n_loss_mask = n_loss_mask[:, : self.max_length]
+            #     elif self.truncation_mode == "keep_end":
+            #         # Flush right before truncating left, then flush left
+            #         # [[0, 0, x, x, x, x],  ->  [[0, 0, x, x],
+            #         #  [0, x, x, x, 0, 0]]       [0, x, x, x]]
+            #         attention_mask, input_ids, loss_mask = flush_right(attention_mask, input_ids, loss_mask)
+            #         input_ids = input_ids[:, -self.max_length :]
+            #         attention_mask = attention_mask[:, -self.max_length :]
+            #         loss_mask = loss_mask[:, -self.max_length :]
+            #         attention_mask, input_ids, loss_mask = flush_left(attention_mask, input_ids, loss_mask)
+
+            #         p_attention_mask, p_input_ids, p_loss_mask = flush_right(p_attention_mask, p_input_ids, p_loss_mask)
+            #         p_input_ids = p_input_ids[:, -self.max_length :]
+            #         p_attention_mask = p_attention_mask[:, -self.max_length :]
+            #         p_loss_mask = p_loss_mask[:, -self.max_length :]
+            #         p_attention_mask, p_input_ids, p_loss_mask = flush_left(p_attention_mask, p_input_ids, p_loss_mask)
+
+            #         n_attention_mask, n_input_ids, n_loss_mask = flush_right(n_attention_mask, n_input_ids, n_loss_mask)
+            #         n_input_ids = n_input_ids[:, -self.max_length :]
+            #         n_attention_mask = n_attention_mask[:, -self.max_length :]
+            #         n_loss_mask = n_loss_mask[:, -self.max_length :]
+            #         n_attention_mask, n_input_ids, n_loss_mask = flush_left(n_attention_mask, n_input_ids, n_loss_mask)
+            #     else:
+            #         raise ValueError(
+            #             f"Unknown truncation mode: '{self.truncation_mode}'. Should be one of ['keep_end', "
+            #             "'keep_start']."
+            #         )
+            # else:
+            #     # Flush left to reduce the memory usage
+            #     # [[0, 0, x, x, x, x],  ->  [[x, x, x, x],
+            #     #  [0, x, x, x, 0, 0]]       [x, x, x, 0]]
             attention_mask, input_ids, loss_mask = flush_left(attention_mask, input_ids, loss_mask)
             p_attention_mask, p_input_ids, p_loss_mask = flush_left(p_attention_mask, p_input_ids, p_loss_mask)
             n_attention_mask, n_input_ids, n_loss_mask = flush_left(n_attention_mask, n_input_ids, n_loss_mask)
@@ -490,10 +564,9 @@ class SSOTrainer(DPOTrainer):
                         f"Unknown truncation mode: '{self.truncation_mode}'. Should be one of ['keep_end', "
                         "'keep_start']."
                     )
-            
-            outputs, logits, labels, loss_mask, position_ids = process_inputs_and_get_logits(self, attention_mask, input_ids, loss_mask)
-            p_outputs, p_logits, p_labels, p_loss_mask, p_position_ids = process_inputs_and_get_logits(self, p_attention_mask, p_input_ids, p_loss_mask)
-            n_outputs, n_logits, n_labels, n_loss_mask, n_position_ids = process_inputs_and_get_logits(self, n_attention_mask, n_input_ids, n_loss_mask)
+            outputs, logits, labels, loss_mask, position_ids = process_inputs_and_get_logits(self, model, attention_mask, input_ids, loss_mask)
+            p_outputs, p_logits, p_labels, p_loss_mask, p_position_ids = process_inputs_and_get_logits(self, model, p_attention_mask, p_input_ids, p_loss_mask)
+            n_outputs, n_logits, n_labels, n_loss_mask, n_position_ids = process_inputs_and_get_logits(self, model, n_attention_mask, n_input_ids, n_loss_mask)
 
         # Compute the log probabilities of the labels
         labels[~loss_mask] = 0  # dummy token; we'll ignore the losses on these tokens later
@@ -501,14 +574,14 @@ class SSOTrainer(DPOTrainer):
         per_token_logps[~loss_mask] = 0
         per_token_logps = torch.roll(per_token_logps, shifts=1, dims=1)
 
-        if self.padding_free:
-            # Unflatten the per_token_logps (shape: [1, sum_seq_len] -> [batch_size, seq_len])
-            batch_size, seq_len = attention_mask.shape
-            per_token_logps_ = torch.zeros(
-                batch_size, seq_len, device=outputs.logits.device, dtype=outputs.logits.dtype
-            )
-            per_token_logps_[attention_mask.bool()] = per_token_logps
-            per_token_logps = per_token_logps_
+        # if self.padding_free:
+        #     # Unflatten the per_token_logps (shape: [1, sum_seq_len] -> [batch_size, seq_len])
+        #     batch_size, seq_len = attention_mask.shape
+        #     per_token_logps_ = torch.zeros(
+        #         batch_size, seq_len, device=outputs.logits.device, dtype=outputs.logits.dtype
+        #     )
+        #     per_token_logps_[attention_mask.bool()] = per_token_logps
+        #     per_token_logps = per_token_logps_
 
         all_logps = per_token_logps.sum(-1)
         mean_logps = per_token_logps.mean(-1)
@@ -519,13 +592,13 @@ class SSOTrainer(DPOTrainer):
         p_per_token_logps[~p_loss_mask] = 0
         p_per_token_logps = torch.roll(p_per_token_logps, shifts=1, dims=1)
 
-        if self.padding_free:
-            p_batch_size, p_seq_len = p_attention_mask.shape
-            p_per_token_logps_ = torch.zeros(
-                p_batch_size, p_seq_len, device=p_outputs.logits.device, dtype=p_outputs.logits.dtype
-            )
-            p_per_token_logps_[p_attention_mask.bool()] = p_per_token_logps
-            p_per_token_logps = p_per_token_logps_
+        # if self.padding_free:
+        #     p_batch_size, p_seq_len = p_attention_mask.shape
+        #     p_per_token_logps_ = torch.zeros(
+        #         p_batch_size, p_seq_len, device=p_outputs.logits.device, dtype=p_outputs.logits.dtype
+        #     )
+        #     p_per_token_logps_[p_attention_mask.bool()] = p_per_token_logps
+        #     p_per_token_logps = p_per_token_logps_
 
         p_all_logps = p_per_token_logps.sum(-1)
         p_mean_logps = p_per_token_logps.mean(-1)
@@ -536,13 +609,13 @@ class SSOTrainer(DPOTrainer):
         n_per_token_logps[~n_loss_mask] = 0
         n_per_token_logps = torch.roll(n_per_token_logps, shifts=1, dims=1)
 
-        if self.padding_free:
-            n_batch_size, n_seq_len = n_attention_mask.shape
-            n_per_token_logps_ = torch.zeros(
-                n_batch_size, n_seq_len, device=n_outputs.logits.device, dtype=n_outputs.logits.dtype
-            )
-            n_per_token_logps_[n_attention_mask.bool()] = n_per_token_logps
-            n_per_token_logps = n_per_token_logps_
+        # if self.padding_free:
+        #     n_batch_size, n_seq_len = n_attention_mask.shape
+        #     n_per_token_logps_ = torch.zeros(
+        #         n_batch_size, n_seq_len, device=n_outputs.logits.device, dtype=n_outputs.logits.dtype
+        #     )
+        #     n_per_token_logps_[n_attention_mask.bool()] = n_per_token_logps
+        #     n_per_token_logps = n_per_token_logps_
 
         n_all_logps = n_per_token_logps.sum(-1)
         n_mean_logps = n_per_token_logps.mean(-1)

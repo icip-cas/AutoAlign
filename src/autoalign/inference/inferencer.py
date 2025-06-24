@@ -277,20 +277,21 @@ class MultiProcessVllmInferencer:
         top_p: float = 1.0,
         top_k: int = -1,
         frequency_penalty=0.0,
+        stop: List = []
     ):
 
         self.num_gpus_total = torch.cuda.device_count()
         self.num_gpus_per_model = num_gpus_per_model
 
         self.model_path = model_path
-
         self.sampling_params = SamplingParams(
             max_tokens=max_new_tokens,
             best_of=num_beams,
             temperature=temperature,
             top_p=top_p,
             top_k=top_k,
-            frequency_penalty=frequency_penalty
+            frequency_penalty=frequency_penalty,
+            stop=stop
         )
 
         self.use_ray = False
