@@ -7,4 +7,4 @@ python3 -u build_dpo_data.py \
     --model_name ${model_name} \
     --model_path ${model_path} \
     --input ${input} \
-    --output ${output} 2>&1 | tee dpo_data.log 
+    --output ${output} 2>&1 | tee dpo_data.log

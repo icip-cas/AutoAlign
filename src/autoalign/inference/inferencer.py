@@ -277,7 +277,7 @@ class MultiProcessVllmInferencer:
         top_p: float = 1.0,
         top_k: int = -1,
         frequency_penalty=0.0,
-        stop: List = []
+        stop: List = None
     ):
 
         self.num_gpus_total = torch.cuda.device_count()
