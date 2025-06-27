@@ -64,7 +64,7 @@ if __name__ == "__main__":
                 tokenize=False,
                 add_generation_prompt=True) for prompt in prompts]
     bad_principles = inferencer.inference(prompt_tokenizer)
-    good_principle_prompts = [prompt + bad_principles[i] + "\n### Good Guideline\n" for i, prompt in enumerate(prompts)]
+    good_principle_prompts = [prompt + bad_principles[i] + "### Good Guideline\n" for i, prompt in enumerate(prompts)]
     prompt_tokenizer =[tokenizer.apply_chat_template(
             [{"role":"user","content":prompt}],
             tokenize=False,

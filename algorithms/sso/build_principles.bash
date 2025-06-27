@@ -1,6 +1,6 @@
 export model_name="qwen2-7b-instruct"
 export model_path="Qwen2/Qwen2-7B-Instruct"
-export input="dummy_sso_prompt.json"
+export input="prompt.json"
 export output="principle.json"
 
 python build_principles.py \

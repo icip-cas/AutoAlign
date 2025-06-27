@@ -183,13 +183,15 @@ bash dpo.bash
 ```
 
 ## Implementation Results
-| 模型 | 1c win rate(gpt4o) | 1c win rate(gpt4) | 1c win rate(sso原论文) |
-|------|--------------------|--------------------|----------------------|
-| 使用qwen2_7b_ins生成principle |  |  | 使用qwen2.5_72b_ins生成principle |
-| qwen2_7b_ins | 15.07 | 27.65 | 19.5 |
-| qwen2_7b_ins_pbaa | 22.42 | 32.26 | 34.7 |
-| qwen2_7b_ins_sso | 25.27 | 34.87 | 36.5 |
-| 使用qwen2.5_72b_ins生成principle |  |  | 使用qwen2.5_72b_ins生成principle |
-| llama3_8b_sft | 17.11 | 25.26 | 20.6 |
-| llama3_8b_sft_pbaa | 29.58 | 37.57 | 29.5 |
-| llama3_8b_sft_sso | 33.31 | 42.34 | 35 |
+| Model | 1c win rate (gpt4o) | 1c win rate (gpt4) |
+|-------|---------------------|---------------------|
+| Using qwen2_7b_ins to generate principle |  |  |
+| qwen2_7b_ins | 15.07 | 27.65 |
+| qwen2_7b_ins_pbaa | 22.42 | 32.26 |
+| qwen2_7b_ins_sso | 25.27 | 34.87 |
+| Using qwen2.5_72b_ins to generate principle |  |  |
+| llama3_8b_sft | 17.11 | 25.26 |
+| llama3_8b_sft_pbaa | 29.58 | 37.57 |
+| llama3_8b_sft_sso | 33.31 | 42.34 |
+
+The pbaa in the table (Principle-based automated alignment) is a training method that combines a pair of opposing principles with instructions to sample a pair of responses, which are then used as preference pairs for DPO training.
