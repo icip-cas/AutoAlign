@@ -29,9 +29,9 @@ The core functionalities of the toolkit include:
 
 **[2025.5.23]** AutoAlign has been accepted for presentation at the ACL 2025 Demo Track! 
 
-**[2024.8.23]** We are excited to announce the release of AutoAlign v0.0.1! In this first version, we have implemented a variety of alignment operators, including SFT, RM, and DPO, along with user-friendly evaluation systems and several auto-alignment algorithms (CAI, PCON, and a variant of RLCD), with more algorithms on the way. Stay tuned for future updates! 🔥🔥🔥
+**[2025.1.1]** AutoAlign now supports Self-Rewarding and Constitutional AI.
 
-**[2024.1.1]** AutoAlign now supports Self-Rewarding and Constitutional AI.
+**[2024.8.23]** We are excited to announce the release of AutoAlign v0.0.1! In this first version, we have implemented a variety of alignment operators, including SFT, RM, and DPO, along with user-friendly evaluation systems and several auto-alignment algorithms (CAI, PCON, and a variant of RLCD), with more algorithms on the way. Stay tuned for future updates! 🔥🔥🔥
 
 ## 🔥 Quick Start
 
