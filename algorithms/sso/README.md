@@ -182,16 +182,24 @@ bash build_dpo_data.bash
 bash dpo.bash
 ```
 
+### Quick Start
+```bash
+bash run_sso.bash
+```
+
 ## Implementation Results
 | Model | 1c win rate (gpt4o) | 1c win rate (gpt4) |
 |-------|---------------------|---------------------|
 | Using qwen2_7b_ins to generate principle |  |  |
 | qwen2_7b_ins | 15.07 | 27.65 |
-| qwen2_7b_ins_pbaa | 22.42 | 32.26 |
+| qwen2_7b_ins_rlcd_sys | 22.42 | 32.26 |
 | qwen2_7b_ins_sso | 25.27 | 34.87 |
 | Using qwen2.5_72b_ins to generate principle |  |  |
 | llama3_8b_sft | 17.11 | 25.26 |
-| llama3_8b_sft_pbaa | 29.58 | 37.57 |
+| llama3_8b_sft_rlcd_sys | 29.58 | 37.57 |
 | llama3_8b_sft_sso | 33.31 | 42.34 |
 
-The pbaa in the table (Principle-based automated alignment) is a training method that combines a pair of opposing principles with instructions to sample a pair of responses, which are then used as preference pairs for DPO training.
+The experimental results use the train_prefs-00000-of-00001.parquet data from HuggingFaceH4/ultrafeedback_binarized. Before using this data, simple preprocessing is required. You can run the following script for processing.
+```bash
+bash convert_parquet_to_json.bash
+```
