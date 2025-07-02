@@ -6,7 +6,7 @@
     <a href="#-reference-results">📈Results</a> •
     <a href="#-issues">🐛Issues</a> •
     <a href="#-citation">📜Citation</a> •
-    <a href="https://lxylab.oss-cn-shanghai.aliyuncs.com/Auto-Alignment/Ata.mp4">📽️Demo Video</a>
+    <a href="https://autoalign.readthedocs.io/en/latest/">📄Docs</a>
 </p>
 
 ## 📣 About
@@ -25,7 +25,11 @@ The core functionalities of the toolkit include:
 
 ## 🚀 News
 
-**[2024.1.1]** AutoAlign now supports Self-Rewarding and Constitutional AI.
+**[2025.6.19]** We've integrated comprehensive safety evaluation datasets and released the Megatron implementation for large-scale distributed training.
+
+**[2025.5.23]** AutoAlign has been accepted for presentation at the ACL 2025 Demo Track! 
+
+**[2025.1.1]** AutoAlign now supports Self-Rewarding and Constitutional AI.
 
 **[2024.8.23]** We are excited to announce the release of AutoAlign v0.0.1! In this first version, we have implemented a variety of alignment operators, including SFT, RM, and DPO, along with user-friendly evaluation systems and several auto-alignment algorithms (CAI, PCON, and a variant of RLCD), with more algorithms on the way. Stay tuned for future updates! 🔥🔥🔥
 
@@ -61,7 +65,7 @@ To facilite the community with out-of-box alignment data. We publicly release a 
 
 ``` bash
 autoalign-cli sft \
-            --model_name_or_path "Qwen2/Qwen2-7B" \
+            --model_name_or_path "Qwen/Qwen2.5-7B" \
             --data_path "data/dummy_sft.json" \
             --bf16 True \
             --output_dir "models/qwen2-7b-sft" \
@@ -76,7 +80,7 @@ You can first generate demo dataset by `python algorithms/rm/prepare_demo_rm.py`
 
 And then run the following command:
 ```bash
-autoalign-cli rm --model_name_or_path meta-llama/Meta-Llama-3-8B-Instruct \
+autoalign-cli rm --model_name_or_path "meta-llama/Meta-Llama-3-8B-Instruct" \
     --data_path data/ultra_binary.jsonl \
     --bf16 True \
     --eval_path data/eval \
@@ -88,10 +92,10 @@ autoalign-cli rm --model_name_or_path meta-llama/Meta-Llama-3-8B-Instruct \
 ### DPO
 
 ```bash
-autoalign-cli dpo --model_name_or_path "Qwen2/Qwen2-7B-Instruct"  \
+autoalign-cli dpo --model_name_or_path "Qwen/Qwen2.5-7B-Instruct"  \
             --data_path "data/dummy_dpo.json" \
             --bf16 True \
-            --output_dir "models/qwen2-7b-dpo" \
+            --output_dir "saved_models/qwen2-7b-dpo" \
             --conv_template_name chatml \
             --deepspeed "configs/zero3.json"
 ```
@@ -144,7 +148,7 @@ autoalign-cli infer --backend "vllm" \
 ### Serve
 
 ```bash
-autoalign-cli serve --checkpoint-path "Qwen2/Qwen2-7B-Instruct" \
+autoalign-cli serve --checkpoint-path "Qwen/Qwen2.5-7B-Instruct" \
                     --mode "browser" \
                     --template "chatml"
 ```
