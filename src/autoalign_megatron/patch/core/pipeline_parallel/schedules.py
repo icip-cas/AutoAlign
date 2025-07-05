@@ -8,7 +8,7 @@ from torch.autograd.variable import Variable
 
 from megatron.core import parallel_state
 from megatron.core.enums import ModelType
-from megatron.core.pipeline_parallel import p2p_communication
+from autoalign_megatron.patch.core.pipeline_parallel import p2p_communication
 from megatron.core.transformer.moe.router import MoEAuxLossAutoScaler
 from megatron.core.utils import (
     drain_embedding_wgrad_compute,
