@@ -23,7 +23,7 @@ echo "parser compiled"
 echo ''
 # Run unit tests
 echo "starting tests..."
-if pytest tests
+if pytest src/autoalign/eval/math_eval/latex2sympy/tests
 then echo "tests finished"
 else exit 1
 fi
