@@ -15,6 +15,7 @@ dpo.md
 eval.md
 merge.md
 rm.md
+megatron.md
 develop.md
 doc.md
 ```
