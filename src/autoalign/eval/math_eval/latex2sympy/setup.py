@@ -36,7 +36,7 @@ setup(
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
     ],
-    packages=find_packages(exclude=('tests')),
+    packages=find_packages(exclude=['tests', 'autoalign.eval.math_eval.latex2sympy.tests']),
     py_modules=['asciimath_printer', 'latex2sympy2'],
     install_requires=[
         'sympy>=1.4',
