@@ -1,7 +1,4 @@
-## Install
-
 # Installation Guide
-
 ### Prerequisites
 - Python 3.10
 - Conda (Anaconda or Miniconda)
