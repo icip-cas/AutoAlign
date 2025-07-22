@@ -27,4 +27,5 @@ autoalign-cli sft \
     --lazy_preprocess ${LAZY:-"False"} \
     --eval_num ${EVAL_NUM:-"0"} \
     --num_workers 8 \
-    --neat_packing ${PACKING:-"False"}
+    --neat_packing ${PACKING:-"False"} \
+    --enable_liger_kernel ${LIGER:-"False"}
