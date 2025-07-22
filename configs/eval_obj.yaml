@@ -1,12 +1,12 @@
 # 评测的模型标识名称
 # Identifying name of the model to evaluate
-model_name: Qwen2.5-1.5B-Instruct
+model_name: llama-32-infinity-1epoch_wo_liger
 
 # 评测时使用的上下文模板，可见src/autoalign/conversation.py中的TEMPLATES
-template_name: chatml-keep-system
+template_name: llama-3-instruct
 # 评测的模型路径
 # The path of the model to evaluate
-model_path: Qwen/Qwen2.5-1.5B-Instruct
+model_path: /mnt/data1/luxinyu2021/AutoAlign/saved_models/llama-3.2_1b_infinite_7m/checkpoint-29099
 # 评测的类型
 # The type of evaluation
 # 可选项：
