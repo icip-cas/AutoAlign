@@ -25,14 +25,13 @@ dependencies = [
     "sentencepiece",
     "numpy<2.0.0",
     "pandas",
-    "transformers>=4.46.3",
+    "transformers>=4.46.3,<=4.52.4",
     "deepspeed==0.16.1",
     "pydantic",
     "packaging",
     "accelerate",
     "ninja",
     "einops",
-    "wandb",
     "fire",
     "trl>=0.9.3",
     "tenacity",
@@ -74,6 +73,7 @@ dev = [
   "build",
   "twine"
 ]
+autoalign_megatron = []
 
 [tool.pip]
 extra-index-url = ["https://pypi.tuna.tsinghua.edu.cn/simple"]
