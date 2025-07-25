@@ -15,7 +15,7 @@ Auto-Alignment is a package focusing on scalable and automated alignment methods
 
 The core functionalities of the toolkit include:
 
-- Implementation of common alignment operators (e.g., SFT, RM, DPO, etc.)
+- Implementation of common alignment operators (e.g., SFT, RM, DPO, GRPO, etc.)
 - Implementation of various automatic model alignment algorithms (e.g., CAI, SPIN, RLCD, etc.)
 - Efficient model sampling
 - Automated model evaluation
@@ -53,7 +53,7 @@ bash ./scripts/post_install.sh
 
 ### 📂 Data
 
-To facilite the community with out-of-box alignment data. We publicly release a collection of SFT data [here](). This toolkit currently utilizes the format in ```data/dummy_sft.json``` for supervised fine-tuning and the format in ```data/dummy_dpo.json``` for the reinforcement learning process. Please refer to these files for more details.
+To facilite the community with out-of-box alignment data. We publicly release a collection of SFT data [here](https://lxylab.oss-cn-shanghai.aliyuncs.com/Auto-Alignment/data/inst_data.tar.gz). This toolkit currently utilizes the format in ```data/dummy_sft.json``` for supervised fine-tuning and the format in ```data/dummy_dpo.json``` for the reinforcement learning process. Please refer to these files for more details.
 
 ### 📚 Basic Alignment Operators
 
@@ -94,6 +94,40 @@ autoalign-cli dpo --model_name_or_path "Qwen2/Qwen2-7B-Instruct"  \
             --output_dir "models/qwen2-7b-dpo" \
             --conv_template_name chatml \
             --deepspeed "configs/zero3.json"
+```
+
+### Megatron-based Training
+For detailed scripts configuration, please refer to the [megatron.md](docs/megatron.md).
+1. Setup the environment:
+```bash
+pip install -e .
+bash scripts/train/megatron/env_install.sh
+```
+> Setting up the environment may take half an hour as it involves compiling Apex, Flash-Attn, and Transformer Engine. Please be patient.
+2. Convert weights from Hugging Face to Megatron:
+```bash
+bash scripts/train/megatron/convert/qwen2_5/convert_hf_to_mcore.sh
+```
+3. Preprocess the data:
+```bash
+# For SFT
+bash scripts/train/megatron/preprocess/sft_conv.sh
+# For DPO
+bash scripts/train/megatron/preprocess/dpo_conv.sh
+```
+4. Run the training:
+```bash
+# For SFT
+bash scripts/train/megatron/train/qwen2_5/sft_conv.sh
+# For DPO
+bash scripts/train/megatron/train/qwen2_5/dpo_conv.sh
+```
+5. Convert weights from Megatron back to Hugging Face::
+```bash
+# For SFT
+bash scripts/train/megatron/convert/qwen2_5/convert_mcore_to_hf.sh
+# For DPO
+bash scripts/train/megatron/convert/qwen2_5/convert_mcore_to_hf_dpo.sh
 ```
 
 ### Inference

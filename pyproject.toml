@@ -75,6 +75,7 @@ dev = [
   "build",
   "twine"
 ]
+autoalign_megatron = []
 
 [tool.pip]
 extra-index-url = ["https://pypi.tuna.tsinghua.edu.cn/simple"]
