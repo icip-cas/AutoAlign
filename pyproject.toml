@@ -60,6 +60,9 @@ eval = [
   "alpaca-eval==0.6.3",
   "huggingface-hub<=0.24.7",
   "httpx[socks]",
+  "lmdeploy",
+  "evalplus",
+  "word2number",
 ]
 doc = [
   "sphinx",

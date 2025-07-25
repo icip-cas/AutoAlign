@@ -1,3 +1,52 @@
+CONFIG_COT = """from mmengine.config import read_base
+from opencompass.partitioners import NaivePartitioner, NumWorkerPartitioner
+from opencompass.runners import LocalRunner, VOLCRunner
+from opencompass.tasks import OpenICLEvalTask, OpenICLInferTask
+from opencompass.models import HuggingFaceCausalLM, VLLM
+from opencompass.models import (
+    TurboMindModelwithChatTemplate,
+)
+with read_base():
+    from ..opencompass.configs.datasets.IFEval.IFEval_gen import ifeval_datasets
+    from ..opencompass.configs.datasets.mbpp_plus.mbpp_plus_gen import mbpp_plus_datasets
+    from ..opencompass.configs.datasets.gpqa.gpqa_gen import gpqa_datasets
+
+infer = dict(
+    partitioner=dict(type=NumWorkerPartitioner, num_worker={n_samples}),
+    runner=dict(
+        type=LocalRunner,
+        max_num_workers=16,
+        retry=0,  # Modify if needed
+        task=dict(type=OpenICLInferTask),
+    ),
+)
+eval = dict(
+    partitioner=dict(type=NaivePartitioner),
+    runner=dict(
+        type=LocalRunner,
+        max_num_workers=32,
+        task=dict(type=OpenICLEvalTask),),
+)
+datasets = sum([v for k, v in locals().items() if k.endswith("_datasets") or k == 'datasets'], [])
+models = [
+    dict(
+        type=TurboMindModelwithChatTemplate,
+        abbr='{model_name}',
+        path='{model_path}',
+        engine_config=dict(session_len={max_length}, max_batch_size=128, tp={num_gpus}),
+        gen_config=dict(
+            do_sample=True,
+            temperature=0.6,
+            top_p=0.95,
+            max_new_tokens={max_length}
+        ),
+        max_seq_len={max_length},
+        batch_size={batch_size},
+        run_cfg=dict(num_gpus={num_gpus}),
+    ),
+]
+"""
+
 CONFIG_CORE = """from mmengine.config import read_base
 from opencompass.models import HuggingFaceCausalLM, VLLM
 with read_base():
