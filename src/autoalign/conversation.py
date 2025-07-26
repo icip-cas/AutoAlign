@@ -473,6 +473,21 @@ TEMPLATES = {
         offset=0,
         stop_str="<|im_end|>",
     ),
+    "chatml-with-empty-think": ConversationTemplate(
+        name="chatml-keep-system",
+        role_starts={
+            Role.SYSTEM: "<|im_start|>system\n",
+            Role.HUMAN: "<|im_start|>user\n",
+            Role.ASSISTANT: "<|im_start|>assistant\n",
+        },
+        role_ends={
+            Role.SYSTEM: "<|im_end|>\n",
+            Role.HUMAN: "<|im_end|>\n<think>\n\n</think>\n\n",
+            Role.ASSISTANT: "<|im_end|>\n",
+        },
+        offset=0,
+        stop_str="<|im_end|>",
+    ),
     "glm-4-chat": ConversationTemplate(
         # Not fully implemented
         name="glm-4-chat",

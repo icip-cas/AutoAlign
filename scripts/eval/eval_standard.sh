@@ -1,3 +1,3 @@
-export OPENAI_API_KEY="xxxxxxx"
+#!/bin/sh
 
-autoalign-cli eval --config-path "configs/eval.yaml"
+autoalign-cli eval --config-path "configs/eval_obj.yaml"
