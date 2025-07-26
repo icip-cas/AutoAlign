@@ -44,7 +44,10 @@ def rank0_print(*args):
 class ModelArguments:
     model_name_or_path: str
     model_max_length: int
-
+    enable_liger_kernel: bool = field(
+        default=False,
+        metadata={"help": "Whether to enable the liger kernel for optimization."}
+    )
 
 # data related args
 @dataclass
@@ -204,13 +207,23 @@ def run_sft():
         attn_implementation = "flash_attention_2"
 
     # load model and tokenizer
-    model = AutoModelForCausalLM.from_pretrained(
-        model_args.model_name_or_path,
-        # FIXME: currently use bfloat16 regardless of training script
-        torch_dtype=torch.bfloat16,
-        attn_implementation=attn_implementation,
-        trust_remote_code=True,
-    )
+    if model_args.enable_liger_kernel:
+        from liger_kernel.transformers import AutoLigerKernelForCausalLM
+        model = AutoLigerKernelForCausalLM.from_pretrained(
+            model_args.model_name_or_path,
+            # FIXME: currently use bfloat16 regardless of training script
+            torch_dtype=torch.bfloat16,
+            attn_implementation=attn_implementation,
+            trust_remote_code=True,
+        )
+    else:
+        model = AutoModelForCausalLM.from_pretrained(
+            model_args.model_name_or_path,
+            # FIXME: currently use bfloat16 regardless of training script
+            torch_dtype=torch.bfloat16,
+            attn_implementation=attn_implementation,
+            trust_remote_code=True,
+        )
     tokenizer = AutoTokenizer.from_pretrained(
         model_args.model_name_or_path,
         trust_remote_code=True,

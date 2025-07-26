@@ -9,7 +9,7 @@ pip install -e .
 # cd ./data
 
 # Download all dataset to data/ folder
-wget https://github.com/open-compass/opencompass/releases/download/0.2.2.rc1/OpenCompassData-complete-20240207.zip
+wget -c https://github.com/open-compass/opencompass/releases/download/0.2.2.rc1/OpenCompassData-complete-20240207.zip
 unzip OpenCompassData-complete-20240207.zip
 cd ./data
 find . -name "*.zip" -exec unzip "{}" \;
