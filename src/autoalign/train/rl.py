@@ -76,13 +76,15 @@ def make_conversation(example, conv_column: str="messages", answer_column: str="
     if conv_column not in example:
         raise ValueError(f"Dataset Prompt Field Error: {conv_column} is not found in the data.")
     
+    prompt = example[conv_column]
+    
     # if the first message is a system prompt, prompt is example[conv_column][:2]
-    if example.get(conv_column)[0].get("role") == "system":
-        prompt = example[conv_column][:2]  # first two messages are system and user
-    elif example.get(conv_column)[0].get("role") == "user":
-        prompt = example[conv_column][:1]
-    else:
-        raise ValueError(f"Dataset Prompt Field Error: The first message in {conv_column} should be a system or user message.")
+    # if example.get(conv_column)[0].get("role") == "system":
+    #     prompt = example[conv_column][:2]  # first two messages are system and user
+    # elif example.get(conv_column)[0].get("role") == "user":
+    #     prompt = example[conv_column][:1]
+    # else:
+    #     raise ValueError(f"Dataset Prompt Field Error: The first message in {conv_column} should be a system or user message.")
 
     return {
         "prompt": prompt,
@@ -263,7 +265,9 @@ def main(script_args, training_args, model_args):
             answer_column=script_args.dataset_answer_column
         )
 
-    dataset = dataset.map(format_conversation)
+    dataset = dataset.map(format_conversation, remove_columns=[script_args.dataset_conv_column])
+
+    print(dataset["train"][-1])
 
     trainer = GRPOTrainer(
         model=model,

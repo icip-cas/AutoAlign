@@ -27,6 +27,8 @@ autoalign-cli rl --algorithm grpo \
     --per_device_train_batch_size ${TRAIN_BATCH_SIZE:-"4"} \
     --warmup_ratio ${WARMUP_RATIO:-"0.1"} \
     --do-eval False \
-    --num-train-epochs 1 \
+    --num-train-epochs ${EPOCHS:-"1"} \
     --overwrite_output_dir True \
-    --use_liger_kernel True
+    --use_liger_kernel True \
+    --use_xverify True \
+    --xverify_model_path ${XVERIFY_MODEL_PATH:-"IAAR-Shanghai/xVerify"}

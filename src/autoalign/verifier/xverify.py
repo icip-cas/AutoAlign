@@ -37,19 +37,19 @@ Correct answer: {answer}
 Judgement:
 '''
 
-base_url = os.environ.get("API_BASE_URL") if os.environ.get("API_BASE_URL", None) is not None else "http://localhost:8001/v1"
-api_key = os.environ.get("API_KEY") if os.environ.get("API_KEY", None) is not None else "token-abc"
-
-client = OpenAI(
-    base_url=base_url,
-    api_key=api_key
-)
-
 def xverfiy_reward(prompts: list[list[dict[str, str]]], completions: list[list[dict[str, str]]], answer: list[str], **kwargs) -> list[Optional[float]]:
     """
     This function takes a list of completions and a solution, and returns a list of rewards for each completion.
     The reward is calculated based on the similarity between the completion and the solution.
     """
+
+    base_url = os.environ.get("API_BASE_URL", "http://localhost:8001/v1")
+    api_key = os.environ.get("API_KEY", "token_abc")
+
+    client = OpenAI(
+        base_url=base_url,
+        api_key=api_key
+    )
 
     prompts = [p[1]["content"] for p in prompts]
     contents = [completion[0]["content"] for completion in completions]
