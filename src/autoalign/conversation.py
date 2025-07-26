@@ -410,7 +410,7 @@ TEMPLATES = {
         stop_str="<|eot_id|>",
     ),
     "llama-4-instruct": ConversationTemplate(
-        name="llama-3-instruct",
+        name="llama-4-instruct",
         role_starts={
             Role.SYSTEM: "<|header_start|>system<|header_end|>\n\n",
             Role.HUMAN: "<|header_start|>user<|header_end|>\n\n",

@@ -41,16 +41,16 @@ for d in tqdm(data):
 avg_turn /= len(data)
 avg_token /= all_turns
 
-print("总实例数: ", len(data))
-print("平均轮次: ", avg_turn)
-print("平均tokens: ", avg_token)
+print("Total instances:", len(data))
+print("Average turns:", avg_turn)
+print("Average tokens:", avg_token)
 
-# 语言统计
-print("\n语言分布统计:")
+# Language statistics
+print("\nLanguage distribution statistics:")
 total = sum(language_counter.values())
 df = pd.DataFrame({
-    "语言代码": list(language_counter.keys()),
-    "对话数量": list(language_counter.values()),
-    "百分比": [f"{(count/total)*100:.2f}%" for count in language_counter.values()]
+    "language_code": list(language_counter.keys()),
+    "n_turns": list(language_counter.values()),
+    "percentage": [f"{(count/total)*100:.2f}%" for count in language_counter.values()]
 })
-print(df.sort_values(by="对话数量", ascending=False).to_string(index=False))
+print(df.sort_values(by="n_turns", ascending=False).to_string(index=False))

@@ -124,8 +124,6 @@ def run_grpo_training(file, args, remaining_args):
     
     remaining_args = new_remaining_args
 
-    print(remaining_args)
-
     if model_path is None:
         logger.error("Model path not specified. Please provide --model_name_or_path argument.")
         sys.exit(1)
