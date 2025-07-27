@@ -12,4 +12,10 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 
-autoalign-cli eval --config-path "configs/eval_obj.yaml"
+export MODEL_PATH="/mnt/data2/hf_models/Qwen2.5-7B-Instruct"
+export DATA_PATH="data/dummy_dpo.json"
+export GA=4
+export OUTPUT_DIR="./saved_models/qwen2.5-7b_ins_dummy_dpo"
+export TRAIN_BATCH_SIZE=2
+
+bash ./scripts/train_dpo.sh
