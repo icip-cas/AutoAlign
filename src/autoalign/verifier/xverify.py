@@ -56,14 +56,14 @@ def xverfiy_reward(prompts: list[list[dict[str, str]]], completions: list[list[d
 
     all_prompts = []
 
-    for p, c in zip(prompts, contents):
+    for i, (p, c) in enumerate(zip(prompts, contents)):
         # Extract the question, output, and answer from the completion
 
         # Create a prompt for the OpenAI API
         prompt = PROMPT.format(
             question=p,
             output=c,
-            answer=answer
+            answer=answer[i]
         )
         
         all_prompts.append(prompt)
