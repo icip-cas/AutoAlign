@@ -43,16 +43,18 @@ This toolkit can seamlessly integrate with popular resource scheduling systems l
 
 **Default**
 
-```
+```bash
 conda create -n ata python=3.10
 conda activate ata
-pip install .
-pip install .[flash-attn]
+pip install .[train]
+# alternatively, use uv for improved installation speed
+# pip install uv
+# uv pip install .[train]
 ```
 
 **Evaluation (Optional)**
 
-```
+```bash
 conda create -n ata_eval --clone ata
 conda activate ata_eval
 pip install .[eval]
@@ -250,7 +252,7 @@ If you would like to contribute to this project, please follow these guidelines:
 1. Fork the repository.
 2. Install for Develop
 
-    ```
+    ```bash
     pip install -e .[dev]
     pre-commit install
     ```

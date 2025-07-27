@@ -152,7 +152,10 @@ def run_grpo_training(file, args, remaining_args):
         logger.info(f"Starting xVerify server on port {xverify_random_port}")
         xverify_api_base_url = f"http://localhost:{xverify_random_port}/v1"
         os.environ["API_BASE_URL"] = xverify_api_base_url
-    
+        xverify_gpu_memory_util = os.environ.get("XVERIFY_GPU_MEMORY_UTILIZATION", "0.6")
+        xverify_cpu_offload_gb = os.environ.get("XVERIFY_CPU_OFFLOAD_GB", "20")
+        xverify_device = os.environ.get("XVERIFY_DEVICE", "1")
+
     vllm_process = None
     xverify_process = None
     
@@ -174,10 +177,10 @@ def run_grpo_training(file, args, remaining_args):
         # Start xVerify server if requested
         if use_xverify:
             xverify_command = (
-                f"CUDA_VISIBLE_DEVICES=0 python -m vllm.entrypoints.openai.api_server "
+                f"CUDA_VISIBLE_DEVICES={xverify_device} python -m vllm.entrypoints.openai.api_server "
                 f"--model {xverify_model_path} "
-                f"--gpu_memory_utilization 0.45 "
-                f"--cpu-offload-gb 10 "
+                f"--gpu_memory_utilization {xverify_gpu_memory_util} "
+                f"--cpu-offload-gb {xverify_cpu_offload_gb} "
                 f"--host 0.0.0.0 "
                 f"--port {xverify_random_port} "
                 f"--served-model-name 'default'"
