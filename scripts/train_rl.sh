@@ -11,7 +11,7 @@ autoalign-cli rl --algorithm grpo \
     --logging_first_step True \
     --save_strategy ${SAVE_STRATEGY:-"steps"} \
     --save_steps ${EVAL_STEPS:-"300"} \
-    --reward_funcs "xverfiy_reward" \
+    --reward_funcs "xverify_reward" \
     --bf16 True \
     --torch_dtype bfloat16 \
     --gradient_checkpointing True \
