@@ -74,6 +74,25 @@ autoalign-cli sft \
             --deepspeed "configs/zero3.json"
 ```
 
+We have implemented sequence parallel (SP) for SFT. If you want to use SP, please add these three parameters:
+
+```bash
+--sequence_parallel_size 8 \
+--sequence_parallel_mode "ulysses" \
+--cutoff_len 16000
+```
+
+- **`sequence_parallel_size`**: Used to set the number of GPUs to process a single sequence together. The default value is 1, which means SP is not used.
+
+- **`sequence_parallel_mode`**: Specifies the specific implementation method of SP. We currently only support `ulysses`.
+
+- **`cutoff_len`**: Used to specify the maximum length that the model can handle.
+
+When using SP, gradient_accumulation_steps needs to be multiplied by sequence_parallel_size to equal the original batch size when not using SP.
+
+Here is the comparison chart of the results with and without sp:
+![sp](./assets/sp.png)
+
 ### Reward Modeling
 
 You can first generate demo dataset by `python algorithms/rm/prepare_demo_rm.py`
