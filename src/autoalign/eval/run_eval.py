@@ -20,6 +20,7 @@ from .gen_judgmen_mt_bench import judge_mt_bench
 from .default_configs import (
     CONFIG_CORE,
     CONFIG_ALL,
+    CONFIG_COT,
     CONFIG_HF,
     CONFIG_VLLM,
     META_TEMPLATE,
@@ -62,6 +63,8 @@ def generate_config(
     opencompass_path,
     backend,
     template_name,
+    max_length,
+    n_samples,
 ):
     config = ""
     if not model_path.startswith("/"):
@@ -129,19 +132,28 @@ def generate_config(
             )
         else:
             raise ValueError("Error backend. Acceptable backend value: [hf, vllm]")
+    elif eval_type == "cot_eval":
+        config = CONFIG_COT.format(
+            model_name=model_name,
+            model_path=model_path,
+            batch_size=batch_size,
+            num_gpus=per_model_gpu,
+            n_samples=n_samples,
+            max_length=max_length,
+        )
     else:
         raise ValueError(
             "Error eval_type. Acceptable eval_type value: [objective_core, objective_all]"
         )
     if not os.path.isdir("configs"):
         os.makedirs("configs")
+    model_name_last = model_name.split('/')[-1]
     config_path = "configs/{model_name}-{template}.py".format(
-        model_name=model_name, template=template_name
+        model_name=model_name_last, template=template_name
     )
     with open(config_path, "w") as file:
         file.write(config)
     return os.path.join("../", config_path)
-
 
 def start_opencompass(work_dir, config_path, opencompass_path, reuse):
     # `vllm>=0.5.1` might be incompatable with `opencompass<=0.3.9`. Detailed information is recorded in this inssue:
@@ -505,6 +517,98 @@ def run_mt_bench_eval(
 
     return
 
+def run_cot_eval(
+    model_path: str,
+    model_name: str,
+    per_model_gpu,
+    dp_gpu,
+    batch_size: int,
+    eval_type,
+    opencompass_path,
+    template_name: str,
+    backend: str,
+    n_samples: int,
+    max_length: int,
+    args,
+) -> None:
+
+    import os
+
+    # 获取当前命令行的目录（当前工作目录）
+    current_dir = os.path.abspath('.')
+    # 拼接出 math_eval.py 的路径
+    math_eval_path = os.path.join(current_dir, 'src', 'autoalign', 'eval', 'math_eval', 'math_eval.py')
+    command = f"""python3 -u {math_eval_path} \
+        --model_name_or_path {model_path} \
+        --data_name 'aime24,aime25' \
+        --output_dir './outputs' \
+        --split 'test' \
+        --prompt_type 'deepseek-math-cot' \
+        --num_test_sample -1 \
+        --seed 321 \
+        --max_tokens_per_call {max_length} \
+        --temperature 0.6 \
+        --n_sampling {n_samples} \
+        --top_p 1 \
+        --start 0 \
+        --end -1 \
+        --use_vllm \
+        --save_outputs \
+        --num_gpus_per_model {per_model_gpu} \
+        --num_gpus_total {dp_gpu} \
+        --overwrite"""
+    logger.info(f"Start running aime24 aime25 with \n {command=}")
+    process = subprocess.run(command, shell=True)
+    logger.info("aime24 aime25 generation finished")
+
+    lcb_runner_path = os.path.join(current_dir, 'src', 'autoalign', 'eval', 'livecodebench')
+    command = f"""PYTHONPATH={lcb_runner_path} python -m lcb_runner.runner.main \
+    --model {model_name} \
+    --local_model_path {model_path} \
+    --scenario 'codegeneration' \
+    --release_version 'release_v5' \
+    --n {n_samples} \
+    --temperature 0.6 \
+    --top_p 1 \
+    --max_tokens {max_length} \
+    --start_date '2024-08-01' \
+    --stop '</s>,<|im_end|>,<|endoftext|>' \
+    --num_gpus_per_model {per_model_gpu} \
+    --num_gpus_total {dp_gpu} \
+    --evaluate"""
+    logger.info(f"Start running livecodebench with \n {command=}")
+    process = subprocess.run(command, shell=True)
+    logger.info("livecodebench generation finished")
+
+    work_dir = "outputs/{model_name}/opencompass_log/".format(model_name=model_name)
+    config_path = generate_config(
+        model_name,
+        model_path,
+        eval_type,
+        per_model_gpu,
+        batch_size,
+        opencompass_path,
+        backend,
+        template_name,
+        max_length,
+        n_samples,
+    )
+    # start_opencompass process
+    start_opencompass(work_dir, config_path, opencompass_path, args.reuse)
+    # summarize the results and display
+    ordered_df = handle_result(model_name, work_dir)
+    if not os.path.isdir("outputs"):
+        os.makedirs("outputs")
+    ordered_df.to_csv(
+        "outputs/{model_name}/ordered_res.csv".format(model_name=model_name),
+        index=False,
+    )
+    transpose_and_format_dataframe(
+        ordered_df, "outputs/{model_name}/ordered_res.txt".format(model_name=model_name)
+    )
+
+    return
+
 
 def transpose_and_format_dataframe(input_dataframe, output_txt_path):
     transposed_df = input_dataframe.transpose()
@@ -689,6 +793,8 @@ def run_eval(args) -> None:
     batch_size = config["batch_size"]
     eval_type = config["eval_type"]
     template_name = config["template_name"]
+    n_samples = config["n_samples"]
+    max_length = config["max_length"]
     # num_gpus = torch.cuda.device_count()
     mtpath = config["mt_path"]
     alpaca_path = (
@@ -701,6 +807,8 @@ def run_eval(args) -> None:
     wildguard_model_path = config["wildguard_model_path"] if "wildguard_model_path" in config else ""
     toxigen_roberta_model_path = config["toxigen_roberta_model_path"] if "toxigen_roberta_model_path" in config else ""
     llama_guard_model_path = config["llama_guard_model_path"] if "llama_guard_model_path" in config else ""
+
+    dp_gpu = config["dp_gpu"]
 
     if eval_type.startswith("objective"):
         run_objective_eval(
@@ -750,6 +858,21 @@ def run_eval(args) -> None:
             wildguard_model_path,
             toxigen_roberta_model_path,
             llama_guard_model_path,
+            args,
+        )
+    elif eval_type == "cot_eval":
+        run_cot_eval(
+            model_path,
+            model_name,
+            per_model_gpu,
+            dp_gpu,
+            batch_size,
+            eval_type,
+            opencompass_path,
+            template_name,
+            backend,
+            n_samples,
+            max_length,
             args,
         )
     else:

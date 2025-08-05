@@ -21,3 +21,12 @@ git clone https://huggingface.co/datasets/HuggingFaceH4/ifeval && cd ifeval && g
 
 pip install nltk
 python -c "import nltk; nltk.download('punkt'); nltk.download('punkt_tab')"
+
+cd ../../src/autoalign/eval/livecodebench
+pip install -e .
+
+pip install huggingface-hub==0.24.7
+huggingface-cli download --repo-type dataset --resume-download livecodebench/code_generation_lite --local-dir livecodebench/code_generation_lite --local-dir-use-symlinks False
+
+cd ../math_eval/latex2sympy
+pip install -e .
