@@ -92,7 +92,7 @@ models = [
         path="{model_path}",{meta_template}
         max_out_len=2048,
         max_seq_len=4096,
-        model_kwargs=dict(tensor_parallel_size={num_gpus},enforce_eager=True,gpu_memory_utilization=0.99, max_model_len=4096),
+        model_kwargs=dict(tensor_parallel_size={num_gpus},enforce_eager=True,gpu_memory_utilization=0.99, max_model_len=8192),
         generation_kwargs=dict(temperature=0),
         batch_size={batch_size},
         run_cfg=dict(num_gpus={num_gpus}, num_procs=1)

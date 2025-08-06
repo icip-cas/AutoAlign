@@ -68,7 +68,10 @@ class ModelArguments:
     sequence_parallel_mode: str = field(
         default="ulysses", metadata={"help": "Specific mode of sequence parallel implementation."}
     )
-
+    enable_liger_kernel: bool = field(
+        default=False,
+        metadata={"help": "Whether to enable the liger kernel for optimization."}
+    )
 
 # data related args
 @dataclass
@@ -206,9 +209,6 @@ def packing_data(numbers: list[int], dataset: list):
         "labels": packed_labels,
     }
 
-# 假设有8张GPU，sp_size=2，那么：
-# 总共会分成4个SP组：[0,1]、[2,3]、[4,5]、[6,7]
-# rank为3的进程，属于第2组（[2,3]），返回的就是这组的通信对象。
 def init_sp_group(sp_size):
     assert dist.is_initialized()
     world_size = dist.get_world_size()
@@ -472,31 +472,40 @@ def run_sft():
         attn_implementation = "eager"
     else:
         attn_implementation = "flash_attention_2"
-
-    # 在模型上实现Ulysses的操作，即在forward中实现all2all操作
+    
     sequence_parallel_group = apply_sequence_parallel(model_args, training_args.full_determinism)  # monkey patching   
 
     if sequence_parallel_group is not None and is_transformers_version_greater_than("4.51.0"):
             attn_implementation = "sequence_parallel_attention"
 
     # load model and tokenizer
-    model = AutoModelForCausalLM.from_pretrained(
-        model_args.model_name_or_path,
-        # FIXME: currently use bfloat16 regardless of training script
-        torch_dtype=torch.bfloat16,
-        attn_implementation=attn_implementation,
-        trust_remote_code=True, 
-    )
-
+    if model_args.enable_liger_kernel:
+        from liger_kernel.transformers import AutoLigerKernelForCausalLM
+        model = AutoLigerKernelForCausalLM.from_pretrained(
+            model_args.model_name_or_path,
+            # FIXME: currently use bfloat16 regardless of training script
+            torch_dtype=torch.bfloat16,
+            attn_implementation=attn_implementation,
+            trust_remote_code=True,
+        )
+    else:
+        model = AutoModelForCausalLM.from_pretrained(
+            model_args.model_name_or_path,
+            # FIXME: currently use bfloat16 regardless of training script
+            torch_dtype=torch.bfloat16,
+            attn_implementation=attn_implementation,
+            trust_remote_code=True,
+        )
+    
     if (
         model_args.sequence_parallel_size > 1
         and hasattr(config, "attention_dropout")
         and config.attention_dropout != 0.0
     ):
-        model.config.attention_dropout = 0.0 # 设置attention_dropout为0
+        model.config.attention_dropout = 0.0
 
     model.sequence_parallel_group = sequence_parallel_group
-
+    
     tokenizer = AutoTokenizer.from_pretrained(
         model_args.model_name_or_path,
         trust_remote_code=True,
@@ -528,7 +537,7 @@ def run_sft():
 
         rank0_print("Loading data...")
 
-    elif model_args.sequence_parallel_size > 1: # 实现Ulysses
+    elif model_args.sequence_parallel_size > 1:
         train_dataset = Dataset.from_list(train_data)
         dev_dataset = Dataset.from_list(dev_data)
 
