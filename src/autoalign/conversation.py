@@ -170,7 +170,7 @@ class Conversation:
         """Tokenize conversation and prepare labels"""
         conversation_str = self.get_conversation_str(
             add_generation_prompt=add_generation_prompt
-        )
+        ) # 会将多轮对话都拼成一个str 但是360-llama-factory是单独每轮进行拼接，一旦超过max_length就停止拼接。
         tokenized_conversation = tokenizer(
             conversation_str, truncation=True, max_length=model_max_length
         )
