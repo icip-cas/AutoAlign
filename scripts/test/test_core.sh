@@ -29,17 +29,17 @@ autoalign-cli infer --backend "vllm" \
             --template "chatml" \
             --source "qwen2_0_5b_instruct_dummy"
 
-autoalign-cli serve --checkpoint-path "Qwen2/Qwen2-7B-Instruct" \
-            --mode "browser" \
-            --template "chatml" \
-
 autoalign-cli eval --config-path configs/eval_obj.yaml
 autoalign-cli eval --config-path configs/eval_subj.yaml --subjective_generate_only
+
+autoalign-cli merge --model_paths "WizardLMTeam/WizardLM-13B-V1.2" "lmsys/vicuna-13b-v1.5" "pankajmathur/orca_mini_v3_13b" "garage-bAInd/Platypus2-13B"\
+                    --merged_model_path "models/merged_model" \
+                    --merging_method "average"
 
 autoalign-cli serve --checkpoint-path "meta-llama/Meta-Llama-3-8B-Instruct" \
             --mode "cli" \
             --template "llama-3-instruct" \
 
-autoalign-cli merge --model_paths "WizardLMTeam/WizardLM-13B-V1.2" "lmsys/vicuna-13b-v1.5" "pankajmathur/orca_mini_v3_13b" "garage-bAInd/Platypus2-13B"\
-                    --merged_model_path "models/merged_model" \
-                    --merging_method "average"
+autoalign-cli serve --checkpoint-path "Qwen2/Qwen2-7B-Instruct" \
+            --mode "browser" \
+            --template "chatml" \

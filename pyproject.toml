@@ -4,62 +4,58 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "autoalign"
-description = ""
+description = "Get Your LLM Aligned with Minimal Annotations."
 version = "0.0.1"
 requires-python = ">=3.10"
 authors = [
-    { name = "gxy-gxy", email = "guanxinyan23@mails.ucas.ac.cn" },
-    { name = "luxinyu1", email = "luxinyu2021@iscas.ac.cn" },
-    { name = "luyaojie", email = "luyaojie@iscas.ac.cn" },
-    { name = "Rosenberg371", email = "wenxueru23@mails.ucas.ac.cn" },
-    { name = "xiangh8", email = "1694590773@qq.com" },
-    { name = "xudong2022", email = "xudong2022@iscas.ac.cn" },
+    { name = "AutoAlign Team" }
 ]
 
 dependencies = [
-    "torch==2.5.1",
-    "tensorboard",
-    "wandb",
-    "datasets",
-    "tokenizers",
-    "sentencepiece",
-    "numpy<2.0.0",
-    "pandas",
-    "transformers>=4.46.3,<=4.52.4",
-    "deepspeed==0.16.1",
-    "pydantic",
-    "packaging",
-    "accelerate",
-    "ninja",
-    "einops",
-    "fire",
-    "trl>=0.9.3",
-    "tenacity",
-    "vllm==0.6.4",
-    "langdetect",
-    "torchmetrics==1.6.2",
-    # ui
-    "gradio<5",
-    "streamlit==1.42.2",
-    # mt-bench
-    "openai>=1.0.0",
-    # alpaca_eval
-    "scikit-learn>=1.3",
-    "modelscope",
-    "liger_kernel==0.5.10"
+  "torch==2.6.0",
+  "tensorboard",
+  "wandb",
+  "datasets",
+  "sentencepiece",
+  "numpy<2.0.0",
+  "pandas",
+  "transformers>=4.46.3,<=4.52.4",
+  "pydantic",
+  "packaging",
+  "accelerate",
+  "ninja",
+  "einops",
+  "fire",
+  "tenacity",
+  "vllm==0.8.3",
+  "langdetect",
+  "torchmetrics==1.6.2",
+  # ui
+  "gradio<5",
+  "streamlit==1.42.2",
+  # mt-bench
+  "openai>=1.0.0",
+  # alpaca_eval
+  "scikit-learn>=1.3",
+  "modelscope",
+  "httpx[socks]",
+  "pyarrow!=21.0.0" # temporarily resolve https://github.com/apache/arrow/issues/47155
 ]
 
 [project.optional-dependencies]
-flash-attn = [
-  "flash-attn==2.7.2post1"
+train = [
+  "deepspeed==0.16.1",
+  "trl>=0.9.3",
+  "flash-attn==2.7.2post1",
+  "liger_kernel>=0.5.10",
 ]
 eval = [
-  "torchvision==0.20.1",
-  "torchaudio==2.5.1",
+  "torchvision==0.21.0",
+  "torchaudio==2.6.0",
   "human-eval==1.0.3",
   "alpaca-eval==0.6.3",
-  "huggingface-hub<=0.24.7",
-  "httpx[socks]",
+  "huggingface-hub==0.30.0",
+  "mmengine",
 ]
 doc = [
   "sphinx",
@@ -74,6 +70,7 @@ dev = [
   "twine"
 ]
 autoalign_megatron = []
+npu_train = []
 
 [tool.pip]
 extra-index-url = ["https://pypi.tuna.tsinghua.edu.cn/simple"]

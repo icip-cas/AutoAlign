@@ -1,8 +1,8 @@
 CONFIG_CORE = """from mmengine.config import read_base
 from opencompass.models import HuggingFaceCausalLM, VLLM
 with read_base():
-    from ..opencompass.configs.datasets.ARC_e.ARC_e_ppl import ARC_e_datasets
-    from ..opencompass.configs.datasets.ARC_c.ARC_c_ppl import ARC_c_datasets
+    from opencompass.configs.datasets.ARC_e.ARC_e_ppl import ARC_e_datasets
+    from opencompass.configs.datasets.ARC_c.ARC_c_ppl import ARC_c_datasets
 from opencompass.partitioners import SizePartitioner, NaivePartitioner
 from opencompass.runners import LocalRunner
 from opencompass.tasks import OpenICLInferTask, OpenICLEvalTask
@@ -17,20 +17,22 @@ infer = dict(
 
 CONFIG_ALL = """from mmengine.config import read_base
 from opencompass.models import HuggingFaceCausalLM, VLLM
+
 with read_base():
-    from ..opencompass.configs.datasets.gsm8k.gsm8k_gen import gsm8k_datasets
-    from ..opencompass.configs.datasets.mmlu.mmlu_gen import mmlu_datasets
-    from ..opencompass.configs.datasets.cmmlu.cmmlu_gen import cmmlu_datasets
-    from ..opencompass.configs.datasets.ceval.ceval_gen import ceval_datasets
-    from ..opencompass.configs.datasets.math.math_gen import math_datasets
-    from ..opencompass.configs.datasets.humaneval.humaneval_gen import humaneval_datasets
-    from ..opencompass.configs.datasets.humaneval_cn.humaneval_cn_gen import humaneval_cn_datasets
-    from ..opencompass.configs.datasets.mbpp.mbpp_gen import mbpp_datasets
-    from ..opencompass.configs.datasets.mbpp_cn.mbpp_cn_gen import mbpp_cn_datasets
-    from ..opencompass.configs.datasets.gpqa.gpqa_gen import gpqa_datasets
-    from ..opencompass.configs.datasets.bbh.bbh_gen import bbh_datasets
-    from ..opencompass.configs.datasets.IFEval.IFEval_gen import ifeval_datasets
-    from ..opencompass.configs.summarizers.example import summarizer
+    from opencompass.configs.datasets.gsm8k.gsm8k_gen import gsm8k_datasets
+    from opencompass.configs.datasets.mmlu.mmlu_gen import mmlu_datasets
+    from opencompass.configs.datasets.cmmlu.cmmlu_gen import cmmlu_datasets
+    from opencompass.configs.datasets.ceval.ceval_gen import ceval_datasets
+    from opencompass.configs.datasets.math.math_gen import math_datasets
+    from opencompass.configs.datasets.humaneval.humaneval_gen import humaneval_datasets
+    from opencompass.configs.datasets.humaneval_cn.humaneval_cn_gen import humaneval_cn_datasets
+    from opencompass.configs.datasets.mbpp.mbpp_gen import mbpp_datasets
+    from opencompass.configs.datasets.mbpp_cn.mbpp_cn_gen import mbpp_cn_datasets
+    from opencompass.configs.datasets.gpqa.gpqa_gen import gpqa_datasets
+    from opencompass.configs.datasets.bbh.bbh_gen import bbh_datasets
+    from opencompass.configs.datasets.IFEval.IFEval_gen import ifeval_datasets
+    from opencompass.configs.summarizers.example import summarizer
+
 from opencompass.partitioners import SizePartitioner, NaivePartitioner
 from opencompass.runners import LocalRunner
 from opencompass.tasks import OpenICLInferTask, OpenICLEvalTask
@@ -51,7 +53,19 @@ eval = dict(
         max_num_workers=32,
         task=dict(type=OpenICLEvalTask),),
 )
-datasets = sum([v for k, v in locals().items() if k.endswith("_datasets") or k == 'datasets'], [])
+
+datasets = []
+for k, v in list(locals().items()):
+    if k.endswith("_datasets") or k == 'datasets':
+        if hasattr(v, 'build'):
+            built = v.build()
+            if isinstance(built, list):
+                datasets.extend(built)
+            else:
+                datasets.append(built)
+        elif isinstance(v, list):
+            datasets.extend(v)
+
 models = [
     dict(
         type=HuggingFaceCausalLM,
@@ -84,7 +98,19 @@ eval = dict(
         max_num_workers=32,
         task=dict(type=OpenICLEvalTask),),
 )
-datasets = sum([v for k, v in locals().items() if k.endswith("_datasets") or k == 'datasets'], [])
+
+datasets = []
+for k, v in list(locals().items()):
+    if k.endswith("_datasets") or k == 'datasets':
+        if hasattr(v, 'build'):
+            built = v.build()
+            if isinstance(built, list):
+                datasets.extend(built)
+            else:
+                datasets.append(built)
+        elif isinstance(v, list):
+            datasets.extend(v)
+
 models = [
     dict(
         type=VLLM,
