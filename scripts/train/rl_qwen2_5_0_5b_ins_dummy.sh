@@ -12,4 +12,9 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 
-autoalign-cli eval --config-path "configs/eval_obj.yaml"
+export MODEL_PATH="/mnt/data1/hf_models/Qwen2.5-0.5B-Instruct"
+export DATA_PATH="data/dummy_rl.json"
+export XVERIFY_MODEL_PATH="/mnt/data1/hf_models/xVerify-0.5B-I"
+export OUTPUT_DIR="./saved_models/qwen2.5-0.5b_ins_dummy_rl"
+
+bash scripts/train_rl.sh
