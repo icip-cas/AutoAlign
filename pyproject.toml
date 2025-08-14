@@ -36,7 +36,8 @@ dependencies = [
     "fire",
     "trl>=0.9.3",
     "tenacity",
-    "vllm==0.6.4",
+    "vllm==0.9.1",
+    "vllm-ascend==0.9.1rc1",
     "langdetect",
     "torchmetrics==1.6.2",
     # ui

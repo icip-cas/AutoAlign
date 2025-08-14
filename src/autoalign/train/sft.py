@@ -10,6 +10,8 @@ from accelerate.state import PartialState
 from typing import Dict
 from multiprocessing import Pool
 import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
 from datasets import Dataset
 from torch.utils.data import Dataset as TorchDataset
 from transformers import (
@@ -159,10 +161,11 @@ class LazySupervisedDataset(TorchDataset):
             self.tokenizer,
             self.model_max_length,
         )
+        tensorized_ret = {k: torch.tensor(v).to("npu") for k, v in ret.items()}
 
-        self.cached_data_dict[i] = ret
+        self.cached_data_dict[i] = tensorized_ret
 
-        return ret
+        return tensorized_ret
 
 
 def run_sft():
@@ -198,19 +201,18 @@ def run_sft():
     config = transformers.AutoConfig.from_pretrained(
         model_args.model_name_or_path, trust_remote_code=True
     )
-    if config.model_type == "gemma2":
-        attn_implementation = "eager"
-    else:
-        attn_implementation = "flash_attention_2"
+    
+    attn_implementation = "eager"
 
     # load model and tokenizer
     model = AutoModelForCausalLM.from_pretrained(
         model_args.model_name_or_path,
         # FIXME: currently use bfloat16 regardless of training script
-        torch_dtype=torch.bfloat16,
+        torch_dtype=torch.float16,
         attn_implementation=attn_implementation,
         trust_remote_code=True,
     )
+    model = model.npu()
     tokenizer = AutoTokenizer.from_pretrained(
         model_args.model_name_or_path,
         trust_remote_code=True,
