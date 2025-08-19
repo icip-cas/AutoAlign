@@ -36,8 +36,7 @@ dependencies = [
     "fire",
     "trl>=0.9.3",
     "tenacity",
-    "vllm==0.9.1",
-    "vllm-ascend==0.9.1rc1",
+    "vllm==0.6.4",
     "langdetect",
     "torchmetrics==1.6.2",
     # ui
@@ -62,6 +61,11 @@ eval = [
   "huggingface-hub<=0.24.7",
   "httpx[socks]",
 ]
+ascend = [
+  "torch-npu==torch-npu-2.5.1.post1.dev20250528",
+  "vllm==0.9.1",
+  "vllm-ascend==0.9.1rc1"
+]
 doc = [
   "sphinx",
   "sphinx-autobuild",
@@ -77,8 +81,12 @@ dev = [
 autoalign_megatron = []
 
 [tool.pip]
-extra-index-url = ["https://pypi.tuna.tsinghua.edu.cn/simple"]
-
+extra-index-url = [
+  "https://pypi.tuna.tsinghua.edu.cn/simple",
+  #torch-npu / vllm-ascend
+  "https://download.pytorch.org/whl/cpu/",
+  "https://mirrors.huaweicloud.com/ascend/repos/pypi"
+]
 [project.scripts]
 autoalign-cli = "autoalign.cli:main"
 
