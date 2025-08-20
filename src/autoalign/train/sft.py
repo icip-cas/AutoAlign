@@ -75,8 +75,6 @@ from autoalign.train.utils import (
 
 if PLATFORM == "npu":
     from torch_npu.contrib import transfer_to_npu
-    import deepspeed_npu
-    from deepspeed import distributed_test
 
 # ==============================================================================
 
