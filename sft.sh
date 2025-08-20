@@ -1,16 +1,16 @@
 autoalign-cli sft \
-    --model_name_or_path "/home/ma-user/work/Qwen2.5-7B" \
-    --data_path "/home/ma-user/work/ultrachat_10k.json" \
-    --bf16 False \
-    --fp16 True \
-    --output_dir "/home/ma-user/work/test_model/"\
+    --model_name_or_path "/mnt/data1/hf_models/Qwen2.5-0.5B-Instruct" \
+    --data_path "/mnt/data3/maoyingzhi2024/Datasets/ultrachat_20k.json" \
+    --bf16 True \
+    --output_dir "/mnt/data3/maoyingzhi2024/ATA-Ascend/AutoAlign/model" \
     --model_max_length 8192 \
     --conv_template_name chatml \
-    --deepspeed "configs/zero3_fp16.json" \
-    --per_device_train_batch_size 2 \
-    --gradient_accumulation_steps 2 \
+    --deepspeed "configs/zero3.json" \
+    --per_device_train_batch_size 1 \
+    --gradient_accumulation_steps 8 \
     --eval_strategy no \
     --save_strategy "epoch" \
     --learning_rate "3e-6" \
     --report_to wandb \
-    --num_workers 16
+    --num_workers 16 \
+    --report_to swanlab
