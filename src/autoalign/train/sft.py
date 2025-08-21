@@ -68,6 +68,10 @@ class ModelArguments:
     sequence_parallel_mode: str = field(
         default="ulysses", metadata={"help": "Specific mode of sequence parallel implementation."}
     )
+    enable_liger_kernel: bool = field(
+        default=False,
+        metadata={"help": "Whether to enable the liger kernel for optimization."}
+    )
 
 
 # data related args
@@ -482,13 +486,23 @@ def run_sft():
             attn_implementation = "sequence_parallel_attention"
 
     # load model and tokenizer
-    model = AutoModelForCausalLM.from_pretrained(
-        model_args.model_name_or_path,
-        # FIXME: currently use bfloat16 regardless of training script
-        torch_dtype=torch.bfloat16,
-        attn_implementation=attn_implementation,
-        trust_remote_code=True, 
-    )
+    if model_args.enable_liger_kernel:
+        from liger_kernel.transformers import AutoLigerKernelForCausalLM
+        model = AutoLigerKernelForCausalLM.from_pretrained(
+            model_args.model_name_or_path,
+            # FIXME: currently use bfloat16 regardless of training script
+            torch_dtype=torch.bfloat16,
+            attn_implementation=attn_implementation,
+            trust_remote_code=True,
+        )
+    else:
+        model = AutoModelForCausalLM.from_pretrained(
+            model_args.model_name_or_path,
+            # FIXME: currently use bfloat16 regardless of training script
+            torch_dtype=torch.bfloat16,
+            attn_implementation=attn_implementation,
+            trust_remote_code=True,
+        )
 
     if (
         model_args.sequence_parallel_size > 1
