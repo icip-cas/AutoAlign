@@ -56,7 +56,6 @@ def is_transformers_version_equal_to_4_46():
 
 # Monkey patch functions
 def _custom_get_train_sampler(self, train_dataset):
-    return SequentialSampler(train_dataset)
     if self.model.sequence_parallel_group is not None:
         return SequentialSampler(self.train_dataset)
     else:
@@ -153,10 +152,7 @@ def remove_custom_trainer_patches():
         Trainer.training_step = Trainer._original_training_step
         delattr(Trainer, '_original_training_step')
 
-# 使用示例
 if __name__ == "__main__":
-    # 应用 monkey patch
     apply_custom_trainer_patches()
-    
-    # 如果需要恢复原始方法
+
     # remove_custom_trainer_patches()
