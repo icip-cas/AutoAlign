@@ -206,22 +206,19 @@ def packing_data(numbers: list[int], dataset: list):
         "labels": packed_labels,
     }
 
-# 假设有8张GPU，sp_size=2，那么：
-# 总共会分成4个SP组：[0,1]、[2,3]、[4,5]、[6,7]
-# rank为3的进程，属于第2组（[2,3]），返回的就是这组的通信对象。
 def init_sp_group(sp_size):
     assert dist.is_initialized()
     world_size = dist.get_world_size()
     assert world_size % sp_size == 0, "Total number of GPUs must be a multiple of sequence_parallel_size."
 
     sp_group_num = world_size // sp_size
-    sp_ranks_list = [list(range(i * sp_size, i * sp_size + sp_size)) for i in range(sp_group_num)] # 8张卡、sp_size=2，则分成4组，每组2个rank：[[0,1],[2,3],[4,5],[6,7]]
+    sp_ranks_list = [list(range(i * sp_size, i * sp_size + sp_size)) for i in range(sp_group_num)]
 
-    sp_groups = [dist.new_group(sp_ranks_this) for sp_ranks_this in sp_ranks_list] # 为每个rank组创建一个新的分布式通信组（torch.distributed.new_group），这样每组内的进程可以独立通信。
+    sp_groups = [dist.new_group(sp_ranks_this) for sp_ranks_this in sp_ranks_list]
 
     global_rank_this = dist.get_rank()
     sp_idx = global_rank_this // sp_size
-    return sp_groups[sp_idx] # 返回当前rank所属的通信组
+    return sp_groups[sp_idx]
 
 def new_flash_attn_forward(
     query_states,
@@ -264,10 +261,10 @@ def apply_sequence_parallel(model_args, full_determinism=False):
         # monkey patching
         transformers.modeling_flash_attention_utils._flash_attention_forward = new_flash_attention_forward
 
-        from transformers.models.qwen2.modeling_qwen2 import Qwen2Model
+        from transformers.models.qwen3.modeling_qwen3 import Qwen3Model
         
         # Store the original method
-        original_update_causal_mask = Qwen2Model._update_causal_mask
+        original_update_causal_mask = Qwen3Model._update_causal_mask
         
         def new_update_causal_mask(
             self,
@@ -298,7 +295,7 @@ def apply_sequence_parallel(model_args, full_determinism=False):
             )
         
         # Apply the patch
-        Qwen2Model._update_causal_mask = new_update_causal_mask
+        Qwen3Model._update_causal_mask = new_update_causal_mask
         print("Fixed attention implementation check for sequence_parallel_attention support")
 
         # AttentionInterface for qwen3 and newer models
@@ -426,7 +423,13 @@ def run_sft():
     parser = HfArgumentParser((ModelArguments, DataArguments, TrainingArguments))
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
-    # 对cutoff_len大小进行处理
+    if model_args.enable_liger_kernel and model_args.sequence_parallel_size != 1:
+        raise ValueError(
+            "Liger kernel and sequence parallelism cannot be enabled simultaneously. "
+            "When --enable_liger_kernel is True, --sequence_parallel_size must be 1. "
+            "Please set --sequence_parallel_size=1 or disable liger kernel."
+        )
+
     if data_args.cutoff_len % model_args.sequence_parallel_size != 0:
         raise ValueError("cutoff_len must be a multiple of sequence_parallel_size.")
 
@@ -473,8 +476,7 @@ def run_sft():
     else:
         attn_implementation = "flash_attention_2"
 
-    # 在模型上实现Ulysses的操作，即在forward中实现all2all操作
-    sequence_parallel_group = apply_sequence_parallel(model_args, training_args.full_determinism)  # monkey patching   
+    sequence_parallel_group = apply_sequence_parallel(model_args, training_args.full_determinism)  # monkey patching
 
     if sequence_parallel_group is not None and is_transformers_version_greater_than("4.51.0"):
             attn_implementation = "sequence_parallel_attention"
@@ -493,7 +495,7 @@ def run_sft():
         and hasattr(config, "attention_dropout")
         and config.attention_dropout != 0.0
     ):
-        model.config.attention_dropout = 0.0 # 设置attention_dropout为0
+        model.config.attention_dropout = 0.0
 
     model.sequence_parallel_group = sequence_parallel_group
 
@@ -528,7 +530,7 @@ def run_sft():
 
         rank0_print("Loading data...")
 
-    elif model_args.sequence_parallel_size > 1: # 实现Ulysses
+    elif model_args.sequence_parallel_size > 1:
         train_dataset = Dataset.from_list(train_data)
         dev_dataset = Dataset.from_list(dev_data)
 
