@@ -42,6 +42,10 @@ When using SP, gradient_accumulation_steps needs to be multiplied by sequence_pa
 Here is the comparison chart of the results with and without sp:
 ![sp](../assets/sp.png)
 
+Currently, we have only tested the performance of the Qwen 2.5 and Qwen 3 models on this code, and there have been no issues.
+
+A significant portion of our SP functionality implementation is based on the open-source repository from [360-LLaMA-Factory](https://github.com/Qihoo360/360-LLaMA-Factory).
+
 ### References
 
 ```

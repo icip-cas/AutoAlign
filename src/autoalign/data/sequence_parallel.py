@@ -12,7 +12,7 @@ def pad_sequence(examples, data_args, tokenizer):
     max_length = data_args.cutoff_len
     input_pad_token_id = tokenizer.pad_token_id
     assert data_args.ignore_pad_token_for_loss
-    label_pad_token_id = IGNORE_INDEX if data_args.ignore_pad_token_for_loss else tokenizer.pad_token_id # 这里填充总是会用IGNORE_INDEX
+    label_pad_token_id = IGNORE_INDEX if data_args.ignore_pad_token_for_loss else tokenizer.pad_token_id
 
     for k, v in examples.items():
         if k.endswith("input_ids"):
@@ -32,7 +32,7 @@ def pad_sequence(examples, data_args, tokenizer):
         else:
             raise NotImplementedError(f"Unexpected dataset key: {k}")
         for i in range(len(v)):
-            v[i].extend([pad_token_id] * (max_length - len(v[i]))) # 将每个sequence的token数量补齐到cutoff_len
+            v[i].extend([pad_token_id] * (max_length - len(v[i])))
         examples[k] = v
 
     return examples
@@ -50,5 +50,5 @@ def sp_split(examples, model_args):
             chunks.extend(
                 preprocess_sp_dataset(row, model_args.sequence_parallel_size, model_args.sequence_parallel_mode)
             )
-        examples[k] = chunks # 将一个sequence[] 拆分成了model_args.sequence_parallel_size个小sequence[[],[],...]
+        examples[k] = chunks
     return examples

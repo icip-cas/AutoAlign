@@ -15,6 +15,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Copyright (c) Qihoo 360 Corporation and HaoshengZou
+# SPDX-License-Identifier: Apache-2.0
+# modified from https://github.com/Qihoo360/360-LLaMA-Factory
+
 import json
 import os
 from types import MethodType

@@ -2,6 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 # modified from https://github.com/feifeibear/long-context-attention/blob/main/yunchang/comm/all_to_all.py
 
+# Copyright (c) Qihoo 360 Corporation and HaoshengZou
+# SPDX-License-Identifier: Apache-2.0
+# modified from https://github.com/Qihoo360/360-LLaMA-Factory
 
 import torch
 from typing import Any, Tuple
