@@ -1,9 +1,3 @@
-try:
-    import torch_npu
-    print("INFO: torch_npu package imported successfully.")
-except (ImportError, ModuleNotFoundError):
-    print("INFO: torch_npu package not found, running in non-NPU mode.")
-    pass
 import os
 import random
 import subprocess

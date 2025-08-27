@@ -1,5 +1,5 @@
 from datasets import load_dataset
-from vllm import LLM, SamplingParams
+from vllm.vllm_model import LLM, SamplingParams
 from saladbench.evaluator import MDJudgeEvaluator ,DDPMDJudgeEvaluator
 from transformers import AutoTokenizer
 from typing import List

@@ -3,45 +3,8 @@ finetune.py
 A unified script that automatically adapts to run on
 either Huawei Ascend (NPU) or NVIDIA (GPU) platforms.
 """
-
-# ==============================================================================
-# 1. 平台识别机制 (Platform Recognition)
-#    - 自动检测硬件环境 (NPU, CUDA, or CPU)，并设置全局 PLATFORM 变量。
-# ==============================================================================
 import torch
 import platform
-print(f"--- Platform recognized: {PLATFORM.upper()}. Using device: {device} ---")
-PLATFORM = "cpu"
-arch = platform.machine().lower()
-
-# 1) 先判断是不是华为鲲鹏/昇腾（aarch64）
-if arch in ["aarch64", "arm64"]:
-    # 在华为设备上，必须使用 torch_npu，否则直接报错
-    try:
-        import torch_npu
-        if torch.npu.is_available():
-            PLATFORM = "npu"
-        else:
-            raise RuntimeError("Detected aarch64 platform but torch_npu is not available.")
-    except ImportError:
-        raise RuntimeError("Detected aarch64 platform but torch_npu is not installed.")
-else:
-    # 2) 非华为设备 => 看有没有 CUDA ，否则就是 CPU
-    if torch.cuda.is_available():
-        PLATFORM = "gpu"
-    else:
-        PLATFORM = "cpu"
-
-device = torch.device(
-    "npu" if PLATFORM == "npu" else ("cuda" if PLATFORM == "gpu" else "cpu")
-)
-
-print(f"--- Platform recognized: {PLATFORM.upper()}. Using device: {device} ---")
-
-# ==============================================================================
-# 2. 条件导入 (Conditional Imports)
-#    - 仅在识别到 NPU 平台时，才导入 NPU 相关的库。
-# ==============================================================================
 import json
 from tqdm.auto import tqdm
 from functools import partial
@@ -71,8 +34,10 @@ from autoalign.train.utils import (
     split_list,
     greedy_knapsack,
     pack_data_points_by_length,
+    Architecture_identification
 )
 
+device, PLATFORM = Architecture_identification()
 if PLATFORM == "npu":
     from torch_npu.contrib import transfer_to_npu
 

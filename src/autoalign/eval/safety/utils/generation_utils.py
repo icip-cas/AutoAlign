@@ -12,7 +12,7 @@ import torch
 import tqdm
 from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
 from transformers import StoppingCriteria
-from vllm import LLM, SamplingParams, RequestOutput
+from vllm.vllm_model import LLM, SamplingParams, RequestOutput
 
 from autoalign.eval.safety.utils.dispatch_openai_requests import dispatch_openai_chat_requests
 
@@ -461,8 +461,8 @@ def load_vllm_model(model_name_or_path,
                     tokenizer_mode="auto",
                     tensor_parallel_size=1,
                     trust_remote_code=True) -> LLM:
-    import vllm
-    model = vllm.LLM(
+    import vllm.vllm_model as vllm_model
+    model = vllm_model.LLM(
         model=model_name_or_path,
         dtype=dtype,
         tokenizer_mode=tokenizer_mode,

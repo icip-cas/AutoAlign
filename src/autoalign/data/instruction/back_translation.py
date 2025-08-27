@@ -1,7 +1,7 @@
 # modifyed from https://github.com/Spico197/Humback
 import argparse
 import numpy as np
-from vllm import LLM, SamplingParams
+from vllm.vllm_model import LLM, SamplingParams
 from functools import partial
 from datasets import Dataset
 from utils import dump_json, load_jsonlines

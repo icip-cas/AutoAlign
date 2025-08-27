@@ -9,7 +9,7 @@ import numpy as np
 from tqdm import tqdm
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from vllm import LLM, SamplingParams
+from vllm.vllm_model import LLM, SamplingParams
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import str_utils
 

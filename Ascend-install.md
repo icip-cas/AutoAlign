@@ -31,7 +31,6 @@
     - [Huawei Ascend NPU](#huawei-ascend-npu)
   - [AutoAlign安装](#autoalign安装)
     - [NVIDIA GPU](#nvidia-gpu-1)
-      - [方法一：使用包管理器 (暂未支持)](#方法一使用包管理器-暂未支持)
       - [方法二：使用源码安装](#方法二使用源码安装)
         - [默认](#默认)
         - [评估(可选)](#评估可选)

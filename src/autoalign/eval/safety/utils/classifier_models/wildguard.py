@@ -2,7 +2,7 @@ import re
 from abc import ABC
 
 import torch
-from vllm import LLM
+from vllm.vllm_model import LLM
 
 from autoalign.eval.safety.utils.classifier_models.base import (
     SafetyClassifierOutput,

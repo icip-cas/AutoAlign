@@ -58,7 +58,7 @@ def inference(
                 choices.append({"index": i, "output": output})
             answers.append({"index": question["index"], "choices": choices})
     elif kwargs["backend"] == "vllm":
-        from vllm import LLM
+        from vllm.vllm_model import LLM
         from vllm.sampling_params import SamplingParams
 
         os.environ["VLLM_PORT"] = str(

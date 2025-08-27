@@ -61,7 +61,7 @@ eval = [
   "huggingface-hub<=0.24.7",
   "httpx[socks]",
 ]
-ascend = [
+train_ascend = [
   "torch-npu==torch-npu-2.5.1.post1.dev20250528",
   "vllm==0.9.1",
   "vllm-ascend==0.9.1rc1"

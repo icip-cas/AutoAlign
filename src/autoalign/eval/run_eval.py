@@ -2,7 +2,7 @@ import json
 import subprocess
 import datasets
 import torch
-from vllm import LLM, SamplingParams
+from vllm.vllm_model import LLM, SamplingParams
 import yaml
 import os
 from transformers import AutoTokenizer, AutoModelForCausalLM

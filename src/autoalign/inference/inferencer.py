@@ -13,7 +13,7 @@ import tiktoken
 from datetime import timedelta
 from accelerate.utils import InitProcessGroupKwargs
 import ray
-from vllm import LLM, SamplingParams
+from vllm.vllm_model import LLM, SamplingParams
 import socket
 
 
