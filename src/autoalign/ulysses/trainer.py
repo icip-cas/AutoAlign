@@ -57,6 +57,10 @@ def _get_package_version(name: str):
 @lru_cache
 def is_transformers_version_equal_to_4_46():
     return version.parse("4.46.0") <= _get_package_version("transformers") <= version.parse("4.46.1")
+    
+@lru_cache
+def is_transformers_version_greater_than_4_51():
+    return version.parse("4.51.0") <= _get_package_version("transformers")
 
 # Monkey patch functions
 def _custom_get_train_sampler(self, train_dataset):
@@ -112,6 +116,9 @@ def _custom_compute_loss(self, model, inputs, return_outputs=False, **kwargs):
 
     # now is single-sequence loss
     # print('###loss###', loss.shape, loss)
+
+    if is_transformers_version_greater_than_4_51():
+        loss = loss / self.args.gradient_accumulation_steps
 
     if is_transformers_version_equal_to_4_46() and not getattr(self, "model_accepts_loss_kwargs", False):
         # other model should not scale the loss

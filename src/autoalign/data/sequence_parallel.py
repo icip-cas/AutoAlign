@@ -42,13 +42,13 @@ def sp_split(examples, model_args):
     for k, v in examples.items():
         chunks = list()
         for row in v:
-            # if k.endswith("attention_mask"):
-            #     chunks.extend([row] * model_args.sequence_parallel_size)
-            # elif row is None:
-            #     chunks.extend([None] * model_args.sequence_parallel_size)
-            # else:
-            chunks.extend(
-                preprocess_sp_dataset(row, model_args.sequence_parallel_size, model_args.sequence_parallel_mode)
-            )
+            if k.endswith("attention_mask"):
+                chunks.extend([row] * model_args.sequence_parallel_size)
+            elif row is None:
+                chunks.extend([None] * model_args.sequence_parallel_size)
+            else:
+                chunks.extend(
+                    preprocess_sp_dataset(row, model_args.sequence_parallel_size, model_args.sequence_parallel_mode)
+                )
         examples[k] = chunks
     return examples

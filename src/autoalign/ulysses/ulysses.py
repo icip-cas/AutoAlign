@@ -240,7 +240,8 @@ def apply_sequence_parallel(model_args, full_determinism=False):
         # monkey patching
         transformers.modeling_flash_attention_utils._flash_attention_forward = new_flash_attention_forward
 
-        from transformers.models.qwen3.modeling_qwen3 import Qwen3Model, Qwen2Model
+        from transformers.models.qwen3.modeling_qwen3 import Qwen3Model
+        from transformers.models.qwen2.modeling_qwen2 import Qwen2Model
         
         # Store the original method
         original_update_causal_mask = Qwen3Model._update_causal_mask
