@@ -106,6 +106,8 @@ def tokenize_conversation(
 
     # fill in messages from single conv data point
     conversation.fill_in_messages(conv)
+
+    # tokenize conversation
     tokenized_conversation = conversation.get_tokenized_conversation(
         tokenizer=tokenizer,
         model_max_length=model_max_length,
@@ -126,8 +128,8 @@ def packing_data(numbers: list[int], dataset: list):
         packed_labels += dataset[num]["labels"]
         packed_attention_masks += [idx + 1] * len(
             dataset[num]["input_ids"]
-            )  # start from 1, 2 ...
-        
+        )  # start from 1, 2 ...
+
     return {
         "input_ids": packed_input_ids,
         "attention_mask": packed_attention_masks,
