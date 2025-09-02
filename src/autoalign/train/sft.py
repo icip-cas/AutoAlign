@@ -1,13 +1,7 @@
-"""
-finetune.py
-A unified script that automatically adapts to run on
-either Huawei Ascend (NPU) or NVIDIA (GPU) platforms.
-"""
-import torch
 import platform
 import json
 from tqdm.auto import tqdm
-from functools import partial
+from functools imporl
 from itertools import groupby, chain
 from dataclasses import dataclass, field
 import pathlib
@@ -15,6 +9,7 @@ import random
 from accelerate.state import PartialState
 from typing import Dict
 from multiprocessing import Pool
+import torch 
 from datasets import Dataset
 from torch.utils.data import Dataset as TorchDataset
 from transformers import (
@@ -40,8 +35,6 @@ from autoalign.train.utils import (
 device, PLATFORM = architecture_identification()
 if PLATFORM == "npu":
     from torch_npu.contrib import transfer_to_npu
-
-# ==============================================================================
 
 local_rank = None
 
@@ -73,6 +66,7 @@ class DataArguments:
     eval_num: int = field(
         default=0, metadata={"help": "number of data points for evaluation"}
     )
+    # ref: llama-factory
     neat_packing: bool = field(
         default=False,
         metadata={"help": "Enable sequence packing without cross-attention."},
@@ -83,7 +77,9 @@ class DataArguments:
             "help": 'The strategy of packing the data (merge short sequences into a long one). Available: "greedy" and "sequentially"'
         },
     )
-
+    # seed: int = field(
+    #     default=42, metadata={"help": "random seed"}
+    # )
 
 def trainer_save_model_safe(trainer: transformers.Trainer):
     from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
@@ -102,24 +98,33 @@ def tokenize_conversation(
     tokenizer: AutoTokenizer,
     model_max_length: int,
 ):
+    """tokenize conversation and prepare labels for loss calculation"""
+    # get conversation template
     conversation = Conversation.from_template(conv_template_name)
+
+    # fill in messages from single conv data point
     conversation.fill_in_messages(conv)
     tokenized_conversation = conversation.get_tokenized_conversation(
         tokenizer=tokenizer,
         model_max_length=model_max_length,
     )  
+
     tokenized_conversation["attention_mask"] = [1] * len(
         tokenized_conversation["input_ids"]
     )
+
     return tokenized_conversation
 
 
 def packing_data(numbers: list[int], dataset: list):
     packed_input_ids, packed_attention_masks, packed_labels = [], [], []
+
     for idx, num in enumerate(numbers):
         packed_input_ids += dataset[num]["input_ids"]
         packed_labels += dataset[num]["labels"]
-        packed_attention_masks += [idx + 1] * len(dataset[num]["input_ids"])
+        packed_attention_masks += [idx + 1] * len(
+            dataset[num]["input_ids"]
+            )  # start from 1, 2 ...
     return {
         "input_ids": packed_input_ids,
         "attention_mask": packed_attention_masks,
@@ -141,6 +146,7 @@ class LazySupervisedDataset(TorchDataset):
         self.tokenizer = tokenizer
         self.conv_template_name = conv_template_name
         self.model_max_length = model_max_length
+        
         rank0_print("Formatting inputs...Skip in lazy mode")
         self.raw_data = raw_data
         self.cached_data_dict = {}
@@ -157,18 +163,18 @@ class LazySupervisedDataset(TorchDataset):
             self.tokenizer,
             self.model_max_length,
         )
+
         if PLATFORM == "npu":
-            # Ascend NPU 逻辑：立即转换为 Tensor 并移至 NPU
             tensorized_ret = {k: torch.tensor(v).to(device) for k, v in ret.items()}
             self.cached_data_dict[i] = tensorized_ret
             return tensorized_ret
         else:
-            # GPU 逻辑：直接返回字典，由后续的 DataCollator 处理
             self.cached_data_dict[i] = ret
             return ret
 
 
 def run_sft():
+    # parse arguments
     parser = HfArgumentParser((ModelArguments, DataArguments, TrainingArguments))
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
@@ -181,11 +187,14 @@ def run_sft():
     rank0_print(f"{model_args = }")
     rank0_print(f"{data_args = }")
 
+    # set random seed for reproducibility
     random.seed(training_args.data_seed)
 
+    # read data
     with open(data_args.data_path, "r") as f:
         data = json.load(f)
 
+    # split data into train and dev datasets
     if data_args.eval_num > 0:
         random.shuffle(data)
         train_data = data[: -data_args.eval_num]
@@ -210,7 +219,7 @@ def run_sft():
             "NPU platform: Using attn_implementation='eager' and dtype=torch.float16"
         )
     else:
-        # GPU
+        # Nvidia GPU
         if config.model_type == "gemma2":
             attn_implementation = "eager"
         else:
@@ -221,24 +230,7 @@ def run_sft():
         )
 
     # load model and tokenizer
-<<<<<<< HEAD
-    model = AutoModelForCausalLM.from_pretrained(
-        model_args.model_name_or_path,
-        torch_dtype=model_dtype,
-        attn_implementation=attn_implementation,
-        trust_remote_code=True,
-    )
-
-    # ==========================================================================
-    # 5. 平台特定逻辑：模型设备迁移
-    # ==========================================================================
-    if PLATFORM == "npu":
-        # Ascend NPU 逻辑
-        model = model.npu()
-        rank0_print("Model moved to NPU.")
-
-=======
-    if model_args.enable_liger_kernel:
+    if PLATFORM == "gpu" and model_args.enable_liger_kernel:
         from liger_kernel.transformers import AutoLigerKernelForCausalLM
         model = AutoLigerKernelForCausalLM.from_pretrained(
             model_args.model_name_or_path,
@@ -255,14 +247,20 @@ def run_sft():
             attn_implementation=attn_implementation,
             trust_remote_code=True,
         )
->>>>>>> 98f2d620063043e74e20d94893bc43921535ba83
+
+    if PLATFORM == "npu":
+        # Ascend NPU
+        model = model.npu()
+        rank0_print("Model moved to NPU.")
     tokenizer = AutoTokenizer.from_pretrained(
         model_args.model_name_or_path,
         trust_remote_code=True,
     )
     # NB: use eos_token for padding
     tokenizer.pad_token = tokenizer.eos_token
+    # set padding_side
     tokenizer.padding_side = "right" if config.model_type != "chatglm" else "left"
+    # specifically set bos_token_id for Qwen2Tokenizer
     if isinstance(tokenizer, (Qwen2Tokenizer, Qwen2TokenizerFast)):
         tokenizer.bos_token = "<|im_start|>"
         tokenizer.bos_token_id = tokenizer.convert_tokens_to_ids(tokenizer.bos_token)
@@ -285,6 +283,7 @@ def run_sft():
     else:
         train_dataset = Dataset.from_list(train_data)
         dev_dataset = Dataset.from_list(dev_data)
+        # tokenize dataset
         with PartialState().local_main_process_first():
             train_dataset = train_dataset.map(
                 partial(
@@ -358,14 +357,12 @@ def run_sft():
     random_idx = random.randint(0, len(train_dataset) - 1)
     input_ids = train_dataset[random_idx]["input_ids"]
     input_text = tokenizer.decode(input_ids)
-    rank0_print("-----------Full Text-----------")
-    rank0_print(input_text)
-    rank0_print("-----------Train on Text-----------")
     labels = train_dataset[random_idx]["labels"]
     target_ids = [list(y) for x, y in groupby(labels, lambda x: x != -100) if x]
     target_texts = list(map(tokenizer.decode, target_ids))
     rank0_print("\n>>>>>>>>>>>>>>>>>\n".join(target_texts))
 
+    # get data collator
     data_collator = DataCollatorForSeq2Seq(
         tokenizer=tokenizer,
         pad_to_multiple_of=8,
@@ -374,6 +371,7 @@ def run_sft():
 
     configure_model(data_args.conv_template_name, tokenizer, model)
 
+    # create trainer
     trainer = Trainer(
         model=model,
         processing_class=tokenizer,
@@ -383,12 +381,14 @@ def run_sft():
         data_collator=data_collator,
     )
 
+    # start training
     if list(pathlib.Path(training_args.output_dir).glob("checkpoint-*")):
         rank0_print("Resume training from existing checkpoint...")
         trainer.train(resume_from_checkpoint=True)
     else:
         trainer.train()
 
+    # Save model
     model.config.use_cache = True
     trainer.save_state()
     tokenizer.save_pretrained(training_args.output_dir)
