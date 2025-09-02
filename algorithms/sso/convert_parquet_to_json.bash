@@ -1,0 +1,1 @@
+python convert_parquet_to_json.py --parquet_file trainprefs-00000-of-00001.parquet --output_file output.json

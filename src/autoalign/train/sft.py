@@ -56,7 +56,10 @@ def rank0_print(*args):
 class ModelArguments:
     model_name_or_path: str
     model_max_length: int
-
+    enable_liger_kernel: bool = field(
+        default=False,
+        metadata={"help": "Whether to enable the liger kernel for optimization."}
+    )
 
 # data related args
 @dataclass
@@ -218,6 +221,7 @@ def run_sft():
         )
 
     # load model and tokenizer
+<<<<<<< HEAD
     model = AutoModelForCausalLM.from_pretrained(
         model_args.model_name_or_path,
         torch_dtype=model_dtype,
@@ -233,6 +237,25 @@ def run_sft():
         model = model.npu()
         rank0_print("Model moved to NPU.")
 
+=======
+    if model_args.enable_liger_kernel:
+        from liger_kernel.transformers import AutoLigerKernelForCausalLM
+        model = AutoLigerKernelForCausalLM.from_pretrained(
+            model_args.model_name_or_path,
+            # FIXME: currently use bfloat16 regardless of training script
+            torch_dtype=torch.bfloat16,
+            attn_implementation=attn_implementation,
+            trust_remote_code=True,
+        )
+    else:
+        model = AutoModelForCausalLM.from_pretrained(
+            model_args.model_name_or_path,
+            # FIXME: currently use bfloat16 regardless of training script
+            torch_dtype=torch.bfloat16,
+            attn_implementation=attn_implementation,
+            trust_remote_code=True,
+        )
+>>>>>>> 98f2d620063043e74e20d94893bc43921535ba83
     tokenizer = AutoTokenizer.from_pretrained(
         model_args.model_name_or_path,
         trust_remote_code=True,

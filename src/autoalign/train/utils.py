@@ -1,6 +1,7 @@
 import bisect
 from typing import List, Sequence, Tuple
 from autoalign.conversation import Conversation
+import json
 
 
 def configure_model(conv_template_name, tokenizer, model):
@@ -152,3 +153,49 @@ def architecture_identification():
         PLATFORM = "cpu"
         device = torch.device("cpu")
     return device, PLATFORM
+
+def load_json(data_path: str):
+    """
+    Load data from JSON or JSONL file by detecting the actual format.
+    
+    Args:
+        data_path (str): Path to the JSON/JSONL file
+        
+    Returns:
+        list: List of dictionaries containing the data
+    """
+    data = []
+    
+    with open(data_path, 'r', encoding='utf-8') as f:
+        # First, try to load as a single JSON file
+        try:
+            f.seek(0)  # Reset file pointer
+            loaded_data = json.load(f)
+            # Handle both list of objects and single object
+            if isinstance(loaded_data, list):
+                data = loaded_data
+            else:
+                data = [loaded_data]
+            return data
+        except json.JSONDecodeError:
+            # If that fails, try to load as JSONL (each line is a JSON object)
+            pass
+    
+    # Try JSONL format
+    try:
+        with open(data_path, 'r', encoding='utf-8') as f:
+            for line_num, line in enumerate(f, 1):
+                line = line.strip()
+                if line:  # Skip empty lines
+                    try:
+                        data.append(json.loads(line))
+                    except json.JSONDecodeError as e:
+                        raise ValueError(f"Invalid JSON on line {line_num}: {e}")
+        
+        if not data:
+            raise ValueError("No valid data found in file")
+        
+        return data
+        
+    except Exception as e:
+        raise ValueError(f"Failed to parse file as either JSON or JSONL format. Error: {e}")
