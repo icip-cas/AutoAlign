@@ -30,11 +30,9 @@ from transformers import (
 )
 import transformers
 from autoalign.data.sequence_parallel import pad_sequence, sp_split
-from autoalign.ulysses.ulysses import UlyssesAttention
 from packaging import version
 from functools import lru_cache
 import importlib.metadata
-from autoalign.train.sft import DataArguments, ModelArguments
 
 class UlyssesAttention(torch.nn.Module):
     """Initialization.
@@ -142,8 +140,8 @@ def is_transformers_version_greater_than(content: str):
     return _get_package_version("transformers") >= version.parse(content)
 
 def get_sequence_parallel_preprocess(
-    data_args: "DataArguments",
-    model_args: "ModelArguments",
+    data_args,
+    model_args,
     stage: Literal["pad", "split"],
     tokenizer: AutoTokenizer,
 ) -> Tuple[Callable, Callable]:
@@ -156,10 +154,10 @@ def get_sequence_parallel_preprocess(
 
     return preprocess_func
 
-def _get_sequence_parallel_dataset(
+def get_sequence_parallel_dataset(
     dataset: Optional[Union[Dataset, IterableDataset]],
-    data_args: DataArguments,
-    model_args: ModelArguments,
+    data_args,
+    model_args,
     training_args: TrainingArguments,
     tokenizer: AutoTokenizer,
     is_eval: bool = False,

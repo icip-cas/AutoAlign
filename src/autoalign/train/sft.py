@@ -24,7 +24,7 @@ from transformers import (
     DataCollatorForSeq2Seq,
 )
 from autoalign.ulysses.trainer import apply_custom_trainer_patches, remove_custom_trainer_patches
-from autoalign.ulysses import _get_sequence_parallel_dataset, init_sp_group, new_flash_attn_forward, apply_sequence_parallel, is_transformers_version_greater_than
+from autoalign.ulysses.ulysses import get_sequence_parallel_dataset, init_sp_group, new_flash_attn_forward, apply_sequence_parallel, is_transformers_version_greater_than
 from autoalign.conversation import Conversation
 from transformers import Qwen2Tokenizer, Qwen2TokenizerFast
 import transformers
@@ -35,12 +35,6 @@ from autoalign.train.utils import (
     greedy_knapsack,
     pack_data_points_by_length,
 )
-from autoalign.data.sequence_parallel import pad_sequence, sp_split
-from autoalign.ulysses.ulysses import UlyssesAttention
-from packaging import version
-from functools import lru_cache
-import importlib.metadata
-import importlib.util
 
 local_rank = None
 
@@ -236,7 +230,7 @@ def run_sft():
         train_data = data[: -data_args.eval_num]
         dev_data = data[-data_args.eval_num :]
     else:
-        train_data = data
+        train_data = random.shuffle(data)
         dev_data = []
         training_args.eval_strategy = "no"
 
@@ -344,10 +338,10 @@ def run_sft():
                 num_proc=data_args.num_workers,
             )
         # Then apply sequence parallel processing
-        train_dataset = _get_sequence_parallel_dataset(
+        train_dataset = get_sequence_parallel_dataset(
             train_dataset, data_args, model_args, training_args, tokenizer, is_eval=False
         )
-        dev_dataset = _get_sequence_parallel_dataset(
+        dev_dataset = get_sequence_parallel_dataset(
             dev_dataset, data_args, model_args, training_args, tokenizer, is_eval=True
         )
     else:
