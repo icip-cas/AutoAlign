@@ -77,7 +77,7 @@ Recommended versions:
 | vllm-ascend | 0.9.1rc1                          |
 
 Follow the official installation guides for CANN and torch:
-- 请按照[Install CANN Packages](https://www.hiascend.com/document/detail/zh/canncommercial/81RC1/softwareinst/instg/instg_0008.html?Mode=PmIns&InstallType=local&OS=openEuler&Software=cannToolKit)
+- [Install CANN Packages](https://www.hiascend.com/document/detail/zh/canncommercial/81RC1/softwareinst/instg/instg_0008.html?Mode=PmIns&InstallType=local&OS=openEuler&Software=cannToolKit)
 - [Install PyTorch](https://www.hiascend.com/document/detail/zh/Pytorch/700/configandinstg/instg/insg_0004.html)
 
 If already installed, skip this step.
@@ -88,7 +88,7 @@ pip config set global.extra-index-url "https://download.pytorch.org/whl/cpu/ htt
 pip install "torch-npu==torch-npu-2.5.1.post1.dev20250528"
 ``` 
 
-* 参考[VLLM-Ascend安装文档](https://vllm-ascend.readthedocs.io/en/latest/installation.html)安装vllm，也可以使用以下命令直接安装：
+* For installing vllm, refer to the [VLLM-Ascend Installation Guide](https://vllm-ascend.readthedocs.io/en/latest/installation.html), or you can use the following command for direct installation:
 
 ```bash
 
@@ -116,7 +116,7 @@ pip show autoalign
 
 After `Ascend NPU Support` installation, verify your setup:
 
-当以上依赖安装完成后，可以通过下方python脚本对torch-npu的可用情况做一下校验，预期结果为`True`：
+After you have completed the installation of the above dependencies, you can use the Python script below to verify the availability of `torch-npu`. The expected result is `True`.
 
 ```
 
@@ -127,7 +127,7 @@ import torch_npu
 print(torch.npu.is_available())
 
 ```
-可以使用以下代码验证vllm安装
+To verify if `vLLM` has been successfully installed, you can use the following Python script.
 ```
 from vllm import LLM, SamplingParams
 
@@ -150,13 +150,13 @@ for output in outputs:
     generated_text = output.outputs[0].text
     print(f"Prompt: {prompt!r}, Generated text: {generated_text!r}")
 ```
-然后使用
+You can then use the following command:
 ```
 # Try `export VLLM_USE_MODELSCOPE=true` and `pip install modelscope`
 # to speed up download if huggingface is not reachable.
 python example.py
 ```
-其结果应当如下所示：
+The expected result should be as follows:
 ```
 INFO 02-18 08:49:58 __init__.py:28] Available plugins for group vllm.platform_plugins:
 INFO 02-18 08:49:58 __init__.py:30] name=ascend, value=vllm_ascend:register
