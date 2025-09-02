@@ -57,6 +57,11 @@ eval = [
   "huggingface-hub==0.30.0",
   "mmengine",
 ]
+train_ascend = [
+  "torch-npu==torch-npu-2.5.1.post1.dev20250528",
+  "vllm==0.9.1",
+  "vllm-ascend==0.9.1rc1"
+]
 doc = [
   "sphinx",
   "sphinx-autobuild",
@@ -73,8 +78,12 @@ autoalign_megatron = []
 npu_train = []
 
 [tool.pip]
-extra-index-url = ["https://pypi.tuna.tsinghua.edu.cn/simple"]
-
+extra-index-url = [
+  "https://pypi.tuna.tsinghua.edu.cn/simple",
+  #torch-npu / vllm-ascend
+  "https://download.pytorch.org/whl/cpu/",
+  "https://mirrors.huaweicloud.com/ascend/repos/pypi"
+]
 [project.scripts]
 autoalign-cli = "autoalign.cli:main"
 
