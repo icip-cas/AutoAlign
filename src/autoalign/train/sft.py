@@ -1,7 +1,8 @@
+"""finetune"""
 import platform
 import json
 from tqdm.auto import tqdm
-from functools imporl
+from functools import partial
 from itertools import groupby, chain
 from dataclasses import dataclass, field
 import pathlib
@@ -9,7 +10,7 @@ import random
 from accelerate.state import PartialState
 from typing import Dict
 from multiprocessing import Pool
-import torch 
+import torch
 from datasets import Dataset
 from torch.utils.data import Dataset as TorchDataset
 from transformers import (
@@ -81,6 +82,7 @@ class DataArguments:
     #     default=42, metadata={"help": "random seed"}
     # )
 
+
 def trainer_save_model_safe(trainer: transformers.Trainer):
     from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
     from torch.distributed.fsdp import StateDictType, FullStateDictConfig
@@ -107,7 +109,7 @@ def tokenize_conversation(
     tokenized_conversation = conversation.get_tokenized_conversation(
         tokenizer=tokenizer,
         model_max_length=model_max_length,
-    )  
+    )
 
     tokenized_conversation["attention_mask"] = [1] * len(
         tokenized_conversation["input_ids"]
@@ -125,6 +127,7 @@ def packing_data(numbers: list[int], dataset: list):
         packed_attention_masks += [idx + 1] * len(
             dataset[num]["input_ids"]
             )  # start from 1, 2 ...
+        
     return {
         "input_ids": packed_input_ids,
         "attention_mask": packed_attention_masks,
@@ -146,7 +149,7 @@ class LazySupervisedDataset(TorchDataset):
         self.tokenizer = tokenizer
         self.conv_template_name = conv_template_name
         self.model_max_length = model_max_length
-        
+
         rank0_print("Formatting inputs...Skip in lazy mode")
         self.raw_data = raw_data
         self.cached_data_dict = {}
@@ -273,13 +276,16 @@ def run_sft():
             conv_template_name=data_args.conv_template_name,
             model_max_length=model_args.model_max_length,
         )
+
         dev_dataset = LazySupervisedDataset(
             dev_data,
             tokenizer=tokenizer,
             conv_template_name=data_args.conv_template_name,
             model_max_length=model_args.model_max_length,
         )
+
         rank0_print("Loading data...")
+
     else:
         train_dataset = Dataset.from_list(train_data)
         dev_dataset = Dataset.from_list(dev_data)
@@ -357,6 +363,9 @@ def run_sft():
     random_idx = random.randint(0, len(train_dataset) - 1)
     input_ids = train_dataset[random_idx]["input_ids"]
     input_text = tokenizer.decode(input_ids)
+    rank0_print("-----------Full Text-----------")
+    rank0_print(input_text)
+    rank0_print("-----------Train on Text-----------")
     labels = train_dataset[random_idx]["labels"]
     target_ids = [list(y) for x, y in groupby(labels, lambda x: x != -100) if x]
     target_texts = list(map(tokenizer.decode, target_ids))
