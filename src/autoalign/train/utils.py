@@ -128,3 +128,27 @@ def greedy_knapsack(
 
     assert sum([len(indices) for indices in knapsacks]) == lengths
     return knapsacks
+
+def architecture_identification():
+    import platform
+    import torch
+
+    PLATFORM = "cpu"
+    arch = platform.machine().lower()
+
+    device = torch.device("cpu")  # 默认CPU
+
+    try:
+        if arch in ["aarch64", "arm64"]:
+            import torch_npu
+            if torch_npu.is_available():
+                PLATFORM = "npu"
+                device = torch.device("npu")
+        else:
+            if torch.cuda.is_available():
+                PLATFORM = "gpu"
+                device = torch.device("cuda")
+    except ImportError:
+        PLATFORM = "cpu"
+        device = torch.device("cpu")
+    return device, PLATFORM

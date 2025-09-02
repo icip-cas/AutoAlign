@@ -84,28 +84,3 @@ def get_available_gpu_list():
     except subprocess.CalledProcessError as e:
         print(f"Error occurred while getting GPU information: {e}")
         return []
-    
-def Architecture_identification():
-    import platform
-    import torch
-
-    PLATFORM = "cpu"
-    arch = platform.machine().lower()
-
-    device = torch.device("cpu")  # 默认CPU
-
-    try:
-        if arch in ["aarch64", "arm64"]:
-            import torch_npu
-            if torch_npu.is_available():
-                PLATFORM = "npu"
-                device = torch.device("npu")
-        else:
-            if torch.cuda.is_available():
-                PLATFORM = "gpu"
-                device = torch.device("cuda")
-    except ImportError:
-        PLATFORM = "cpu"
-        device = torch.device("cpu")
-    return device, PLATFORM
-

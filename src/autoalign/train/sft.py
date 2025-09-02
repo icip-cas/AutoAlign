@@ -34,10 +34,10 @@ from autoalign.train.utils import (
     split_list,
     greedy_knapsack,
     pack_data_points_by_length,
-    Architecture_identification
+    architecture_identification
 )
 
-device, PLATFORM = Architecture_identification()
+device, PLATFORM = architecture_identification()
 if PLATFORM == "npu":
     from torch_npu.contrib import transfer_to_npu
 
