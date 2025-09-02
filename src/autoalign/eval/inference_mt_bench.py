@@ -10,7 +10,7 @@ from tqdm import tqdm
 from autoalign.eval.utils import load_questions, temperature_config
 from autoalign.conversation import Conversation, Role
 from autoalign.inference.inferencer import HFInferencer
-from vllm.vllm_model import LLM, SamplingParams
+from vllm import LLM, SamplingParams
 
 
 def inference_mt_bench(

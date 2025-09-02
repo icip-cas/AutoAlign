@@ -6,7 +6,7 @@ from transformers import AutoTokenizer
 from typing import List
 import math
 import ray
-from vllm.vllm_model import LLM, SamplingParams
+from vllm import LLM, SamplingParams
 import socket
 import json
 import random

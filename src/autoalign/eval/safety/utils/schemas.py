@@ -6,11 +6,11 @@ from copy import deepcopy
 from typing import Optional
 
 import torch
-import vllm.vllm_model as vllm_model
+import vllm
 from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from vllm.vllm_model import LLM
-from vllm.vllm_model import RequestOutput
+from vllm import LLM
+from vllm import RequestOutput
 
 from autoalign.eval.safety.utils.classifier_models.base import (
     SafetyClassifierBase,
@@ -160,7 +160,7 @@ class HfGeneratorModel(GeneratorModelBase):
             for i, cls_output in enumerate(cls_outputs):
                 if cls_output.prompt_harmfulness == PromptHarmfulness.HARMFUL:
                     outputs[i] = "I'm sorry, I can't help with that."
-            if isinstance(getattr(filter_model, "model", None), vllm_model.LLM):
+            if isinstance(getattr(filter_model, "model", None), vllm.LLM):
                 delete_vllm_model(filter_model.model)
             del filter_model
             torch.cuda.empty_cache()
@@ -282,7 +282,7 @@ class VllmGeneratorModel(GeneratorModelBase):
                         and cls_output.response_harmfulness == ResponseHarmfulness.HARMFUL
                 ):
                     outputs[i] = "I'm sorry, I can't help with that."
-            if isinstance(getattr(filter_model, "model", None), vllm_model.LLM):
+            if isinstance(getattr(filter_model, "model", None), vllm.LLM):
                 delete_vllm_model(filter_model.model)
             del filter_model
             torch.cuda.empty_cache()
@@ -344,7 +344,7 @@ class APIGeneratorModel(GeneratorModelBase):
             for i, cls_output in enumerate(cls_outputs):
                 if cls_output.prompt_harmfulness == PromptHarmfulness.HARMFUL:
                     outputs[i] = "I'm sorry, I can't help with that."
-            if isinstance(getattr(filter_model, "model", None), vllm_model.LLM):
+            if isinstance(getattr(filter_model, "model", None), vllm.LLM):
                 delete_vllm_model(filter_model.model)
             del filter_model
             torch.cuda.empty_cache()
