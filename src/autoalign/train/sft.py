@@ -230,7 +230,8 @@ def run_sft():
         train_data = data[: -data_args.eval_num]
         dev_data = data[-data_args.eval_num :]
     else:
-        train_data = random.shuffle(data)
+        random.shuffle(data)
+        train_data = data
         dev_data = []
         training_args.eval_strategy = "no"
 
