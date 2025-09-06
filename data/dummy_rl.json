@@ -1,0 +1,758 @@
+[
+    {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+    {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+        {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+    {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+        {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+    {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+        {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+    {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+        {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+    {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+        {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+    {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+        {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+    {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+        {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+    {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+        {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+    {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+        {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+    {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+        {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+    {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+        {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+    {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+        {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+    {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+        {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+    {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+        {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+    {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+        {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+    {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+        {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+    {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+        {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+    {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+        {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+    {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+        {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+    {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+        {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    },
+    {
+        "id": "0",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "human",
+                "content": "Say 'Beethoven'."
+            },
+            {
+                "role": "assistant",
+                "content": "Beethoven."
+            }
+        ],
+        "golden": "Beethoven"
+    }
+]

@@ -58,7 +58,6 @@ class ModelArguments:
         metadata={"help": "Whether to enable the liger kernel for optimization."}
     )
 
-
 # data related args
 @dataclass
 class DataArguments:
