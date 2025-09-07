@@ -17,9 +17,7 @@ import transformers.modeling_flash_attention_utils
 
 from functools import partial
 from typing import Dict, Optional, Union, Tuple, Callable, Literal, List, Any
-import torch
 from datasets import Dataset, IterableDataset
-import torch.distributed as dist
 from transformers import (
     AutoTokenizer,
     AutoModelForCausalLM,
