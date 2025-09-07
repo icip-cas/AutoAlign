@@ -7,11 +7,14 @@ from dataclasses import dataclass, field
 import pathlib
 import random
 from accelerate.state import PartialState
-from typing import Dict
+from typing import Dict, Optional, Union, Tuple, Callable, Literal, List, Any
 from multiprocessing import Pool
 import torch
-from datasets import Dataset
+from collections import defaultdict
+from datasets import Dataset, IterableDataset
 from torch.utils.data import Dataset as TorchDataset
+from torch.nn import CrossEntropyLoss
+import torch.distributed as dist
 from transformers import (
     AutoTokenizer,
     AutoModelForCausalLM,
@@ -20,6 +23,8 @@ from transformers import (
     HfArgumentParser,
     DataCollatorForSeq2Seq,
 )
+from autoalign.ulysses.trainer import apply_custom_trainer_patches, remove_custom_trainer_patches
+from autoalign.ulysses.ulysses import get_sequence_parallel_dataset, init_sp_group, new_flash_attn_forward, apply_sequence_parallel, is_transformers_version_greater_than
 from autoalign.conversation import Conversation
 from transformers import Qwen2Tokenizer, Qwen2TokenizerFast
 import transformers
@@ -33,17 +38,21 @@ from autoalign.train.utils import (
 
 local_rank = None
 
-
 def rank0_print(*args):
     if local_rank == 0:
         print(*args)
-
 
 # model related args
 @dataclass
 class ModelArguments:
     model_name_or_path: str
     model_max_length: int
+    sequence_parallel_size: int = field(
+        default=1, metadata={"help": "Number of GPUs to process one data sequence. Values greater than 1 means enabling sequence parallelism."}
+    )
+    sequence_parallel_mode: str = field(
+        default="ulysses", metadata={"help": "Specific mode of sequence parallel implementation."}
+    )
     enable_liger_kernel: bool = field(
         default=False,
         metadata={"help": "Whether to enable the liger kernel for optimization."}
@@ -72,10 +81,18 @@ class DataArguments:
             "help": 'The strategy of packing the data (merge short sequences into a long one). Available: "greedy" and "sequentially"'
         },
     )
+    cutoff_len: int = field(
+        default=2048, metadata={"help": "The cutoff length of the tokenized inputs in the dataset."}
+    )
+    preprocessing_batch_size: int = field(
+        default=1000, metadata={"help": "The number of examples in one group in pre-processing."}
+    )
+    ignore_pad_token_for_loss: bool = field(
+        default=True, metadata={"help": "Whether or not to ignore the tokens corresponding to the pad label in loss computation."}
+    )
     # seed: int = field(
     #     default=42, metadata={"help": "random seed"}
     # )
-
 
 def trainer_save_model_safe(trainer: transformers.Trainer):
     from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
@@ -87,12 +104,12 @@ def trainer_save_model_safe(trainer: transformers.Trainer):
     ):
         trainer.save_model()
 
-
 def tokenize_conversation(
     conv,
     conv_template_name,
     tokenizer: AutoTokenizer,
     model_max_length: int,
+    position_ids: bool = False,
 ):
     """tokenize conversation and prepare labels for loss calculation"""
     # get conversation template
@@ -110,6 +127,8 @@ def tokenize_conversation(
     tokenized_conversation["attention_mask"] = [1] * len(
         tokenized_conversation["input_ids"]
     )
+    if position_ids:
+        tokenized_conversation["position_ids"] = list(range(len(tokenized_conversation["input_ids"])))
 
     return tokenized_conversation
 
@@ -129,7 +148,6 @@ def packing_data(numbers: list[int], dataset: list):
         "attention_mask": packed_attention_masks,
         "labels": packed_labels,
     }
-
 
 class LazySupervisedDataset(TorchDataset):
     """Dataset for supervised fine-tuning."""
@@ -173,6 +191,26 @@ def run_sft():
     parser = HfArgumentParser((ModelArguments, DataArguments, TrainingArguments))
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
+    if model_args.enable_liger_kernel and model_args.sequence_parallel_size != 1:
+        raise ValueError(
+            "Liger kernel and sequence parallelism cannot be enabled simultaneously. "
+            "When --enable_liger_kernel is True, --sequence_parallel_size must be 1. "
+            "Please set --sequence_parallel_size=1 or disable liger kernel."
+        )
+
+    if data_args.cutoff_len % model_args.sequence_parallel_size != 0:
+        raise ValueError("cutoff_len must be a multiple of sequence_parallel_size.")
+
+    if model_args.sequence_parallel_size > 1:
+        if (data_args.cutoff_len // model_args.sequence_parallel_size) % 8 != 0:
+            tmp_sp_len = data_args.cutoff_len // model_args.sequence_parallel_size
+            closest_cutoff_len = int((tmp_sp_len + (8 - tmp_sp_len % 8)) * model_args.sequence_parallel_size)
+            rank0_print(
+                f"cutoff_len must be a multiple of 8 after dividing sequence_parallel_size. With sequence parallel, we first pad to cutoff_len and then split the sequence. \nAll the DataCollators pad to multiple of 8, which is hard-coded in LLaMA-Factory. If the splitted sequences are not already mutliple of 8, padding it to be would effectively change the original sequence and is wrong. \nWe automatically increase the cutoff_len = {data_args.cutoff_len} you set to the larger but closest number satifying this condition to be {closest_cutoff_len}."
+            )
+            data_args.cutoff_len = closest_cutoff_len
+            # raise ValueError(f"cutoff_len must be a multiple of 8 after dividing sequence_parallel_size. With sequence parallel, we first pad to cutoff_len and then split the sequence. \nAll the DataCollators pad to multiple of 8, which is hard-coded in LLaMA-Factory. If the splitted sequences are not already mutliple of 8, padding it to be would effectively change the original sequence and is wrong. \nThe closest cutoff_len satifying this condition is {closest_cutoff_len}. Try setting --cutoff_len {closest_cutoff_len}")
+
     global local_rank
     local_rank = training_args.local_rank
     rank0_print(f"{model_args = }")
@@ -191,6 +229,7 @@ def run_sft():
         train_data = data[: -data_args.eval_num]
         dev_data = data[-data_args.eval_num :]
     else:
+        random.shuffle(data)
         train_data = data
         dev_data = []
         training_args.eval_strategy = "no"
@@ -205,6 +244,11 @@ def run_sft():
         attn_implementation = "eager"
     else:
         attn_implementation = "flash_attention_2"
+
+    sequence_parallel_group = apply_sequence_parallel(model_args, training_args.full_determinism)  # monkey patching
+
+    if sequence_parallel_group is not None and is_transformers_version_greater_than("4.51.0"):
+            attn_implementation = "sequence_parallel_attention"
 
     # load model and tokenizer
     if model_args.enable_liger_kernel:
@@ -224,6 +268,16 @@ def run_sft():
             attn_implementation=attn_implementation,
             trust_remote_code=True,
         )
+
+    if (
+        model_args.sequence_parallel_size > 1
+        and hasattr(config, "attention_dropout")
+        and config.attention_dropout != 0.0
+    ):
+        model.config.attention_dropout = 0.0
+
+    model.sequence_parallel_group = sequence_parallel_group
+
     tokenizer = AutoTokenizer.from_pretrained(
         model_args.model_name_or_path,
         trust_remote_code=True,
@@ -255,6 +309,41 @@ def run_sft():
 
         rank0_print("Loading data...")
 
+    elif model_args.sequence_parallel_size > 1:
+        train_dataset = Dataset.from_list(train_data)
+        dev_dataset = Dataset.from_list(dev_data)
+
+        # tokenize dataset
+        with PartialState().local_main_process_first():
+            train_dataset = train_dataset.map(
+                partial(
+                    tokenize_conversation,
+                    conv_template_name=data_args.conv_template_name,
+                    tokenizer=tokenizer,
+                    model_max_length=data_args.cutoff_len,
+                    position_ids=True,
+                ),
+                remove_columns=list(train_dataset.features),
+                num_proc=data_args.num_workers,
+            )
+            dev_dataset = dev_dataset.map(
+                partial(
+                    tokenize_conversation,
+                    conv_template_name=data_args.conv_template_name,
+                    tokenizer=tokenizer,
+                    model_max_length=data_args.cutoff_len,
+                    position_ids=True,
+                ),
+                remove_columns=list(dev_dataset.features),
+                num_proc=data_args.num_workers,
+            )
+        # Then apply sequence parallel processing
+        train_dataset = get_sequence_parallel_dataset(
+            train_dataset, data_args, model_args, training_args, tokenizer, is_eval=False
+        )
+        dev_dataset = get_sequence_parallel_dataset(
+            dev_dataset, data_args, model_args, training_args, tokenizer, is_eval=True
+        )
     else:
         train_dataset = Dataset.from_list(train_data)
         dev_dataset = Dataset.from_list(dev_data)
@@ -348,6 +437,9 @@ def run_sft():
     )
 
     configure_model(data_args.conv_template_name, tokenizer, model)
+
+    # Apply monkey patches before creating trainer
+    apply_custom_trainer_patches()
 
     # create trainer
     trainer = Trainer(
