@@ -142,13 +142,11 @@ def architecture_identification():
     try:
         if arch in ["aarch64", "arm64"]:
             import torch_npu
-            if torch_npu.is_available():
-                PLATFORM = "npu"
-                device = torch.device("npu")
+            PLATFORM = "npu"
+            device = torch.device("npu")
         else:
-            if torch.cuda.is_available():
-                PLATFORM = "gpu"
-                device = torch.device("cuda")
+            PLATFORM = "gpu"
+            device = torch.device("cuda")
     except ImportError:
         PLATFORM = "cpu"
         device = torch.device("cpu")

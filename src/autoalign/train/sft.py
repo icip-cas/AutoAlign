@@ -39,6 +39,12 @@ if PLATFORM == "npu":
 
 local_rank = None
 
+default_liger_kernel = False
+#
+if PLATFORM == "npu":
+    default_liger_kernel = False
+elif PLATFORM == "gpu": 
+    default_liger_kernel = True
 
 def rank0_print(*args):
     if local_rank == 0:
@@ -51,7 +57,7 @@ class ModelArguments:
     model_name_or_path: str
     model_max_length: int
     enable_liger_kernel: bool = field(
-        default=False,
+        default=default_liger_kernel,
         metadata={"help": "Whether to enable the liger kernel for optimization."}
     )
 
