@@ -58,7 +58,6 @@ eval = [
   "mmengine",
   "vllm==0.8.3",
 ]
-
 train_ascend = [
   "torch==2.5.1",
   "torch-npu==2.5.1.post1.dev20250528",

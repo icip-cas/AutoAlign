@@ -47,58 +47,6 @@ conda activate ata
 pip install .
 pip install .[train_ascend]
 ```
-##### Dependencies
-###### 1.NPU Driver
-
-Install the appropriate firmware and driver for your Ascend device based on its model.
-Refer to [Quick Installation Guide](https://ascend.github.io/docs/sources/ascend/quick_install.html).
-Verify installation:
-```bash
-npu-smi info
-```
-
-
-###### 2.AutoAlign and Dependencies
-
-Install AutoAlign in editable mode:
-```bash 
-pip install -e .
-```
-###### 2.NPU Development Packages
-
-Recommended versions:
-
-| Requirement | Recommend                         |
-| ----------- | --------------------------------- |
-| CANN        | 8.1.RC1                           |
-| torch       | 2.5.1                             |
-| torch-npu   | torch-npu-2.5.1.post1.dev20250528 |
-| vllm        | 0.9.1                             |
-| vllm-ascend | 0.9.1rc1                          |
-
-Follow the official installation guides for CANN and torch:
-- [Install CANN Packages](https://www.hiascend.com/document/detail/zh/canncommercial/81RC1/softwareinst/instg/instg_0008.html?Mode=PmIns&InstallType=local&OS=openEuler&Software=cannToolKit)
-- [Install PyTorch](https://www.hiascend.com/document/detail/zh/Pytorch/700/configandinstg/instg/insg_0004.html)
-
-If already installed, skip this step.
-
-**Install torch-npu**
-```bash
-pip config set global.extra-index-url "https://download.pytorch.org/whl/cpu/ https://mirrors.huaweicloud.com/ascend/repos/pypi"
-pip install "torch-npu==torch-npu-2.5.1.post1.dev20250528"
-``` 
-
-* For installing vllm, refer to the [VLLM-Ascend Installation Guide](https://vllm-ascend.readthedocs.io/en/latest/installation.html), or you can use the following command for direct installation:
-
-```bash
-
-pip install vllm==0.9.1
-
-pip install vllm-ascend==0.9.1rc1
-
-```
-
-
 
 
 ### Verification

@@ -1,5 +1,4 @@
 """finetune"""
-import platform
 import json
 from tqdm.auto import tqdm
 from functools import partial

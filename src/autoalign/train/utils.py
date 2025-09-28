@@ -137,19 +137,20 @@ def architecture_identification():
     PLATFORM = "cpu"
     arch = platform.machine().lower()
 
-    device = torch.device("cpu")  # 默认CPU
+    device = torch.device("cpu")  
 
     try:
-        if arch in ["aarch64", "arm64"]:
-            import torch_npu
-            PLATFORM = "npu"
-            device = torch.device("npu")
-        else:
+        import torch_npu  
+        PLATFORM = "npu"
+        device = torch.device("npu")
+    except ImportError:
+        if torch.cuda.is_available():
             PLATFORM = "gpu"
             device = torch.device("cuda")
-    except ImportError:
-        PLATFORM = "cpu"
-        device = torch.device("cpu")
+        else:
+            PLATFORM = "cpu"
+            device = torch.device("cpu")
+
     return device, PLATFORM
 
 def load_json(data_path: str):
