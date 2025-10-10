@@ -190,7 +190,6 @@ def run_sft():
 
     global local_rank
     local_rank = training_args.local_rank
-    print(f"--- Platform recognized: {PLATFORM.upper()}. Using device: {device} ---")
     rank0_print(
         f"--- Platform recognized: {PLATFORM.upper()}. Using device: {device} ---"
     )
