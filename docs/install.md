@@ -43,7 +43,6 @@ bash scripts/train/megatron/env_install.sh
 For users with **Ascend NPU devices**:
 ```bash
 conda activate ata
-conda activate ata
 pip install .
 pip install .[train_ascend]
 ```
