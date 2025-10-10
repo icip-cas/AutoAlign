@@ -130,6 +130,29 @@ def greedy_knapsack(
     assert sum([len(indices) for indices in knapsacks]) == lengths
     return knapsacks
 
+def architecture_identification():
+    import platform
+    import torch
+
+    PLATFORM = "cpu"
+    arch = platform.machine().lower()
+
+    device = torch.device("cpu")  
+
+    try:
+        import torch_npu  
+        PLATFORM = "npu"
+        device = torch.device("npu")
+    except ImportError:
+        if torch.cuda.is_available():
+            PLATFORM = "gpu"
+            device = torch.device("cuda")
+        else:
+            PLATFORM = "cpu"
+            device = torch.device("cpu")
+
+    return device, PLATFORM
+
 def load_json(data_path: str):
     """
     Load data from JSON or JSONL file by detecting the actual format.

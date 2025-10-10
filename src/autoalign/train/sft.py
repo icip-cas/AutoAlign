@@ -34,9 +34,20 @@ from autoalign.train.utils import (
     split_list,
     greedy_knapsack,
     pack_data_points_by_length,
+    architecture_identification
 )
 
+device, PLATFORM = architecture_identification()
+if PLATFORM == "npu":
+    from torch_npu.contrib import transfer_to_npu
+
 local_rank = None
+
+default_liger_kernel = False
+if PLATFORM == "npu":
+    default_liger_kernel = False
+elif PLATFORM == "gpu": 
+    default_liger_kernel = True
 
 def rank0_print(*args):
     if local_rank == 0:
@@ -54,7 +65,7 @@ class ModelArguments:
         default="ulysses", metadata={"help": "Specific mode of sequence parallel implementation."}
     )
     enable_liger_kernel: bool = field(
-        default=False,
+        default=default_liger_kernel,
         metadata={"help": "Whether to enable the liger kernel for optimization."}
     )
 
@@ -181,9 +192,13 @@ class LazySupervisedDataset(TorchDataset):
             self.model_max_length,
         )
 
-        self.cached_data_dict[i] = ret
-
-        return ret
+        if PLATFORM == "npu":
+            tensorized_ret = {k: torch.tensor(v).to(device) for k, v in ret.items()}
+            self.cached_data_dict[i] = tensorized_ret
+            return tensorized_ret
+        else:
+            self.cached_data_dict[i] = ret
+            return ret
 
 
 def run_sft():
@@ -213,6 +228,9 @@ def run_sft():
 
     global local_rank
     local_rank = training_args.local_rank
+    rank0_print(
+        f"--- Platform recognized: {PLATFORM.upper()}. Using device: {device} ---"
+    )
     rank0_print(f"{model_args = }")
     rank0_print(f"{data_args = }")
 
@@ -240,10 +258,24 @@ def run_sft():
     config = transformers.AutoConfig.from_pretrained(
         model_args.model_name_or_path, trust_remote_code=True
     )
-    if config.model_type == "gemma2":
+
+    if PLATFORM == "npu":
+        # Ascend NPU 
         attn_implementation = "eager"
+        model_dtype = torch.float16
+        rank0_print(
+            "NPU platform: Using attn_implementation='eager' and dtype=torch.float16"
+        )
     else:
-        attn_implementation = "flash_attention_2"
+        # Nvidia GPU
+        if config.model_type == "gemma2":
+            attn_implementation = "eager"
+        else:
+            attn_implementation = "flash_attention_2"
+        model_dtype = torch.bfloat16
+        rank0_print(
+            f"GPU platform: Using attn_implementation='{attn_implementation}' and dtype=torch.bfloat16"
+        )
 
     sequence_parallel_group = apply_sequence_parallel(model_args, training_args.full_determinism)  # monkey patching
 
@@ -251,7 +283,7 @@ def run_sft():
             attn_implementation = "sequence_parallel_attention"
 
     # load model and tokenizer
-    if model_args.enable_liger_kernel:
+    if PLATFORM == "gpu" and model_args.enable_liger_kernel:
         from liger_kernel.transformers import AutoLigerKernelForCausalLM
         model = AutoLigerKernelForCausalLM.from_pretrained(
             model_args.model_name_or_path,
@@ -269,6 +301,11 @@ def run_sft():
             trust_remote_code=True,
         )
 
+    if PLATFORM == "npu":
+        # Ascend NPU
+        model = model.npu()
+        rank0_print("Model moved to NPU.")
+    
     if (
         model_args.sequence_parallel_size > 1
         and hasattr(config, "attention_dropout")

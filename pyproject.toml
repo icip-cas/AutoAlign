@@ -12,7 +12,6 @@ authors = [
 ]
 
 dependencies = [
-  "torch==2.6.0",
   "tensorboard",
   "wandb",
   "datasets",
@@ -27,7 +26,6 @@ dependencies = [
   "einops",
   "fire",
   "tenacity",
-  "vllm==0.8.3",
   "langdetect",
   "torchmetrics==1.6.2",
   # ui
@@ -44,8 +42,10 @@ dependencies = [
 
 [project.optional-dependencies]
 train = [
+  "torch==2.6.0",
   "deepspeed==0.16.1",
   "trl>=0.9.3",
+  "vllm==0.8.3",
   "flash-attn==2.7.2post1",
   "liger_kernel>=0.5.10",
 ]
@@ -56,6 +56,13 @@ eval = [
   "alpaca-eval==0.6.3",
   "huggingface-hub==0.30.0",
   "mmengine",
+  "vllm==0.8.3",
+]
+train_ascend = [
+  "torch==2.5.1",
+  "torch-npu==2.5.1.post1.dev20250528",
+  "vllm==0.9.1",
+  "vllm-ascend==0.9.1rc1"
 ]
 doc = [
   "sphinx",
@@ -73,8 +80,12 @@ autoalign_megatron = []
 npu_train = []
 
 [tool.pip]
-extra-index-url = ["https://pypi.tuna.tsinghua.edu.cn/simple"]
-
+extra-index-url = [
+  "https://pypi.tuna.tsinghua.edu.cn/simple",
+  #torch-npu / vllm-ascend
+  "https://download.pytorch.org/whl/cpu/",
+  "https://mirrors.huaweicloud.com/ascend/repos/pypi"
+]
 [project.scripts]
 autoalign-cli = "autoalign.cli:main"
 
