@@ -476,7 +476,8 @@ def run_sft():
     configure_model(data_args.conv_template_name, tokenizer, model)
 
     # Apply monkey patches before creating trainer
-    apply_custom_trainer_patches()
+    if sequence_parallel_group is not None:
+        apply_custom_trainer_patches()
 
     # create trainer
     trainer = Trainer(
