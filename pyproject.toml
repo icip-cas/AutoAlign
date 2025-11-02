@@ -60,9 +60,7 @@ eval = [
 ]
 train_ascend = [
   "torch==2.5.1",
-  "torch-npu==2.5.1.post1.dev20250528",
-  "vllm==0.9.1",
-  "vllm-ascend==0.9.1rc1"
+  "torch-npu==2.5.1.post1.dev20250528"
 ]
 doc = [
   "sphinx",
