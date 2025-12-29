@@ -11,8 +11,8 @@ Create a new conda environment and install the base package:
 ```bash
 conda create -n ata python=3.10
 conda activate ata
-pip install .
-pip install .[flash-attn]
+pip install --no-build-isolation .
+pip install --no-build-isolation .[flash-attn]
 ```
 
 ### Optional Components
@@ -43,8 +43,7 @@ bash scripts/train/megatron/env_install.sh
 For users with **Ascend NPU devices**:
 ```bash
 conda activate ata
-
-pip install --no-build-isolation ."[train_ascend]" --extra-index-url https://mirrors.huaweicloud.com/ascend/repos/pypi/
+INSTALL_VLLM_ASCEND=1 pip install --no-build-isolation ".[train_ascend]" --extra-index-url https://mirrors.huaweicloud.com/ascend/repos/pypi/
 ```
 
 
