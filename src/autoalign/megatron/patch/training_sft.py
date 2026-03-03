@@ -22,7 +22,7 @@
 #
 #     http://www.apache.org/licenses/LICENSE-2.0
 
-"""SFT utilities."""
+"""Training utilities (shared base for SFT and DPO)."""
 
 import dataclasses
 import gc
@@ -75,9 +75,9 @@ from megatron.training.initialize import (
 
 from megatron.training.memory_tracer.memstats_collector import MemStatsCollector
 from megatron.training.optimizer_param_scheduler import OptimizerParamScheduler
-from autoalign_megatron.patch.data.indexed_dataset_sft_conv import conv_idx_file_path
-from autoalign_megatron.patch.data.gpt_dataset_sft_conv import _get_train_valid_test_split_
-from autoalign_megatron.patch.core.pipeline_parallel.schedules import get_forward_backward_func
+from autoalign.megatron.patch.data.indexed_dataset_sft_conv import conv_idx_file_path
+from autoalign.megatron.patch.data.gpt_dataset_sft_conv import _get_train_valid_test_split_
+from autoalign.megatron.patch.core.pipeline_parallel.schedules import get_forward_backward_func
 from megatron.training import one_logger_utils
 
 from megatron.training.async_utils import maybe_finalize_async_save
@@ -202,6 +202,9 @@ def sft(
     args_defaults={},
     get_embedding_ranks=None,
     get_position_embedding_ranks=None,
+    idx_file_fn=None,
+    split_fn=None,
+    micro_batch_multiplier=1,
 ):
     """Main training program.
 
@@ -275,8 +278,10 @@ def sft(
     one_logger_utils.on_pretrain_start()
     
     # Update the number of training iterations based on the number of samples.
-    assert os.path.exists(conv_idx_file_path(args.data_path[0])),"need correct input data prefix"
-    with open(conv_idx_file_path(args.data_path[0]), 'rb') as stream:
+    _idx_file_fn = idx_file_fn or conv_idx_file_path
+    _split_fn = split_fn or _get_train_valid_test_split_
+    assert os.path.exists(_idx_file_fn(args.data_path[0])),"need correct input data prefix"
+    with open(_idx_file_fn(args.data_path[0]), 'rb') as stream:
         _HDR_MAGIC = b'MMIDIDX\x00\x00'
         magic_test = stream.read(9)
         assert _HDR_MAGIC == magic_test, (
@@ -290,7 +295,7 @@ def sft(
         
        
     
-    splits = _get_train_valid_test_split_(args.split, args.total_num_samples)
+    splits = _split_fn(args.split, args.total_num_samples)
     args.total_num_samples = (splits[1]-splits[0])*args.epochs
     args.train_iters = (splits[1]-splits[0])*args.epochs // args.global_batch_size 
     if args.eval_interval is None or args.eval_interval > args.train_iters:
@@ -372,6 +377,7 @@ def sft(
                 process_non_loss_data_func,
                 config,
                 checkpointing_context,
+                micro_batch_multiplier=micro_batch_multiplier,
             )
 
         print_datetime('after training is done')
@@ -699,6 +705,7 @@ def train_step(
     opt_param_scheduler,
     config,
     memory_stats_collector: MemStatsCollector = None,
+    micro_batch_multiplier: int = 1,
 ):
     """Single training step."""
     args = get_args()
@@ -730,7 +737,7 @@ def train_step(
         model=model,
         num_microbatches=get_num_microbatches(),
         seq_length=args.seq_length,
-        micro_batch_size=args.micro_batch_size,
+        micro_batch_size=args.micro_batch_size * micro_batch_multiplier,
         decoder_seq_length=args.decoder_seq_length,
         forward_only=False,
     )
@@ -770,7 +777,7 @@ def train_step(
 
     # Update learning rate.
     if update_successful:
-        increment = get_num_microbatches() * args.micro_batch_size * args.data_parallel_size
+        increment = get_num_microbatches() * args.micro_batch_size * micro_batch_multiplier * args.data_parallel_size
         opt_param_scheduler.step(increment=increment)
         skipped_iter = 0
     else:
@@ -815,6 +822,7 @@ def training_log(
     grad_norm,
     params_norm,
     num_zeros_in_grad,
+    micro_batch_multiplier=1,
 ):
     """Log training information such as losses, timing, ...."""
     args = get_args()
@@ -879,7 +887,7 @@ def training_log(
     ]
 
     # Calculate batch size.
-    batch_size = args.micro_batch_size * args.data_parallel_size * get_num_microbatches()
+    batch_size = args.micro_batch_size * micro_batch_multiplier * args.data_parallel_size * get_num_microbatches()
 
     # Track app tag & app tag ID
     one_logger_utils.track_app_tag(batch_size, args.world_size, args.seq_length)
@@ -1152,6 +1160,7 @@ def train(
     process_non_loss_data_func,
     config,
     checkpointing_context,
+    micro_batch_multiplier=1,
 ):
     """Train the model function."""
     args = get_args()
@@ -1307,10 +1316,11 @@ def train(
             opt_param_scheduler,
             config,
             memory_stats_collector,
+            micro_batch_multiplier=micro_batch_multiplier,
         )
         iteration += 1
         batch_size = (
-            mpu.get_data_parallel_world_size() * args.micro_batch_size * get_num_microbatches()
+            mpu.get_data_parallel_world_size() * args.micro_batch_size * micro_batch_multiplier * get_num_microbatches()
         )
         args.consumed_train_samples += batch_size
         num_fp_ops = num_floating_point_operations(args, batch_size)
@@ -1342,6 +1352,7 @@ def train(
             grad_norm,
             params_norm,
             num_zeros_in_grad,
+            micro_batch_multiplier=micro_batch_multiplier,
         )
 
         # StragglerDetector

@@ -27,6 +27,8 @@
 
 """Processing data for SFT Conv dataset."""
 
+import autoalign.megatron  # noqa: F401  # bootstrap MEGATRON_LM_PATH before megatron imports
+
 import argparse
 import json
 import multiprocessing
@@ -43,9 +45,9 @@ from datetime import datetime
 import torch
 
 from megatron_patch.tokenizer import build_tokenizer
-from autoalign_megatron.patch.data.indexed_dataset_sft_conv import make_sft_conv_builder
+from autoalign.megatron.patch.data.indexed_dataset_sft_conv import make_sft_conv_builder
 from collections import defaultdict
-from src.autoalign.conversation import TEMPLATES, Role, Conversation, IGNORED_TOKEN_ID
+from autoalign.conversation import TEMPLATES, Role, Conversation, IGNORED_TOKEN_ID
 
 class ConversationSFT(Conversation):
     def _generate_labels(self, tokenized_conversation, tokenizer, model_max_length, mask_id=IGNORED_TOKEN_ID):

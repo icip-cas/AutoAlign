@@ -24,9 +24,35 @@
 
 import argparse
 
+from autoalign.megatron.model_config import inject_hf_model_args
+
 
 def get_patch_args(parser):
     group = parser.add_argument_group(title="patch")
+
+    group.add_argument(
+        "--model-path",
+        type=str,
+        default=None,
+        help="Path to a HuggingFace model directory. When provided, model "
+             "architecture args (num-layers, hidden-size, …) are auto-derived "
+             "from config.json. Explicit CLI args take precedence.",
+    )
+
+    group.add_argument(
+        "--model-type",
+        type=str,
+        default=None,
+        help="Model architecture type (e.g. qwen2, llama). "
+             "Auto-derived from --model-path config.json if not provided.",
+    )
+
+    group.add_argument(
+        "--template",
+        type=str,
+        default="chatml-idsys",
+        help="Conversation template name for online tokenization (e.g. chatml-idsys, llama-3-instruct)",
+    )
 
     group.add_argument(
         "--beta",
@@ -491,4 +517,8 @@ def get_patch_args(parser):
         default=0,
         help="The num of layers to be moved to CPU",
     )
+
+    # Auto-derive model architecture args from --model-path (if provided)
+    inject_hf_model_args(parser)
+
     return parser

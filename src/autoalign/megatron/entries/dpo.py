@@ -1,9 +1,3 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.  All rights reserved.
-
-# Additional modifications and contributions by AutoAlign Team:
-# - Added support for multi-turn dialogue training with SFT (Supervised Fine-Tuning).
-# - Integrated DPO (Direct Preference Optimization) for alignment training.
-
 # Copyright (c) 2024 AutoAlign Team.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,81 +5,45 @@
 #
 #     http://www.apache.org/licenses/LICENSE-2.0
 
-"""DPO"""
+"""Model-agnostic DPO entry point for Megatron training.
+
+Model type is resolved from ``--model-type`` (explicit) or ``--model-path``
+(auto-derived from HF config.json).
+"""
+
+import autoalign.megatron  # noqa: F401  # bootstrap MEGATRON_LM_PATH before megatron imports
 
 import os
 from functools import partial
-from typing import Union
 
 import torch
 import torch._dynamo
 from megatron.core import mpu
 from megatron.core.enums import ModelType
 from megatron.training import get_args, get_timers, print_rank_0
-from megatron.training.arguments import core_transformer_config_from_args
 from megatron.training.utils import (
     average_losses_across_data_parallel_group,
 )
-from megatron.core.packed_seq_params import PackedSeqParams
 
-from megatron_patch.model.qwen2.layer_specs import (
-    get_gpt_layer_local_spec,
-    get_gpt_layer_with_transformer_engine_spec,
-)
-from megatron_patch.model.qwen2.transformer_config import Qwen2TransformerConfig
-from megatron_patch.tokenizer import build_tokenizer
-
-from autoalign_megatron.patch.training_dpo import dpo
-from autoalign_megatron.patch.data.gpt_dataset_dpo import build_train_valid_test_datasets_dpo
-from autoalign_megatron.patch.data.utils import get_batch_on_this_tp_rank_idxmap_dpo
-from autoalign_megatron.patch.model.qwen2.model_dpo import GPTModelDPO
-from autoalign_megatron.patch.arguments import get_patch_args
+from autoalign.megatron.patch.training_dpo import dpo
+from autoalign.megatron.patch.data.gpt_dataset_dpo import build_train_valid_test_datasets_dpo
+from autoalign.megatron.patch.data.online_dataset import build_train_valid_test_datasets_online_dpo
+from autoalign.megatron.patch.data.utils import get_batch_on_this_tp_rank_idxmap_dpo
+from autoalign.megatron.patch.model.qwen2.model_dpo import GPTModelDPO
+from autoalign.megatron.patch.arguments import get_patch_args
+from autoalign.megatron.registry import make_model_provider
 
 torch._dynamo.config.suppress_errors = True
 
-
-def model_provider(
-    pre_process=True, post_process=True
-) -> Union[GPTModelDPO]:
-
-    args = get_args()
-    build_tokenizer(args)
-    print_rank_0("building qwen2 model ...")
-
-    config = core_transformer_config_from_args(args, Qwen2TransformerConfig)
-    use_te = args.transformer_impl == "transformer_engine"
-
-    if use_te:
-        print_rank_0("building qwen2 model in TE...")
-        transformer_layer_spec = get_gpt_layer_with_transformer_engine_spec(
-            args.num_experts, args.moe_grouped_gemm, args.qk_layernorm
-        )
-    else:
-        print_rank_0("building qwen2 model in Mcore...")
-        transformer_layer_spec = get_gpt_layer_local_spec(
-            args.num_experts, args.moe_grouped_gemm, args.qk_layernorm
-        )
-
-    model = GPTModelDPO(
-        config=config,
-        transformer_layer_spec=transformer_layer_spec,
-        vocab_size=args.padded_vocab_size,
-        max_sequence_length=args.max_position_embeddings,
-        pre_process=pre_process,
-        post_process=post_process,
-        fp16_lm_cross_entropy=args.fp16_lm_cross_entropy,
-        parallel_output=True,
-        share_embeddings_and_output_weights=not args.untie_embeddings_and_output_weights,
-        position_embedding_type=args.position_embedding_type,
-        rotary_percent=args.rotary_percent,
-        rotary_base=args.rotary_base,
-        seq_len_interpolation_factor=args.rotary_seq_len_interpolation_factor,
+# model_type resolved from --model-path / --model-type at runtime
+model_provider = make_model_provider(
+    model_cls=GPTModelDPO,
+    extra_args_fn=lambda args: dict(
         beta=args.beta,
         label_smoothing=args.label_smoothing,
         loss_type=args.loss_type,
-    )
-        
-    return model
+    ),
+)
 
 
 def get_batch(data_iterator):
@@ -99,7 +57,7 @@ def get_batch(data_iterator):
 
     batch = get_batch_on_this_tp_rank_idxmap_dpo(data_iterator)
     packed_seq_params = None
-    
+
     return tuple([*batch.values(), packed_seq_params])
 
 
@@ -133,7 +91,7 @@ def forward_step(data_iterator, model: GPTModelDPO):
 
     Args:
         data_iterator : Input data iterator
-        model (GPTModel_DPO): The GPT Model
+        model (GPTModelDPO): The GPT Model
     """
     timers = get_timers()
     args = get_args()
@@ -142,7 +100,7 @@ def forward_step(data_iterator, model: GPTModelDPO):
     timers("batch-generator", log_level=2).start()
     tokens, labels, loss_mask, attention_mask, position_ids, packed_seq_params = get_batch(data_iterator)
     timers("batch-generator").stop()
-                
+
 
     output_tensor = model(tokens, position_ids, attention_mask, labels=labels, packed_seq_params=packed_seq_params)
 
@@ -161,13 +119,28 @@ def train_valid_test_datasets_provider(train_valid_test_num_samples):
     args = get_args()
     print_rank_0("> building train, validation, and test datasets for GPT ...")
 
-    train_ds, valid_ds, test_ds = build_train_valid_test_datasets_dpo(
-        data_prefix=args.data_path,
-        data_impl=args.dataset,
-        splits_string=args.split,
-        seq_length=args.seq_length,
-        seed=args.seed,
-    )
+    if args.dataset == "json":
+        # Online tokenization: read JSON + tokenize on-the-fly
+        assert args.model_path is not None, "--model-path is required for --dataset json"
+        train_ds, valid_ds, test_ds = build_train_valid_test_datasets_online_dpo(
+            data_path=args.data_path[0],
+            model_path=args.model_path,
+            template_name=args.template,
+            seq_length=args.seq_length,
+            seed=args.seed,
+            splits_string=args.split,
+            epochs=args.epochs,
+            shuffle_all_epochs=args.shuffle_all_epochs or False,
+        )
+    else:
+        # Offline: load pre-tokenized MMap dataset
+        train_ds, valid_ds, test_ds = build_train_valid_test_datasets_dpo(
+            data_prefix=args.data_path,
+            data_impl=args.dataset,
+            splits_string=args.split,
+            seq_length=args.seq_length,
+            seed=args.seed,
+        )
 
     print_rank_0("> finished creating GPT datasets ...")
 

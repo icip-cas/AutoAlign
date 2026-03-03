@@ -13,6 +13,8 @@ DATASET_PATH=${DATASET_PATH:-"./data/dummy_sft_mg_conversations_maxlen_4096"}
 VALID_DATASET_PATH=${VALID_DATASET_PATH:-"./data/dummy_sft_mg_conversations_maxlen_4096"}
 PRETRAIN_CHECKPOINT_PATH=${PRETRAIN_CHECKPOINT_PATH:-"./mg_models/Qwen2.5-3B-hf-to-mcore-te-tp2-pp2"}
 OUTPUT_BASEPATH=${OUTPUT_BASEPATH:-"./checkpoints/sft"}
+# HF model path for auto-deriving model architecture args (num-layers, hidden-size, etc.)
+HF_MODEL_PATH=${HF_MODEL_PATH:-"Qwen/Qwen2.5-3B-Instruct"}
 
 # ==============================
 # Compute Resources Configuration
@@ -28,7 +30,6 @@ GPUS_PER_NODE=${GPUS_PER_NODE:-8}
 # ==============================
 # Training Hyperparameters
 # ==============================
-MODEL_SIZE=${MODEL_SIZE:-"3B"}
 BATCH_SIZE=${BATCH_SIZE:-4}
 GLOBAL_BATCH_SIZE=${GLOBAL_BATCH_SIZE:-16}
 LR=${LR:-5e-6}
@@ -72,7 +73,7 @@ SAVE_INTERVAL=${SAVE_INTERVAL:-10}
 
 TRAIN_ITERS=${TRAIN_ITERS:-10000}
 LR_WARMUP_FRACTION=$(echo "${GLOBAL_BATCH_SIZE} * 0.00001" | bc -l)
-PREFIX="sft-mcore-qwen2_5-${MODEL_SIZE}-lr-${LR}-minlr-${MIN_LR}-bs-${BATCH_SIZE}-gbs-${GLOBAL_BATCH_SIZE}-seqlen-${SEQ_LEN}"
+PREFIX="sft-mcore-qwen2_5-lr-${LR}-minlr-${MIN_LR}-bs-${BATCH_SIZE}-gbs-${GLOBAL_BATCH_SIZE}-seqlen-${SEQ_LEN}"
 sft_option=" \
     --eod-mask-loss \
     --train-mode sft"
@@ -187,127 +188,12 @@ else
 fi
 
 # ==============================
-# Modle Size Configuration
+# Model Architecture (auto-derived from --model-path)
+# All model arch params (num-layers, hidden-size, ffn-hidden-size,
+# num-attention-heads, GQA, extra-vocab-size, norm-epsilon, rotary-base,
+# swiglu, RMSNorm, etc.) are auto-derived from HF config.json.
+# Override any by passing them explicitly on the CLI.
 # ==============================
-if [ $MODEL_SIZE = 0.5B ]; then
-
-NUM_LAYERS=24
-HIDDEN_SIZE=896
-NUM_ATTN_HEADS=14
-INTERMEDIATE_SIZE=4864
-NUM_KEY_VALUE_HEADS=2
-MAX_POSITION_EMBEDDINGS=32768
-EXTRA_VOCAB_SIZE=293
-RMS_NORM_EPS=1e-6
-gqa_options=" \
-		    --group-query-attention \
-		    --num-query-groups ${NUM_KEY_VALUE_HEADS}"
-
-
-tie_option=""
-
-elif [ $MODEL_SIZE = 1.5B ]; then
-
-NUM_LAYERS=28
-HIDDEN_SIZE=1536
-NUM_ATTN_HEADS=12
-INTERMEDIATE_SIZE=8960
-NUM_KEY_VALUE_HEADS=2
-MAX_POSITION_EMBEDDINGS=32768
-EXTRA_VOCAB_SIZE=293
-RMS_NORM_EPS=1e-6
-gqa_options=" \
-		    --group-query-attention \
-		    --num-query-groups ${NUM_KEY_VALUE_HEADS}"
-
-tie_option=""
-
-elif [ $MODEL_SIZE = 3B ]; then
-
-NUM_LAYERS=36
-HIDDEN_SIZE=2048
-NUM_ATTN_HEADS=16
-INTERMEDIATE_SIZE=11008
-NUM_KEY_VALUE_HEADS=2
-MAX_POSITION_EMBEDDINGS=32768
-EXTRA_VOCAB_SIZE=293
-RMS_NORM_EPS=1e-6
-gqa_options=" \
-		    --group-query-attention \
-		    --num-query-groups ${NUM_KEY_VALUE_HEADS}"
-
-tie_option=""
-
-elif [ $MODEL_SIZE = 7B ]; then
-
-NUM_LAYERS=28
-HIDDEN_SIZE=3584
-NUM_ATTN_HEADS=28
-INTERMEDIATE_SIZE=18944
-NUM_KEY_VALUE_HEADS=4
-MAX_POSITION_EMBEDDINGS=131072
-EXTRA_VOCAB_SIZE=421
-RMS_NORM_EPS=1e-6
-gqa_options=" \
-		    --group-query-attention \
-		    --num-query-groups ${NUM_KEY_VALUE_HEADS}"
-
-tie_option=" \
-        --untie-embeddings-and-output-weights \
-        "
-
-elif [ $MODEL_SIZE = 14B ]; then
-
-NUM_LAYERS=48
-HIDDEN_SIZE=5120
-NUM_ATTN_HEADS=40
-INTERMEDIATE_SIZE=13824
-NUM_KEY_VALUE_HEADS=8
-MAX_POSITION_EMBEDDINGS=131072
-EXTRA_VOCAB_SIZE=421
-RMS_NORM_EPS=1e-5
-gqa_options=" \
-		    --group-query-attention \
-		    --num-query-groups ${NUM_KEY_VALUE_HEADS}"
-
-tie_option=" \
-        --untie-embeddings-and-output-weights \
-        "
-elif [ $MODEL_SIZE = 32B ]; then
-
-NUM_LAYERS=64
-HIDDEN_SIZE=5120
-NUM_ATTN_HEADS=40
-INTERMEDIATE_SIZE=27648
-NUM_KEY_VALUE_HEADS=8
-MAX_POSITION_EMBEDDINGS=131072
-EXTRA_VOCAB_SIZE=421
-RMS_NORM_EPS=1e-5
-gqa_options=" \
-		    --group-query-attention \
-		    --num-query-groups ${NUM_KEY_VALUE_HEADS}"
-
-tie_option=" \
-        --untie-embeddings-and-output-weights \
-        "
-elif [ $MODEL_SIZE = 72B ]; then
-
-NUM_LAYERS=80
-HIDDEN_SIZE=8192
-NUM_ATTN_HEADS=64
-INTERMEDIATE_SIZE=29568
-NUM_KEY_VALUE_HEADS=8
-MAX_POSITION_EMBEDDINGS=131072
-EXTRA_VOCAB_SIZE=421
-RMS_NORM_EPS=1e-5
-gqa_options=" \
-		    --group-query-attention \
-		    --num-query-groups ${NUM_KEY_VALUE_HEADS}"
-
-tie_option=" \
-        --untie-embeddings-and-output-weights \
-        "
-fi
 
 te_options=" \
         --transformer-impl transformer_engine"
@@ -334,6 +220,7 @@ find ${PRETRAIN_CHECKPOINT_PATH} -maxdepth 1 -type f -name "merge*" -print0 | xa
 load_options=" \
         --load $PRETRAIN_CHECKPOINT_PATH"
 megatron_options="  \
+        --model-path ${HF_MODEL_PATH} \
         --save ${SAVED_PRETRAIN_CHECKPOINT_PATH} \
         --lr ${LR} \
         --min-lr ${MIN_LR} \
@@ -343,18 +230,12 @@ megatron_options="  \
         --adam-beta2 0.95 \
         --clip-grad 1.0 \
         --init-method-std 0.008 \
-        --attention-dropout 0.0 \
         --hidden-dropout 0.0 \
         --lr-warmup-fraction ${LR_WARMUP_FRACTION} \
         --train-iters ${TRAIN_ITERS} \
         --micro-batch-size ${BATCH_SIZE} \
         --global-batch-size ${GLOBAL_BATCH_SIZE} \
-        --num-layers ${NUM_LAYERS} \
-        --hidden-size ${HIDDEN_SIZE} \
-        --num-attention-heads ${NUM_ATTN_HEADS} \
-        --ffn-hidden-size ${INTERMEDIATE_SIZE} \
         --seq-length ${SEQ_LEN} \
-        --max-position-embeddings ${MAX_POSITION_EMBEDDINGS} \
         --max-padding-length ${PAD_LEN} \
         --log-interval 1 \
         --log-throughput \
@@ -370,17 +251,6 @@ megatron_options="  \
         --pipeline-model-parallel-size ${PP} \
         --context-parallel-size ${CP} \
         --num-workers 8 \
-        --extra-vocab-size ${EXTRA_VOCAB_SIZE} \
-        --patch-tokenizer-type Qwen2Tokenizer \
-        --swiglu \
-        --normalization RMSNorm \
-        --norm-epsilon ${RMS_NORM_EPS} \
-        --use-rotary-position-embeddings \
-        --position-embedding-type rope \
-        --disable-bias-linear \
-        --add-qkv-bias \
-        --rotary-percent 1.0 \
-        --rotary-base 1000000 \
         --rotary-seq-len-interpolation-factor 1 \
         "
         # --no-save-optim \
@@ -388,12 +258,12 @@ megatron_options="  \
         # --no-load-rng \
 
 # ==============================
-# Tranin!
+# Train!
 # ==============================
 DISTRIBUTED_ARGS="--nproc_per_node $GPUS_PER_NODE --nnodes $NNODES --node_rank $NODE_RANK --master_addr $MASTER_ADDR --master_port $MASTER_PORT"
-run_cmd="torchrun $DISTRIBUTED_ARGS -m autoalign_megatron.examples.qwen2.sft_qwen
+run_cmd="torchrun $DISTRIBUTED_ARGS -m autoalign.megatron.entries.sft
  ${megatron_options} ${dataset_option} ${pr_options} ${load_options} ${te_options} ${activation_checkpoint_options} \
- ${do_options} ${sp_options} ${gqa_options} ${offload_option} ${comm_overlap_option} ${sft_option} ${tie_option}"
+ ${do_options} ${sp_options} ${offload_option} ${comm_overlap_option} ${sft_option}"
 
 echo ${run_cmd}
 eval ${run_cmd}

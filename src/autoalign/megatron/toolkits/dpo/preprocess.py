@@ -28,6 +28,8 @@
 
 """Processing data for DPO."""
 
+import autoalign.megatron  # noqa: F401  # bootstrap MEGATRON_LM_PATH before megatron imports
+
 import argparse
 import json
 import multiprocessing
@@ -46,9 +48,9 @@ import torch
 from megatron_patch.tokenizer import build_tokenizer
 from collections import defaultdict
 
-from autoalign_megatron.patch.data.indexed_dataset_dpo import make_dpo_builder
+from autoalign.megatron.patch.data.indexed_dataset_dpo import make_dpo_builder
 
-from src.autoalign.conversation import TEMPLATES, Role, Conversation, IGNORED_TOKEN_ID
+from autoalign.conversation import TEMPLATES, Role, Conversation, IGNORED_TOKEN_ID
 
 class ConversationDPO(Conversation):
     def fill_in_messages(
