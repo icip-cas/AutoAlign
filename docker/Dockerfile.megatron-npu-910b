@@ -34,7 +34,8 @@ RUN useradd -m -d /home/ma-user -s /bin/bash -g 100 -u 1000 ma-user
 USER ma-user
 WORKDIR /home/ma-user
 
-RUN wget https://repo.anaconda.com/miniconda/Miniconda3-py311_25.3.1-1-Linux-aarch64.sh \
+RUN ARCH=$(uname -m) && \
+    wget https://repo.anaconda.com/miniconda/Miniconda3-py311_25.3.1-1-Linux-${ARCH}.sh \
         -O /tmp/Miniconda3.sh && \
     bash /tmp/Miniconda3.sh -b -p /home/ma-user/miniconda3 && \
     rm /tmp/Miniconda3.sh
