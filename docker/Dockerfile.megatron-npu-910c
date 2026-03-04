@@ -1,0 +1,112 @@
+FROM swr.cn-south-1.myhuaweicloud.com/ascendhub/cann:8.3.rc1-910c-ubuntu22.04-py3.11
+
+# ==============================
+# Build Arguments
+# ==============================
+ARG TORCH_VERSION=2.7.1
+ARG TORCH_NPU_VERSION=2.7.1
+ARG MINDSPEED_REPO=https://gitee.com/ascend/MindSpeed.git
+ARG MINDSPEED_BRANCH=master
+ARG PAI_MEGATRON_PATCH_REPO=https://github.com/alibaba/Pai-Megatron-Patch.git
+ARG PAI_MEGATRON_PATCH_COMMIT=9b88cc46653e2c4f7f99529f86f8737ac1da9e9a
+ARG AUTOALIGN_REPO=https://github.com/icip-cas/AutoAlign.git
+ARG AUTOALIGN_BRANCH=megatron-refactor
+
+# ==============================
+# Install OS dependencies
+# ==============================
+RUN apt-get update && \
+    apt-get install -y \
+    ca-certificates vim curl \
+    gcc g++ git wget make cmake \
+    zlib1g zlib1g-dev openssl libsqlite3-dev libssl-dev libffi-dev \
+    unzip pciutils net-tools \
+    libblas-dev gfortran libblas3 libopenblas-dev \
+    libgmp-dev patch libjemalloc2 bc && \
+    apt-get clean && \
+    chmod o+w /usr/local
+
+RUN useradd -m -d /home/ma-user -s /bin/bash -g 100 -u 1000 ma-user
+
+########################################################################
+# Miniconda
+########################################################################
+USER ma-user
+WORKDIR /home/ma-user
+
+RUN ARCH=$(uname -m) && \
+    wget https://repo.anaconda.com/miniconda/Miniconda3-py311_25.3.1-1-Linux-${ARCH}.sh \
+        -O /tmp/Miniconda3.sh && \
+    bash /tmp/Miniconda3.sh -b -p /home/ma-user/miniconda3 && \
+    rm /tmp/Miniconda3.sh
+
+ENV PATH=$PATH:/home/ma-user/miniconda3/bin
+
+RUN source /home/ma-user/miniconda3/bin/activate && \
+    pip config set global.index-url https://repo.huaweicloud.com/repository/pypi/simple
+
+########################################################################
+# PyTorch + torch-npu
+########################################################################
+RUN source /home/ma-user/miniconda3/bin/activate && \
+    pip install --no-cache-dir \
+        torch==${TORCH_VERSION} \
+        torch-npu==${TORCH_NPU_VERSION}
+
+########################################################################
+# MindSpeed (NPU-compatible Megatron-LM)
+########################################################################
+RUN source /home/ma-user/miniconda3/bin/activate && \
+    git clone -b ${MINDSPEED_BRANCH} --depth 1 ${MINDSPEED_REPO} \
+        /home/ma-user/MindSpeed && \
+    cd /home/ma-user/MindSpeed && \
+    pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir -e .
+
+ENV MEGATRON_LM_PATH=/home/ma-user/MindSpeed
+ENV PYTHONPATH=${PYTHONPATH}:/home/ma-user/MindSpeed
+
+########################################################################
+# Pai-Megatron-Patch (no setup.py, PYTHONPATH only)
+########################################################################
+RUN git clone ${PAI_MEGATRON_PATCH_REPO} \
+        /home/ma-user/Pai-Megatron-Patch && \
+    cd /home/ma-user/Pai-Megatron-Patch && \
+    git checkout ${PAI_MEGATRON_PATCH_COMMIT}
+
+ENV PYTHONPATH=${PYTHONPATH}:/home/ma-user/Pai-Megatron-Patch
+
+########################################################################
+# AutoAlign
+########################################################################
+RUN source /home/ma-user/miniconda3/bin/activate && \
+    git clone -b ${AUTOALIGN_BRANCH} ${AUTOALIGN_REPO} \
+        /home/ma-user/AutoAlign && \
+    cd /home/ma-user/AutoAlign && \
+    pip install --no-cache-dir --no-build-isolation -e .
+
+WORKDIR /home/ma-user/AutoAlign
+
+########################################################################
+# pybind11 (Megatron build dependency)
+########################################################################
+RUN source /home/ma-user/miniconda3/bin/activate && \
+    pip install --no-cache-dir pybind11
+
+########################################################################
+# Cleanup
+########################################################################
+USER root
+
+RUN apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
+    rm -rf /root/.cache && \
+    rm -rf /home/ma-user/.cache/pip
+
+USER ma-user
+WORKDIR /home/ma-user/AutoAlign
+
+# Verify installation
+RUN source /home/ma-user/miniconda3/bin/activate && \
+    python -c "import autoalign; print('AutoAlign OK')" && \
+    python -c "from autoalign.megatron import is_megatron_available; print('Megatron available:', is_megatron_available())"
