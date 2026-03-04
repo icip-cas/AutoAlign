@@ -69,7 +69,7 @@ ENV PYTHONPATH=${PYTHONPATH}:/home/ma-user/MindSpeed
 ########################################################################
 # Pai-Megatron-Patch (no setup.py, PYTHONPATH only)
 ########################################################################
-RUN git clone --depth 50 ${PAI_MEGATRON_PATCH_REPO} \
+RUN git clone ${PAI_MEGATRON_PATCH_REPO} \
         /home/ma-user/Pai-Megatron-Patch && \
     cd /home/ma-user/Pai-Megatron-Patch && \
     git checkout ${PAI_MEGATRON_PATCH_COMMIT}
