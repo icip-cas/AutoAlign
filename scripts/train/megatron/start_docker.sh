@@ -19,4 +19,4 @@ docker run -it --privileged --user root \
             -v /usr/local/Ascend/firmware:/usr/local/Ascend/firmware \
             -v /etc/hccn.conf:/etc/hccn.conf \
             -v $(pwd)/AutoAlign:/home/ma-user/AutoAlign \
-            autoalign-dev:latest /bin/bash
+            autoalign-dev:latest
