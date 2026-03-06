@@ -19,4 +19,5 @@ docker run -it --privileged --user root \
             -v /usr/local/Ascend/firmware:/usr/local/Ascend/firmware \
             -v /etc/hccn.conf:/etc/hccn.conf \
             -v $(pwd):/home/ma-user/AutoAlign \
+            -v /mnt/sfs_turbo/hf_models:/home/ma-user/hf_models \
             autoalign-dev:latest
