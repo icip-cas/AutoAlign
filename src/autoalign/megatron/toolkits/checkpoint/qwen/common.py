@@ -18,7 +18,18 @@ from functools import partial
 
 import torch
 from transformers import AutoConfig, AutoModelForCausalLM
-from transformers.modeling_utils import WEIGHTS_INDEX_NAME, WEIGHTS_NAME, shard_checkpoint
+from transformers.modeling_utils import WEIGHTS_INDEX_NAME, WEIGHTS_NAME
+try:
+    from transformers.modeling_utils import shard_checkpoint
+except ImportError:
+    # shard_checkpoint removed in transformers >= 4.44; use huggingface_hub instead
+    from huggingface_hub.serialization import split_torch_state_dict_into_shards as _split
+
+    def shard_checkpoint(state_dict, max_shard_size="10GB", weights_name=WEIGHTS_NAME):
+        shards_iter = _split(state_dict, max_shard_size=max_shard_size, filename_pattern=weights_name.replace(".bin", "_{index}.bin").replace(".safetensors", "_{index}.safetensors"))
+        shards = {f: {k: state_dict[k] for k in shard_keys} for f, shard_keys in shards_iter.filename_to_tensors.items()}
+        index = shards_iter.metadata if len(shards) > 1 else None
+        return shards, index
 
 from megatron.training.initialize import initialize_megatron
 from megatron.training import get_args
