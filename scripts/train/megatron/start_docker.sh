@@ -18,5 +18,5 @@ docker run -it --privileged --user root \
             -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
             -v /usr/local/Ascend/firmware:/usr/local/Ascend/firmware \
             -v /etc/hccn.conf:/etc/hccn.conf \
-            -v $(pwd)/AutoAlign:/home/ma-user/AutoAlign \
+            -v $(pwd):/home/ma-user/AutoAlign \
             autoalign-dev:latest
