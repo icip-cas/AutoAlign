@@ -102,5 +102,5 @@ WORKDIR /home/ma-user/AutoAlign
 ########################################################################
 # Entrypoint: auto editable-install AutoAlign from mounted volume
 ########################################################################
-ENTRYPOINT ["/bin/bash", "-c", "source /home/ma-user/miniconda3/bin/activate base && pip install --no-build-isolation -e . && exec \"$@\"", "--"]
+ENTRYPOINT ["/bin/bash", "-c", "source /home/ma-user/miniconda3/etc/profile.d/conda.sh && conda activate base && pip install --no-build-isolation -e . && exec \"$@\"", "--"]
 CMD ["bash"]
