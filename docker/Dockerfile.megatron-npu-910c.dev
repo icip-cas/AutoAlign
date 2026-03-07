@@ -73,7 +73,7 @@ RUN source /home/ma-user/miniconda3/bin/activate && \
     pip install --no-cache-dir -r requirements.txt && \
     pip install --no-cache-dir -e .
 
-ENV MEGATRON_LM_PATH=/home/ma-user/MindSpeed
+ENV MEGATRON_LM_PATH=/home/ma-user/Megatron-LM
 ENV PYTHONPATH=${PYTHONPATH}:/home/ma-user/MindSpeed
 
 ########################################################################
