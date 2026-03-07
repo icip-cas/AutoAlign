@@ -62,6 +62,7 @@ def add_model_args(parser):
 
 
 def add_extra_args(parser):
+    parser.conflict_handler = 'resolve'
     parser = get_patch_args(parser)
     parser = add_model_args(parser)
     return parser
