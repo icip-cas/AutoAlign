@@ -67,6 +67,8 @@ def add_extra_args(parser):
     parser = get_patch_args_pai(parser)
     parser = get_patch_args_autoalign(parser)
     parser = add_model_args(parser)
+    # torchrun sets LOCAL_RANK env var but Megatron reads --local-rank arg
+    parser.set_defaults(local_rank=int(os.environ.get('LOCAL_RANK', 0)))
     return parser
 
 
