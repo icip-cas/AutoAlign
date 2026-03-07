@@ -35,10 +35,11 @@ from megatron.training.initialize import initialize_megatron
 from megatron.training import get_args
 from megatron.training.utils import get_ltor_masks_and_position_ids
 
-from megatron_patch.arguments import get_patch_args
+from megatron_patch.arguments import get_patch_args as get_patch_args_pai
 
 from autoalign.megatron.bridge import Qwen2Bridge, clone_state_dict
 from autoalign.megatron.registry import make_model_provider
+from autoalign.megatron.patch.arguments import get_patch_args as get_patch_args_autoalign
 
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
@@ -63,7 +64,8 @@ def add_model_args(parser):
 
 def add_extra_args(parser):
     parser.conflict_handler = 'resolve'
-    parser = get_patch_args(parser)
+    parser = get_patch_args_pai(parser)
+    parser = get_patch_args_autoalign(parser)
     parser = add_model_args(parser)
     return parser
 
