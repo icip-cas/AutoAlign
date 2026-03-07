@@ -41,6 +41,27 @@ if _MEGATRON_LM_PATH:
         )
 
 # ---------------------------------------------------------------------------
+# Auto-apply MindSpeed adaptor for Ascend NPU
+# Must run after MEGATRON_LM_PATH is set, before any megatron import
+# ---------------------------------------------------------------------------
+
+def _is_npu_available() -> bool:
+    if importlib.util.find_spec("torch") is None:
+        return False
+    try:
+        import torch
+        return hasattr(torch, "npu") and torch.npu.is_available()
+    except Exception:
+        return False
+
+if _is_npu_available() and importlib.util.find_spec("mindspeed") is not None:
+    try:
+        import mindspeed.megatron_adaptor  # noqa: F401
+        logger.info("MindSpeed adaptor loaded for Ascend NPU.")
+    except Exception as e:
+        logger.warning("Failed to load mindspeed.megatron_adaptor: %s", e)
+
+# ---------------------------------------------------------------------------
 # Dependency availability checks
 # ---------------------------------------------------------------------------
 

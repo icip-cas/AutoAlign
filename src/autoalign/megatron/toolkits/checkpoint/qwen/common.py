@@ -8,7 +8,7 @@ Uses the Bridge abstraction (``autoalign.megatron.bridge``) for clean weight
 conversion and TP/PP/EP sharding.
 """
 
-import autoalign.megatron  # noqa: F401  # bootstrap MEGATRON_LM_PATH before megatron imports
+import autoalign.megatron  # noqa: F401  # bootstrap MEGATRON_LM_PATH + MindSpeed adaptor before megatron imports
 
 import os
 import json
