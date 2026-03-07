@@ -7,6 +7,8 @@ ARG TORCH_VERSION=2.7.1
 ARG TORCH_NPU_VERSION=2.7.1
 ARG MINDSPEED_REPO=https://gitee.com/ascend/MindSpeed.git
 ARG MINDSPEED_BRANCH=master
+ARG MEGATRON_LM_REPO=https://github.com/NVIDIA/Megatron-LM.git
+ARG MEGATRON_LM_COMMIT=core_v0.12.1
 ARG PAI_MEGATRON_PATCH_REPO=https://github.com/alibaba/Pai-Megatron-Patch.git
 ARG PAI_MEGATRON_PATCH_COMMIT=9b88cc46653e2c4f7f99529f86f8737ac1da9e9a
 
@@ -52,7 +54,17 @@ RUN source /home/ma-user/miniconda3/bin/activate && \
         torch-npu==${TORCH_NPU_VERSION}
 
 ########################################################################
-# MindSpeed (NPU-compatible Megatron-LM)
+# Megatron-LM (provides `megatron` namespace; MindSpeed patches on top)
+########################################################################
+RUN git clone ${MEGATRON_LM_REPO} /home/ma-user/Megatron-LM && \
+    cd /home/ma-user/Megatron-LM && \
+    git checkout ${MEGATRON_LM_COMMIT}
+
+ENV MEGATRON_LM_PATH=/home/ma-user/Megatron-LM
+ENV PYTHONPATH=${PYTHONPATH}:/home/ma-user/Megatron-LM
+
+########################################################################
+# MindSpeed (NPU adaptor — patches Megatron-LM for Ascend)
 ########################################################################
 RUN source /home/ma-user/miniconda3/bin/activate && \
     git clone -b ${MINDSPEED_BRANCH} --depth 1 ${MINDSPEED_REPO} \
