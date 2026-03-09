@@ -76,7 +76,10 @@ from megatron.training.initialize import (
     write_args_to_tensorboard,
 )
 
-from megatron.training.memory_tracer.memstats_collector import MemStatsCollector
+try:
+    from megatron.training.memory_tracer.memstats_collector import MemStatsCollector
+except ImportError:
+    MemStatsCollector = None
 from megatron.training.optimizer_param_scheduler import OptimizerParamScheduler
 from autoalign.megatron.patch.data.indexed_dataset_sft_conv import conv_idx_file_path
 from autoalign.megatron.patch.data.gpt_dataset_sft_conv import _get_train_valid_test_split_
@@ -1238,6 +1241,11 @@ def train(
 
     memory_stats_collector = None
     if args.optimizer == 'hybridadam':
+        if MemStatsCollector is None:
+            raise ImportError(
+                "MemStatsCollector is required for hybridadam optimizer but "
+                "megatron.training.memory_tracer is not available in this Megatron version."
+            )
         memory_stats_collector = MemStatsCollector()
         memory_stats_collector.start_collection()
 
