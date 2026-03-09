@@ -293,7 +293,8 @@ class GPTBridge:
                     )
                     print(f'load {checkpoint_name}')
                     import argparse
-                    torch.serialization.add_safe_globals([argparse.Namespace])
+                    from megatron.core.transformer.enums import AttnBackend
+                    torch.serialization.add_safe_globals([argparse.Namespace, AttnBackend])
                     split_state = torch.load(
                         checkpoint_name, map_location="cpu",
                     )['model']
