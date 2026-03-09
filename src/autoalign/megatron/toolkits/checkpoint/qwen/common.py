@@ -22,13 +22,27 @@ from transformers.modeling_utils import WEIGHTS_INDEX_NAME, WEIGHTS_NAME
 try:
     from transformers.modeling_utils import shard_checkpoint
 except ImportError:
-    # shard_checkpoint removed in transformers >= 4.44; use huggingface_hub instead
+    # shard_checkpoint removed in transformers >= 4.44; use huggingface_hub instead.
+    # huggingface_hub >= 0.22 uses {suffix} placeholder (not {index}).
     from huggingface_hub.serialization import split_torch_state_dict_into_shards as _split
 
     def shard_checkpoint(state_dict, max_shard_size="10GB", weights_name=WEIGHTS_NAME):
-        shards_iter = _split(state_dict, max_shard_size=max_shard_size, filename_pattern=weights_name.replace(".bin", "_{index}.bin").replace(".safetensors", "_{index}.safetensors"))
-        shards = {f: {k: state_dict[k] for k in shard_keys} for f, shard_keys in shards_iter.filename_to_tensors.items()}
-        index = shards_iter.metadata if len(shards) > 1 else None
+        is_safetensors = weights_name.endswith(".safetensors")
+        # Build the filename pattern using {suffix} placeholder (new huggingface_hub API)
+        if is_safetensors:
+            base = weights_name[: -len(".safetensors")]
+            pattern = base + "{suffix}.safetensors"
+        else:
+            base = weights_name[: -len(".bin")]
+            pattern = base + "{suffix}.bin"
+        split = _split(state_dict, max_shard_size=max_shard_size, filename_pattern=pattern)
+        shards = {f: {k: state_dict[k] for k in keys} for f, keys in split.filename_to_tensors.items()}
+        if not split.is_sharded:
+            index = None
+        else:
+            total_size = sum(v.numel() * v.element_size() for v in state_dict.values())
+            weight_map = {k: f for f, keys in split.filename_to_tensors.items() for k in keys}
+            index = {"metadata": {"total_size": total_size}, "weight_map": weight_map}
         return shards, index
 
 from megatron.training.initialize import initialize_megatron
