@@ -65,7 +65,10 @@ from megatron.core.utils import (
     StragglerDetector,
 )
 from megatron.legacy.data.data_samplers import build_pretraining_data_loader
-from megatron.legacy.model import Float16Module
+try:
+    from megatron.legacy.model import Float16Module
+except ImportError:
+    from megatron.core.transformer.module import Float16Module
 from megatron.training.checkpointing import load_checkpoint, save_checkpoint
 from megatron.training.initialize import (
     initialize_megatron,
