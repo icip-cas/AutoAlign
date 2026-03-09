@@ -292,9 +292,11 @@ class GPTBridge:
                         ep_rank, ep_size, has_experts,
                     )
                     print(f'load {checkpoint_name}')
-                    split_state = torch.load(
-                        checkpoint_name, map_location="cpu", weights_only=False,
-                    )['model']
+                    import argparse
+                    with torch.serialization.safe_globals([argparse.Namespace]):
+                        split_state = torch.load(
+                            checkpoint_name, map_location="cpu", weights_only=True,
+                        )['model']
 
                     for k, v in split_state.items():
                         # PP: remap local layer index -> global
