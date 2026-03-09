@@ -1,5 +1,9 @@
 #!/bin/bash
 set -e
+
+# Activate conda environment (required for torch-npu)
+source /home/ma-user/miniconda3/bin/activate
+
 export CUDA_DEVICE_MAX_CONNECTIONS=1
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 export OMP_NUM_THREADS=1

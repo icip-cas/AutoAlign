@@ -1,4 +1,8 @@
 #!/bin/bash
+
+# Activate conda environment (required for torch-npu)
+source /home/ma-user/miniconda3/bin/activate
+
 export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-7}
 export CUDA_HOME=$CONDA_PREFIX
 export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
