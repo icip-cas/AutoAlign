@@ -58,10 +58,11 @@ fi
 # ==============================
 # Dataset Configuration
 # ==============================
+DATASET=${DATASET:-"mmap"}
 dataset_option=" \
     --data-path ${DATASET_PATH} \
     --split 100,0,0 \
-    --dataset mmap  \
+    --dataset ${DATASET}  \
     --epochs ${EPOCHS}"
 
 
@@ -245,7 +246,6 @@ megatron_options="  \
         --tensorboard-queue-size 1 \
         --tensorboard-dir ${TENSORBOARD_DIR} \
         --log-timers-to-tensorboard \
-        --log-batch-size-to-tensorboard \
         --log-validation-ppl-to-tensorboard \
         --tensor-model-parallel-size ${TP} \
         --pipeline-model-parallel-size ${PP} \

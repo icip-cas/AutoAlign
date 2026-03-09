@@ -80,7 +80,10 @@ try:
     from megatron.training.memory_tracer.memstats_collector import MemStatsCollector
 except ImportError:
     MemStatsCollector = None
-from megatron.training.optimizer_param_scheduler import OptimizerParamScheduler
+try:
+    from megatron.training.optimizer_param_scheduler import OptimizerParamScheduler
+except ImportError:
+    from megatron.core.optimizer_param_scheduler import OptimizerParamScheduler
 from autoalign.megatron.patch.data.indexed_dataset_sft_conv import conv_idx_file_path
 from autoalign.megatron.patch.data.gpt_dataset_sft_conv import _get_train_valid_test_split_
 from autoalign.megatron.patch.core.pipeline_parallel.schedules import get_forward_backward_func
@@ -694,7 +697,10 @@ def setup_model_and_optimizer(
     return model, optimizer, opt_param_scheduler
 
 
-from megatron.core.distributed import ParamAndGradBuffer
+try:
+    from megatron.core.distributed import ParamAndGradBuffer
+except ImportError:
+    ParamAndGradBuffer = object  # type hint only; used only with hybridadam
 
 
 def __get_param_buffer_size(buffer: ParamAndGradBuffer) -> int:

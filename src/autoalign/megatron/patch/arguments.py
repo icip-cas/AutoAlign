@@ -28,6 +28,7 @@ from autoalign.megatron.model_config import inject_hf_model_args
 
 
 def get_patch_args(parser):
+    parser.conflict_handler = 'resolve'
     group = parser.add_argument_group(title="patch")
 
     group.add_argument(
@@ -108,13 +109,6 @@ def get_patch_args(parser):
             default=10000,
             help="Base to use for rotary positional embeddings, default 10000",
         )
-
-    group.add_argument(
-        "--local-rank",
-        type=int,
-        default=None,
-        help="local rank passed from distributed launcher",
-    )
 
     group.add_argument("--n-head-kv", type=int, default=None, help="n-head-kv")
 

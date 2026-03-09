@@ -28,7 +28,7 @@ from megatron.training.utils import (
 from autoalign.megatron.patch.data.gpt_dataset_sft_conv import build_train_valid_test_datasets_sft_conv
 from autoalign.megatron.patch.data.online_dataset import build_train_valid_test_datasets_online_sft
 from autoalign.megatron.patch.data.utils import get_batch_on_this_tp_rank_idxmap_sft_conv
-from autoalign.megatron.patch.training_sft import sft
+from megatron.training.training import pretrain as sft
 from autoalign.megatron.patch.arguments import get_patch_args
 from autoalign.megatron.registry import make_model_provider
 
