@@ -59,6 +59,9 @@ def add_model_args(parser):
     parser.add_argument("--target-expert-model-parallel-size", type=int, default=1)
     parser.add_argument("--hf-ckpt-path", type=str)
     parser.add_argument("--save-safetensors", action='store_false')
+    parser.add_argument("--test-convert-precision", action='store_true',
+                        help="Run HF vs Megatron forward comparison after conversion to verify precision. "
+                             "Requires enough device memory to hold both models simultaneously.")
     return parser
 
 
@@ -324,7 +327,7 @@ def main():
         )
         mg_model = make_model_provider("qwen2")()
         bridge.hf_to_mg(hf_model, mg_model, args)
-        if not args.num_experts:
+        if getattr(args, 'test_convert_precision', False) and not args.num_experts:
             check_hf_mg_forward(hf_model, mg_model, args)
         bridge.save_mg_checkpoint(mg_model, args)
 
