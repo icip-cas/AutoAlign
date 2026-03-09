@@ -297,6 +297,14 @@ def main():
     initialize_megatron(extra_args_provider=add_extra_args)
     args = get_args()
 
+    # NullTokenizer sets padded_vocab_size=0; fix it from HF config.json.
+    if args.padded_vocab_size == 0:
+        import math
+        hf_cfg = AutoConfig.from_pretrained(args.model_path)
+        vocab_size = hf_cfg.vocab_size
+        multiple = args.make_vocab_size_divisible_by * args.tensor_model_parallel_size
+        args.padded_vocab_size = int(math.ceil(vocab_size / multiple) * multiple)
+
     bridge = Qwen2Bridge()
 
     if args.convert_checkpoint_from_megatron_to_transformers:
