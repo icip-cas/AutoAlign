@@ -293,7 +293,7 @@ class GPTBridge:
                     )
                     print(f'load {checkpoint_name}')
                     split_state = torch.load(
-                        checkpoint_name, map_location="cpu"
+                        checkpoint_name, map_location="cpu", weights_only=False,
                     )['model']
 
                     for k, v in split_state.items():
