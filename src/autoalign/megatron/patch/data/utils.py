@@ -33,8 +33,7 @@ try:
 except:
     from megatron.training.utils import get_ltor_masks_and_position_ids
 
-from megatron_pai import megatron_patch as megatron_patch
-from megatron_patch.tokenizer import get_tokenizer
+from megatron.training.global_vars import get_tokenizer
 
 
 def get_batch_on_this_tp_rank_idxmap_dpo(data_iterator):

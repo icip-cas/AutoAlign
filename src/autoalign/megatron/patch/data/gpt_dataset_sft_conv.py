@@ -3,7 +3,7 @@ from functools import lru_cache
 import numpy as np
 import sys
 import torch
-from megatron_patch.tokenizer import get_tokenizer
+from megatron.training.global_vars import get_tokenizer
 from .indexed_dataset_sft_conv import MMapIndexedDatasetSFTConv
 from megatron.training import get_args
 

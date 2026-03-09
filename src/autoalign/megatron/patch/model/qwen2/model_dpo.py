@@ -39,10 +39,9 @@ from megatron.core.packed_seq_params import PackedSeqParams
 from megatron.core.transformer.enums import AttnMaskType, ModelType
 from megatron.core.transformer.spec_utils import ModuleSpec
 from megatron.core.transformer.transformer_config import TransformerConfig
-from megatron_patch.tokenizer import get_tokenizer
+from megatron.training.global_vars import get_tokenizer
 
-from megatron_patch.model.qwen2.transformer_block import TransformerBlock
-from megatron_patch.model.qwen2.model import GPTModel
+from megatron.core.models.gpt import GPTModel
 
 
 class GPTModelDPO(GPTModel):
