@@ -72,7 +72,7 @@ def add_model_args(parser):
     parser.add_argument("--target-pipeline-model-parallel-size", type=int, default=1)
     parser.add_argument("--target-expert-model-parallel-size", type=int, default=1)
     parser.add_argument("--hf-ckpt-path", type=str)
-    parser.add_argument("--save-safetensors", action='store_false')
+    parser.add_argument("--save-safetensors", action='store_true')
     parser.add_argument("--test-convert-precision", action='store_true',
                         help="Run HF vs Megatron forward comparison after conversion to verify precision. "
                              "Requires enough device memory to hold both models simultaneously.")
