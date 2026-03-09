@@ -10,6 +10,8 @@ export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
 # NPU/HCCL Configuration (Ascend only)
 # ==============================
 # HCCL_IF_BASE_PORT: base port for HCCL communication (default 64000)
+# IMPORTANT: HCCL occupies 16 consecutive ports starting from this base port
+# e.g., HCCL_IF_BASE_PORT=64000 uses ports 64000-64015
 # Change this if port conflict occurs with other training jobs
 export HCCL_IF_BASE_PORT=${HCCL_IF_BASE_PORT:-64000}
 export HCCL_WHITELIST_DISABLE=${HCCL_WHITELIST_DISABLE:-1}
@@ -30,7 +32,9 @@ HF_MODEL_PATH=${HF_MODEL_PATH:-"Qwen/Qwen2.5-3B-Instruct"}
 export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0,1,2,3,4,5,6,7}
 
 MASTER_ADDR=${MASTER_ADDR:-"localhost"}
-MASTER_PORT=${MASTER_PORT:-$(shuf -n 1 -i 10000-65535)}
+# MASTER_PORT: avoid HCCL port range [HCCL_IF_BASE_PORT, HCCL_IF_BASE_PORT+15]
+# Default HCCL range: 64000-64015, so use 20000-29999 for MASTER_PORT
+MASTER_PORT=${MASTER_PORT:-$(shuf -n 1 -i 20000-29999)}
 NNODES=${NNODES:-1}
 NODE_RANK=${NODE_RANK:-0}
 GPUS_PER_NODE=${GPUS_PER_NODE:-8}
