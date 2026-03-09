@@ -292,9 +292,12 @@ class GPTBridge:
                         ep_rank, ep_size, has_experts,
                     )
                     print(f'load {checkpoint_name}')
-                    import argparse
-                    from megatron.core.transformer.enums import AttnBackend
-                    torch.serialization.add_safe_globals([argparse.Namespace, AttnBackend])
+                    # torch_npu replaces torch.load with restricted unpickler
+                    # that requires explicit allowlist for non-tensor types
+                    if hasattr(torch.serialization, 'add_safe_globals'):
+                        import argparse
+                        from megatron.core.transformer.enums import AttnBackend
+                        torch.serialization.add_safe_globals([argparse.Namespace, AttnBackend])
                     split_state = torch.load(
                         checkpoint_name, map_location="cpu",
                     )['model']

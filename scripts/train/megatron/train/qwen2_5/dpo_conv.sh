@@ -7,6 +7,14 @@ export CUDA_HOME=$CONDA_PREFIX
 export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
 
 # ==============================
+# NPU/HCCL Configuration (Ascend only)
+# ==============================
+# HCCL_IF_BASE_PORT: base port for HCCL communication (default 64000)
+# Change this if port conflict occurs with other training jobs
+export HCCL_IF_BASE_PORT=${HCCL_IF_BASE_PORT:-64000}
+export HCCL_WHITELIST_DISABLE=${HCCL_WHITELIST_DISABLE:-1}
+
+# ==============================
 # Path Configuration
 # ==============================
 DATASET_PATH=${DATASET_PATH:-"./data/dummy_dpo_mg_conversations_maxlen_4096"}
