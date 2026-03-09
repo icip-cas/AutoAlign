@@ -146,10 +146,8 @@ def make_model_provider(model_type: str = None, model_cls=None, extra_args_fn=No
     def model_provider(pre_process=True, post_process=True):
         from megatron.training import get_args, print_rank_0
         from megatron.training.arguments import core_transformer_config_from_args
-        from megatron_patch.tokenizer import build_tokenizer
 
         args = get_args()
-        build_tokenizer(args)
 
         # Resolve model type: eager (from arg) or lazy (from CLI --model-type)
         if _eager_meta is not None:
@@ -225,10 +223,14 @@ def _ensure_auto_registered():
 
 
 def _register_qwen2():
-    """Register the Qwen2 / Qwen2.5 model family."""
-    from megatron_patch.model.qwen2.model import GPTModel
-    from megatron_patch.model.qwen2.transformer_config import Qwen2TransformerConfig
-    from megatron_patch.model.qwen2.layer_specs import (
+    """Register the Qwen2 / Qwen2.5 model family.
+
+    Uses stock Megatron-LM APIs (compatible with core_v0.12.1) instead of
+    Pai-Megatron-Patch to avoid version conflicts with MindSpeed.
+    """
+    from megatron.core.models.gpt import GPTModel
+    from megatron.core.transformer import TransformerConfig
+    from megatron.core.models.gpt.gpt_layer_specs import (
         get_gpt_layer_local_spec,
         get_gpt_layer_with_transformer_engine_spec,
     )
@@ -237,7 +239,7 @@ def _register_qwen2():
     register_megatron_model(MegatronModelMeta(
         model_type="qwen2",
         bridge_cls=Qwen2Bridge,
-        transformer_config_cls=Qwen2TransformerConfig,
+        transformer_config_cls=TransformerConfig,
         get_layer_spec_local=get_gpt_layer_local_spec,
         get_layer_spec_te=get_gpt_layer_with_transformer_engine_spec,
         model_cls=GPTModel,
