@@ -293,10 +293,10 @@ class GPTBridge:
                     )
                     print(f'load {checkpoint_name}')
                     import argparse
-                    with torch.serialization.safe_globals([argparse.Namespace]):
-                        split_state = torch.load(
-                            checkpoint_name, map_location="cpu", weights_only=True,
-                        )['model']
+                    torch.serialization.add_safe_globals([argparse.Namespace])
+                    split_state = torch.load(
+                        checkpoint_name, map_location="cpu",
+                    )['model']
 
                     for k, v in split_state.items():
                         # PP: remap local layer index -> global
