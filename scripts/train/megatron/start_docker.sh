@@ -1,5 +1,6 @@
-docker run -it --privileged --user root \
+docker run -d --name funny_sammet --privileged --user root \
             --shm-size 500g \
+            -e HCCL_IF_BASE_PORT=50000 \
             --device=/dev/davinci0 \
             --device=/dev/davinci1 \
             --device=/dev/davinci2 \
@@ -20,4 +21,5 @@ docker run -it --privileged --user root \
             -v /etc/hccn.conf:/etc/hccn.conf \
             -v $(pwd):/home/ma-user/AutoAlign \
             -v /mnt/sfs_turbo/hf_models:/home/ma-user/hf_models \
-            autoalign-dev:latest
+            autoalign-dev:latest \
+            tail -f /dev/null
