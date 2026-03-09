@@ -64,6 +64,7 @@ torchrun ${DISTRIBUTED_ARGS} -m autoalign.megatron.toolkits.checkpoint.qwen.comm
     --no-rope-fusion \
     --use-mcore-models \
     --save-safetensors \
+    --use-cpu-initialization \
     ${te_options} \
     ${convert_options} \
     ${pr_options}
