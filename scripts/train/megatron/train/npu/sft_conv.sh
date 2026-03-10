@@ -154,8 +154,7 @@ te_options=" \
     --transformer-impl local \
     --use-flash-attn \
     --no-bias-swiglu-fusion \
-    --no-rope-fusion \
-    --gradient-accumulation-fusion false"
+    --no-rope-fusion"
 
 # ==============================
 # Output Configuration
@@ -203,7 +202,6 @@ megatron_options="  \
     --tensorboard-queue-size 1 \
     --tensorboard-dir ${TENSORBOARD_DIR} \
     --log-timers-to-tensorboard \
-    --log-batch-size-to-tensorboard \
     --log-validation-ppl-to-tensorboard \
     --tensor-model-parallel-size ${TP} \
     --pipeline-model-parallel-size ${PP} \
