@@ -84,11 +84,12 @@ def get_batch_on_this_tp_rank_idxmap_dpo(data_iterator):
         labels = labels[:, :cur_max_seq_length]
 
         cur_max_seq_length = torch.tensor(
-            cur_max_seq_length,
+            [cur_max_seq_length],
             dtype=torch.long,
             device=torch.cuda.current_device()
         )
         _broadcast(cur_max_seq_length)
+        cur_max_seq_length = cur_max_seq_length.item()
 
         
         # Set up loss mask
@@ -103,6 +104,15 @@ def get_batch_on_this_tp_rank_idxmap_dpo(data_iterator):
             args.reset_attention_mask,
             False,
         )
+
+        # When create_attention_mask_in_dataloader is False (e.g. MindSpeed sets
+        # this when --use-flash-attn is enabled), drop the mask so that both
+        # TP rank 0 and non-zero ranks skip the attention_mask broadcast
+        # symmetrically.  Keeping it would cause rank 0 to broadcast an extra
+        # tensor that non-zero ranks never receive, desynchronizing all
+        # subsequent broadcasts.
+        if not getattr(args, 'create_attention_mask_in_dataloader', True):
+            attention_mask = None
 
         batch = {
             'tokens': tokens.cuda(non_blocking=True),
@@ -232,12 +242,13 @@ def get_batch_on_this_tp_rank_idxmap_sft_conv(data_iterator):
         conv_label = conv_label[:, :cur_max_seq_length]
 
         cur_max_seq_length = torch.tensor(
-            cur_max_seq_length,
+            [cur_max_seq_length],
             dtype=torch.long,
             device=torch.cuda.current_device()
         )
         _broadcast(cur_max_seq_length)
-        
+        cur_max_seq_length = cur_max_seq_length.item()
+
         # Create labels by shifting tokens
         conv_labels = torch.roll(conv_label, shifts=-1, dims=1)
   
@@ -258,6 +269,15 @@ def get_batch_on_this_tp_rank_idxmap_sft_conv(data_iterator):
             args.reset_attention_mask,
             False,
         )
+
+        # When create_attention_mask_in_dataloader is False (e.g. MindSpeed sets
+        # this when --use-flash-attn is enabled), drop the mask so that both
+        # TP rank 0 and non-zero ranks skip the attention_mask broadcast
+        # symmetrically.  Keeping it would cause rank 0 to broadcast an extra
+        # tensor that non-zero ranks never receive, desynchronizing all
+        # subsequent broadcasts.
+        if not getattr(args, 'create_attention_mask_in_dataloader', True):
+            attention_mask = None
 
         batch = {
             'tokens': tokens.cuda(non_blocking=True),
@@ -294,8 +314,8 @@ def get_batch_on_this_tp_rank_idxmap_sft_conv(data_iterator):
         )
         _broadcast(cur_max_seq_length_tensor)
         cur_max_seq_length = cur_max_seq_length_tensor.item()
-  
-        batch_size = args.micro_batch_size 
+
+        batch_size = args.micro_batch_size
         tokens = torch.empty(
             (batch_size, cur_max_seq_length),
             dtype=torch.int64,
