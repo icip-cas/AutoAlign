@@ -140,12 +140,18 @@ def derive_megatron_args(model_path: str) -> Dict[str, Any]:
             result["group_query_attention"] = True
             result["num_query_groups"] = num_kv_heads
 
-    # 4. Extra vocab size
+    # 4. Extra vocab size and vocab_size for NullTokenizer
+    # HF config.json vocab_size is typically already padded/aligned.
+    # NullTokenizer adds +1 (eod), so we subtract 1 to compensate:
+    #   NullTokenizer(N-1).vocab_size = N → padded = ceil(N/multiple)*multiple
+    # If N is already aligned, padded = N, matching the checkpoint.
     hf_vocab_size = hf.get("vocab_size")
     if hf_vocab_size is not None:
         tok_vocab_size = _get_tokenizer_vocab_size(model_path)
         if tok_vocab_size is not None and tok_vocab_size < hf_vocab_size:
             result["extra_vocab_size"] = hf_vocab_size - tok_vocab_size
+        # Subtract 1 because NullTokenizer adds +1 for eod token
+        result["vocab_size"] = hf_vocab_size - 1
 
     # 5. Model-type-specific fixed flags
     model_type = hf.get("model_type", "")
@@ -155,7 +161,7 @@ def derive_megatron_args(model_path: str) -> Dict[str, Any]:
             result.setdefault(k, v)
 
     # 6. Inject model_type itself (normalized to registry key)
-    result["model_type"] = matched or model_type
+    result["model_type_name"] = matched or model_type
 
     return result
 

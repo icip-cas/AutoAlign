@@ -41,9 +41,10 @@ def get_patch_args(parser):
     )
 
     group.add_argument(
-        "--model-type",
+        "--model-type-name",
         type=str,
         default=None,
+        dest="model_type_name",
         help="Model architecture type (e.g. qwen2, llama). "
              "Auto-derived from --model-path config.json if not provided.",
     )

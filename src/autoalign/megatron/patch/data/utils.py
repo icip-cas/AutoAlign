@@ -102,7 +102,6 @@ def get_batch_on_this_tp_rank_idxmap_dpo(data_iterator):
             args.reset_position_ids,
             args.reset_attention_mask,
             False,
-            args.create_attention_mask_in_dataloader
         )
 
         batch = {
@@ -258,7 +257,6 @@ def get_batch_on_this_tp_rank_idxmap_sft_conv(data_iterator):
             args.reset_position_ids,
             args.reset_attention_mask,
             False,
-            args.create_attention_mask_in_dataloader
         )
 
         batch = {

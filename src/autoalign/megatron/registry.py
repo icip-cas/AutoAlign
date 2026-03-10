@@ -154,10 +154,10 @@ def make_model_provider(model_type: str = None, model_cls=None, extra_args_fn=No
             meta = _eager_meta
             _type_name = model_type
         else:
-            _type_name = getattr(args, "model_type", None)
+            _type_name = getattr(args, "model_type_name", None)
             if _type_name is None:
                 raise ValueError(
-                    "Cannot determine model type. Provide --model-type on the "
+                    "Cannot determine model type. Provide --model-type-name on the "
                     "CLI, or pass model_type= to make_model_provider()."
                 )
             meta = get_model_meta(_type_name)
@@ -171,7 +171,11 @@ def make_model_provider(model_type: str = None, model_cls=None, extra_args_fn=No
 
         print_rank_0(f"building {_type_name} model ...")
 
-        config = core_transformer_config_from_args(args, meta.transformer_config_cls)
+        try:
+            config = core_transformer_config_from_args(args, meta.transformer_config_cls)
+        except TypeError:
+            # MindSpeed wraps this function with a 1-arg signature
+            config = core_transformer_config_from_args(args)
         use_te = args.transformer_impl == "transformer_engine"
 
         if use_te:

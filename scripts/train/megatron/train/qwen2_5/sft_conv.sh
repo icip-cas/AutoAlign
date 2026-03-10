@@ -103,14 +103,12 @@ sft_option=" \
     --train-mode sft"
 
 # ==============================
-# FlashAttention Or FusedAttention
+# Attention Backend: flash, fused, unfused, auto
+# Use --attention-backend instead of NVTE_* env vars (Megatron-Core >= 0.12)
 # ==============================
-FL=${FL:-true}
-if [ "$FL" = true ]; then
-    export NVTE_FLASH_ATTN=1 NVTE_FUSED_ATTN=0
-elif [ "$FL" = false ]; then
-    export NVTE_FLASH_ATTN=0 NVTE_FUSED_ATTN=1
-fi
+ATTN_BACKEND=${ATTN_BACKEND:-"flash"}
+attn_options=" \
+    --attention-backend ${ATTN_BACKEND}"
 
 # ==============================
 # Precision Configuration: fp16, bf16, fp8
@@ -286,7 +284,7 @@ megatron_options="  \
 DISTRIBUTED_ARGS="--nproc_per_node $GPUS_PER_NODE --nnodes $NNODES --node_rank $NODE_RANK --master_addr $MASTER_ADDR --master_port $MASTER_PORT"
 run_cmd="torchrun $DISTRIBUTED_ARGS -m autoalign.megatron.entries.sft
  ${megatron_options} ${dataset_option} ${pr_options} ${load_options} ${te_options} ${activation_checkpoint_options} \
- ${do_options} ${sp_options} ${offload_option} ${comm_overlap_option} ${sft_option}"
+ ${do_options} ${sp_options} ${offload_option} ${comm_overlap_option} ${attn_options} ${sft_option}"
 
 echo ${run_cmd}
 eval ${run_cmd}

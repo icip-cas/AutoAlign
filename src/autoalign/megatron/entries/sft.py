@@ -32,6 +32,18 @@ from megatron.training.training import pretrain as sft
 from autoalign.megatron.patch.arguments import get_patch_args
 from autoalign.megatron.registry import make_model_provider
 
+# Patch load_checkpoint to use strict=False (TE _extra_state mismatch on NPU)
+import megatron.training.checkpointing as _ckpt
+_orig_load_checkpoint = _ckpt.load_checkpoint
+
+def _patched_load_checkpoint(*args, strict=True, **kwargs):
+    return _orig_load_checkpoint(*args, strict=False, **kwargs)
+
+_ckpt.load_checkpoint = _patched_load_checkpoint
+# Also patch the reference in megatron.training.training
+import megatron.training.training as _training
+_training.load_checkpoint = _patched_load_checkpoint
+
 torch._dynamo.config.suppress_errors = True
 
 # model_type resolved from --model-path / --model-type at runtime
