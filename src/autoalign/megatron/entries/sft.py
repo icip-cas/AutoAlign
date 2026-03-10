@@ -23,6 +23,7 @@ from megatron.core.enums import ModelType
 from megatron.training import get_args, get_timers, print_rank_0
 from megatron.training.utils import (
     average_losses_across_data_parallel_group,
+    get_batch_on_this_cp_rank,
 )
 
 from autoalign.megatron.patch.data.gpt_dataset_sft_conv import build_train_valid_test_datasets_sft_conv
@@ -58,8 +59,11 @@ def get_batch(data_iterator):
         return None, None, None, None, None, None
 
     # get batches based on the TP rank you are on
-
     batch = get_batch_on_this_tp_rank_idxmap_sft_conv(data_iterator)
+
+    # slice batch along sequence dimension for context parallelism
+    batch = get_batch_on_this_cp_rank(batch)
+
     packed_seq_params = None
 
     return tuple([*batch.values(), packed_seq_params])

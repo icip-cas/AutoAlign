@@ -76,10 +76,10 @@ def get_batch_on_this_tp_rank_idxmap_dpo(data_iterator):
         labels = torch.cat([chosen_labels, rejected_labels], dim=0)
         
         
-        pad_mask = tokens == pad_id  # (batch_size, seq_length)
-        seq_lengths = (~pad_mask).sum(dim=1)
-        cur_max_seq_length = seq_lengths.max()
-        
+        # Use fixed seq_length to avoid PP send/recv size mismatch across
+        # DP ranks and PP stages (each may compute a different dynamic max).
+        cur_max_seq_length = args.seq_length
+
         tokens = tokens[:, :cur_max_seq_length]
         labels = labels[:, :cur_max_seq_length]
 
@@ -91,7 +91,6 @@ def get_batch_on_this_tp_rank_idxmap_dpo(data_iterator):
         _broadcast(cur_max_seq_length)
         cur_max_seq_length = cur_max_seq_length.item()
 
-        
         # Set up loss mask
         loss_mask = torch.ones_like(labels, dtype=torch.float)
         loss_mask[labels == mask_id] = 0.0
@@ -233,13 +232,9 @@ def get_batch_on_this_tp_rank_idxmap_sft_conv(data_iterator):
         conv_tokens = data['conv_text'].long()
         conv_label = data['conv_label'].long()
         
-        pad_mask = conv_tokens == pad_id  # (batch_size, seq_length)
-        seq_lengths = (~pad_mask).sum(dim=1)
-        cur_max_seq_length = seq_lengths.max()
-        # cur_max_seq_length = (torch.ceil(cur_max_seq_length.float() / args.tensor_model_parallel_size) * args.tensor_model_parallel_size).long()
-        
-        conv_tokens = conv_tokens[:, :cur_max_seq_length]
-        conv_label = conv_label[:, :cur_max_seq_length]
+        # Use fixed seq_length to avoid PP send/recv size mismatch across
+        # DP ranks and PP stages (each may compute a different dynamic max).
+        cur_max_seq_length = args.seq_length
 
         cur_max_seq_length = torch.tensor(
             [cur_max_seq_length],
@@ -248,6 +243,9 @@ def get_batch_on_this_tp_rank_idxmap_sft_conv(data_iterator):
         )
         _broadcast(cur_max_seq_length)
         cur_max_seq_length = cur_max_seq_length.item()
+
+        conv_tokens = conv_tokens[:, :cur_max_seq_length]
+        conv_label = conv_label[:, :cur_max_seq_length]
 
         # Create labels by shifting tokens
         conv_labels = torch.roll(conv_label, shifts=-1, dims=1)
