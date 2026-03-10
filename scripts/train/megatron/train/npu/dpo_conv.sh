@@ -1,10 +1,15 @@
 #!/bin/bash
 # Megatron DPO training script for Ascend NPU
 set -e
+
+# Activate conda environment (required for torch-npu)
+source /home/ma-user/miniconda3/bin/activate
+
+export CUDA_DEVICE_MAX_CONNECTIONS=1
 export OMP_NUM_THREADS=1
 
 # ==============================
-# Ascend Environment
+# Ascend / HCCL Environment
 # ==============================
 if [ -f /usr/local/Ascend/ascend-toolkit/set_env.sh ]; then
     source /usr/local/Ascend/ascend-toolkit/set_env.sh
@@ -12,6 +17,10 @@ fi
 if [ -f /usr/local/Ascend/nnal/atb/set_env.sh ]; then
     source /usr/local/Ascend/nnal/atb/set_env.sh
 fi
+
+# HCCL_IF_BASE_PORT: base port for HCCL communication (default 64000)
+export HCCL_IF_BASE_PORT=${HCCL_IF_BASE_PORT:-64000}
+export HCCL_WHITELIST_DISABLE=${HCCL_WHITELIST_DISABLE:-1}
 
 # ==============================
 # Path Configuration
@@ -26,9 +35,10 @@ TEMPLATE=${TEMPLATE:-"chatml-idsys"}
 # Compute Resources Configuration
 # ==============================
 export ASCEND_RT_VISIBLE_DEVICES=${ASCEND_RT_VISIBLE_DEVICES:-0,1,2,3,4,5,6,7}
+export NPU_VISIBLE_DEVICES=${NPU_VISIBLE_DEVICES:-${ASCEND_RT_VISIBLE_DEVICES}}
 
 MASTER_ADDR=${MASTER_ADDR:-"localhost"}
-MASTER_PORT=${MASTER_PORT:-$(shuf -n 1 -i 10000-65535)}
+MASTER_PORT=${MASTER_PORT:-$(shuf -n 1 -i 20000-29999)}
 NNODES=${NNODES:-1}
 NODE_RANK=${NODE_RANK:-0}
 GPUS_PER_NODE=${GPUS_PER_NODE:-8}
@@ -135,9 +145,11 @@ fi
 
 # ==============================
 # NPU: use local transformer impl (no Transformer Engine)
+# --use-flash-attn: MindSpeed routes to NPU flash attention
 # ==============================
 te_options=" \
     --transformer-impl local \
+    --use-flash-attn \
     --no-bias-swiglu-fusion \
     --no-rope-fusion \
     --gradient-accumulation-fusion false"

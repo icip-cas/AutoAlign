@@ -103,11 +103,13 @@ sft_option=" \
     --train-mode sft"
 
 # ==============================
-# Attention Backend: flash, fused, unfused, auto
-# Use --attention-backend instead of NVTE_* env vars (Megatron-Core >= 0.12)
+# Attention Backend
+# --use-flash-attn: enables flash attention (required for MindSpeed on NPU)
+# --attention-backend: Megatron-Core >= 0.12 backend selector (flash/fused/unfused/auto)
 # ==============================
 ATTN_BACKEND=${ATTN_BACKEND:-"flash"}
 attn_options=" \
+    --use-flash-attn \
     --attention-backend ${ATTN_BACKEND}"
 
 # ==============================
