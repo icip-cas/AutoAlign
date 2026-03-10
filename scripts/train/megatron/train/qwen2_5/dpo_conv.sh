@@ -33,7 +33,14 @@ HF_MODEL_PATH=${HF_MODEL_PATH:-"Qwen/Qwen2.5-3B-Instruct"}
 # ==============================
 # Compute Resources Configuration
 # ==============================
-export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0,1,2,3,4,5,6,7}
+# Auto-detect NPU vs GPU and set the correct device visibility env var
+DEVICES=${DEVICES:-"0,1,2,3,4,5,6,7"}
+if python -c "import torch_npu" 2>/dev/null; then
+    export ASCEND_RT_VISIBLE_DEVICES=${ASCEND_RT_VISIBLE_DEVICES:-${DEVICES}}
+    export NPU_VISIBLE_DEVICES=${NPU_VISIBLE_DEVICES:-${DEVICES}}
+else
+    export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-${DEVICES}}
+fi
 
 MASTER_ADDR=${MASTER_ADDR:-"localhost"}
 # MASTER_PORT: avoid HCCL port range [HCCL_IF_BASE_PORT, HCCL_IF_BASE_PORT+15]
