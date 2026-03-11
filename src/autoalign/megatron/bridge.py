@@ -170,6 +170,10 @@ class GPTBridge:
         if not isinstance(tensor, torch.Tensor):
             return tensor
 
+        # TE _extra_state keys (serialized byte tensors) should not be split
+        if '_extra_state' in key:
+            return tensor
+
         head_dim = args.hidden_size // args.num_attention_heads
         group_per_split = args.num_query_groups // tp_size
 
@@ -227,6 +231,10 @@ class GPTBridge:
     def gather_tensor_from_tp(self, key, shards, args):
         """Gather TP-split shards for a single key into a full tensor."""
         if not isinstance(shards[0], torch.Tensor):
+            return shards[0]
+
+        # TE _extra_state keys (serialized byte tensors) should not be gathered
+        if '_extra_state' in key:
             return shards[0]
 
         # Scalars that are replicated, not split
