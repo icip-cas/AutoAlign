@@ -187,6 +187,7 @@ def make_model_provider(model_type: str = None, model_cls=None, extra_args_fn=No
             print_rank_0(f"building {_type_name} model in Mcore...")
             spec = meta.get_layer_spec_local(
                 args.num_experts, args.moe_grouped_gemm, args.qk_layernorm,
+                normalization=args.normalization,
             )
 
         kwargs = dict(

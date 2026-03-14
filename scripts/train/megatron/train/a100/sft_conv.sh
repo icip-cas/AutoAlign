@@ -65,8 +65,9 @@ torchrun \
   --bf16 \
   --use-flash-attn \
   --attention-backend flash \
-  --transformer-impl transformer_engine \
+  --transformer-impl local \
   --no-rope-fusion \
+  --no-persist-layer-norm \
   --eod-mask-loss \
   --train-mode sft \
   --log-interval 1 \
