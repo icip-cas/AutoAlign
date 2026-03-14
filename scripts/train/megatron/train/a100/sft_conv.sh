@@ -12,13 +12,14 @@ export PATH=/ceph_home/zhangkaiqi2024/luxinyu_data/envs/ata_megatron/bin:$PATH
 export MEGATRON_LM_PATH=/ceph_home/zhangkaiqi2024/luxinyu_data/github/Megatron-LM
 export PYTHONPATH=$MEGATRON_LM_PATH:$PYTHONPATH
 export CUDA_VISIBLE_DEVICES=0,1,2,3
+export CUDA_DEVICE_MAX_CONNECTIONS=1
 
 # Training Configuration
 MASTER_PORT=${MASTER_PORT:-$(shuf -n 1 -i 20000-29999)}
 HF_MODEL_PATH="/ceph_home/arknet/hf_models/Qwen/Qwen2.5-7B-Instruct"
 CHECKPOINT_PATH="./mg_models/Qwen2.5-7B-Instruct-mcore-tp2-pp2"
 DATA_PATH="./data/litecoder_sft.json"
-SAVE_PATH="./checkpoints/sft/test_$(date +%Y%m%d_%H%M%S)"
+SAVE_PATH="./checkpoints/sft/qwen2.5-7b-sft-tp2-pp2"
 
 echo "Environment configured:"
 echo "  CUDA_VISIBLE_DEVICES: $CUDA_VISIBLE_DEVICES"
