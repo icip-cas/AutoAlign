@@ -66,6 +66,7 @@ torchrun \
   --use-flash-attn \
   --attention-backend flash \
   --transformer-impl transformer_engine \
+  --no-rope-fusion \
   --eod-mask-loss \
   --train-mode sft \
   --log-interval 1 \
