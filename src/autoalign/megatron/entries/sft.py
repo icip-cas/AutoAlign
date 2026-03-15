@@ -33,17 +33,34 @@ from megatron.training.training import pretrain as sft
 from autoalign.megatron.patch.arguments import get_patch_args
 from autoalign.megatron.registry import make_model_provider
 
-# Patch load_checkpoint to use strict=False (TE _extra_state mismatch on NPU)
+# Patch 1: strict=False — tolerate missing/unexpected keys across impl switches
 import megatron.training.checkpointing as _ckpt
+import megatron.training.training as _training
 _orig_load_checkpoint = _ckpt.load_checkpoint
 
 def _patched_load_checkpoint(*args, strict=True, **kwargs):
     return _orig_load_checkpoint(*args, strict=False, **kwargs)
 
 _ckpt.load_checkpoint = _patched_load_checkpoint
-# Also patch the reference in megatron.training.training
-import megatron.training.training as _training
 _training.load_checkpoint = _patched_load_checkpoint
+
+# Patch 2: skip empty TE _extra_state (zero bytes → EOFError in pickle.loads).
+# TE _extra_state is only populated after the first forward pass (quantization
+# calibration), so freshly converted or newly created checkpoints always have
+# empty _extra_state tensors.  This is expected; just skip them on load.
+try:
+    import transformer_engine.pytorch.module.base as _te_base
+    _te_orig_load = _te_base.TransformerEngineBaseModule._load_from_state_dict
+
+    def _te_load_from_state_dict(self, state_dict, prefix, *args, **kwargs):
+        key = prefix + "_extra_state"
+        if key in state_dict and state_dict[key].nbytes == 0:
+            state_dict = {k: v for k, v in state_dict.items() if k != key}
+        return _te_orig_load(self, state_dict, prefix, *args, **kwargs)
+
+    _te_base.TransformerEngineBaseModule._load_from_state_dict = _te_load_from_state_dict
+except ImportError:
+    pass  # TE not installed (NPU path uses local impl)
 
 torch._dynamo.config.suppress_errors = True
 
