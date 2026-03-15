@@ -8,9 +8,13 @@ echo "=== A100 SFT Training Script ==="
 echo "Starting SFT training on GPU 0-3 with TP=2 PP=2"
 
 # Environment Setup
-export PATH=/ceph_home/zhangkaiqi2024/luxinyu_data/envs/ata_megatron/bin:$PATH
-export MEGATRON_LM_PATH=/ceph_home/zhangkaiqi2024/luxinyu_data/github/Megatron-LM
-export PYTHONPATH=$MEGATRON_LM_PATH:$PYTHONPATH
+# When running inside Docker (autoalign-megatron-nvidia:dev), PATH/PYTHONPATH are
+# already configured by the image. When running on the host with conda, set these:
+if [ -z "$MEGATRON_LM_PATH" ]; then
+  export PATH=/ceph_home/zhangkaiqi2024/luxinyu_data/envs/ata_megatron/bin:$PATH
+  export MEGATRON_LM_PATH=/ceph_home/zhangkaiqi2024/luxinyu_data/github/Megatron-LM
+  export PYTHONPATH=$MEGATRON_LM_PATH:$PYTHONPATH
+fi
 export CUDA_VISIBLE_DEVICES=0,1,2,3
 export CUDA_DEVICE_MAX_CONNECTIONS=1
 
@@ -66,9 +70,7 @@ torchrun \
   --bf16 \
   --use-flash-attn \
   --attention-backend flash \
-  --transformer-impl local \
-  --no-rope-fusion \
-  --no-persist-layer-norm \
+  --transformer-impl transformer_engine \
   --eod-mask-loss \
   --train-mode sft \
   --log-interval 1 \
