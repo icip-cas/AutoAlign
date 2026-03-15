@@ -59,11 +59,11 @@ torchrun \
   --epochs 3 \
   --micro-batch-size 1 \
   --global-batch-size 4 \
-  --seq-length 4096 \
-  --max-padding-length 4096 \
+  --seq-length 65536 \
+  --max-padding-length 65536 \
   --tensor-model-parallel-size 2 \
-  --pipeline-model-parallel-size 2 \
-  --context-parallel-size 1 \
+  --pipeline-model-parallel-size 1 \
+  --context-parallel-size 2 \
   --sequence-parallel \
   --use-distributed-optimizer \
   --overlap-grad-reduce \
