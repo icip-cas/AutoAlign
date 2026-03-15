@@ -21,7 +21,7 @@ export CUDA_DEVICE_MAX_CONNECTIONS=1
 # Training Configuration
 MASTER_PORT=${MASTER_PORT:-$(shuf -n 1 -i 20000-29999)}
 HF_MODEL_PATH="/ceph_home/arknet/hf_models/Qwen/Qwen2.5-7B-Instruct"
-CHECKPOINT_PATH="./mg_models/Qwen2.5-7B-Instruct-mcore-tp2-pp2"
+CHECKPOINT_PATH="./mg_models/Qwen2.5-7B-Instruct-mcore-te-tp2-pp2"
 DATA_PATH="./data/litecoder_sft.json"
 SAVE_PATH="./checkpoints/sft/qwen2.5-7b-sft-tp2-pp2"
 
