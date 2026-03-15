@@ -1,0 +1,52 @@
+FROM nvcr.io/nvidia/pytorch:25.03-py3
+
+# ==============================
+# Build Arguments
+# ==============================
+ARG MEGATRON_LM_REPO=https://github.com/NVIDIA/Megatron-LM.git
+ARG MEGATRON_LM_COMMIT=core_v0.12.1
+
+# ==============================
+# Install OS dependencies
+# ==============================
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    vim curl wget \
+    libblas-dev gfortran libblas3 libopenblas-dev \
+    bc patch libjemalloc2 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+########################################################################
+# Megatron-LM (PYTHONPATH only — no pip install to avoid TE conflicts)
+########################################################################
+RUN git clone ${MEGATRON_LM_REPO} /opt/megatron-lm && \
+    cd /opt/megatron-lm && \
+    git checkout ${MEGATRON_LM_COMMIT}
+
+ENV MEGATRON_LM_PATH=/opt/megatron-lm
+ENV PYTHONPATH=${PYTHONPATH}:/opt/megatron-lm
+
+########################################################################
+# pybind11 (Megatron fused kernel build dependency)
+########################################################################
+RUN pip install --no-cache-dir pybind11
+
+########################################################################
+# Cleanup
+########################################################################
+RUN rm -rf /root/.cache/pip /tmp/*
+
+########################################################################
+# AutoAlign — bind-mount at runtime:
+#   docker run -v /path/to/AutoAlign:/opt/AutoAlign ...
+########################################################################
+RUN mkdir -p /opt/AutoAlign
+
+WORKDIR /opt/AutoAlign
+
+########################################################################
+# Entrypoint: auto editable-install AutoAlign from mounted volume
+########################################################################
+ENTRYPOINT ["/bin/bash", "-c", "pip install --no-build-isolation -e . && exec \"$@\"", "--"]
+CMD ["bash"]
