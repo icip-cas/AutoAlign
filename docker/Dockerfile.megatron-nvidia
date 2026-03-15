@@ -7,6 +7,9 @@ ARG MEGATRON_LM_REPO=https://github.com/NVIDIA/Megatron-LM.git
 ARG MEGATRON_LM_COMMIT=core_v0.12.1
 ARG AUTOALIGN_REPO=https://github.com/icip-cas/AutoAlign.git
 ARG AUTOALIGN_BRANCH=megatron-refactor
+ARG https_proxy=
+ARG http_proxy=
+ENV https_proxy=${https_proxy} http_proxy=${http_proxy}
 
 # ==============================
 # Install OS dependencies
