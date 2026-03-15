@@ -29,8 +29,11 @@ ENV PYTHONPATH=${PYTHONPATH}:/opt/megatron-lm
 
 ########################################################################
 # pybind11 (Megatron fused kernel build dependency)
+# Uninstall modelopt: it monkey-patches transformers.from_pretrained with an
+# incompatible signature when newer transformers (installed by autoalign) is used.
 ########################################################################
-RUN pip install --no-cache-dir pybind11
+RUN pip install --no-cache-dir pybind11 && \
+    pip uninstall -y modelopt nvidia-modelopt 2>/dev/null; true
 
 ########################################################################
 # Cleanup
