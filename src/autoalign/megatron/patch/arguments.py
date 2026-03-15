@@ -23,8 +23,84 @@
 #     http://www.apache.org/licenses/LICENSE-2.0
 
 import argparse
+import json
+import logging
+import sys
 
 from autoalign.megatron.model_config import inject_hf_model_args
+
+logger = logging.getLogger(__name__)
+
+
+def _inject_train_iters_from_epochs(parser) -> None:
+    """For --dataset json mode: auto-compute --train-iters from --epochs + dataset size.
+
+    Only injects when ALL of the following are true:
+    - ``--dataset json`` is present in sys.argv
+    - ``--epochs`` is present (or defaults to a positive value)
+    - ``--train-iters`` is NOT already present in sys.argv
+    - ``--data-path`` and ``--global-batch-size`` can be found in sys.argv
+    """
+    argv = sys.argv
+
+    # Only act for json mode
+    if "--dataset" not in argv or argv[argv.index("--dataset") + 1] != "json":
+        return
+
+    # Skip if --train-iters already explicitly set
+    if "--train-iters" in argv:
+        return
+
+    # Parse --data-path, --epochs, --global-batch-size from sys.argv
+    def _get_argv(flag, default=None):
+        if flag in argv:
+            idx = argv.index(flag)
+            if idx + 1 < len(argv):
+                return argv[idx + 1]
+        return default
+
+    data_path = _get_argv("--data-path")
+    if data_path is None:
+        return
+
+    epochs_str = _get_argv("--epochs")
+    epochs = int(epochs_str) if epochs_str is not None else 3  # matches argparse default
+
+    gbs_str = _get_argv("--global-batch-size")
+    if gbs_str is None:
+        return
+    global_batch_size = int(gbs_str)
+
+    # Parse split ratio to find train fraction
+    split_str = _get_argv("--split", "100,0,0")
+    parts = [float(x) for x in split_str.replace("/", ",").split(",")]
+    while len(parts) < 3:
+        parts.append(0.0)
+    parts = parts[:3]
+    total = sum(parts)
+    train_frac = parts[0] / total if total > 0 else 1.0
+
+    # Count samples in JSON file
+    try:
+        with open(data_path) as f:
+            data = json.load(f)
+        n_samples = int(len(data) * train_frac)
+    except Exception as exc:
+        logger.warning("_inject_train_iters_from_epochs: could not read %s: %s", data_path, exc)
+        return
+
+    if n_samples <= 0 or global_batch_size <= 0:
+        return
+
+    train_iters = (n_samples * epochs) // global_batch_size
+    if train_iters <= 0:
+        train_iters = 1
+
+    sys.argv.extend(["--train-iters", str(train_iters)])
+    logger.info(
+        "Auto-computed --train-iters=%d from %d samples × %d epochs ÷ gbs %d",
+        train_iters, n_samples, epochs, global_batch_size,
+    )
 
 
 def get_patch_args(parser):
@@ -515,5 +591,8 @@ def get_patch_args(parser):
 
     # Auto-derive model architecture args from --model-path (if provided)
     inject_hf_model_args(parser)
+
+    # For --dataset json mode: compute --train-iters from --epochs + dataset size
+    _inject_train_iters_from_epochs(parser)
 
     return parser

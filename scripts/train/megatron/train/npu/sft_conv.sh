@@ -189,7 +189,6 @@ megatron_options="  \
     --init-method-std 0.008 \
     --hidden-dropout 0.0 \
     --lr-warmup-fraction ${LR_WARMUP_FRACTION} \
-    --train-iters ${TRAIN_ITERS} \
     --micro-batch-size ${BATCH_SIZE} \
     --global-batch-size ${GLOBAL_BATCH_SIZE} \
     --seq-length ${SEQ_LEN} \

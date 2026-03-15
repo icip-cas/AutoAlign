@@ -52,7 +52,7 @@ torchrun \
   --weight-decay 0.1 \
   --clip-grad 1.0 \
   --lr-warmup-fraction 0.00004 \
-  --train-iters 5 \
+  --epochs 3 \
   --micro-batch-size 1 \
   --global-batch-size 4 \
   --seq-length 4096 \
@@ -60,6 +60,7 @@ torchrun \
   --tensor-model-parallel-size 2 \
   --pipeline-model-parallel-size 2 \
   --context-parallel-size 1 \
+  --sequence-parallel \
   --use-distributed-optimizer \
   --overlap-grad-reduce \
   --bf16 \
