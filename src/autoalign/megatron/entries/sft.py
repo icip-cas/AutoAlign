@@ -71,24 +71,30 @@ model_provider = make_model_provider()
 
 def get_batch(data_iterator):
     """Generate a batch."""
+    _rank = torch.distributed.get_rank()
 
     # TODO: this is pretty hacky, find a better way
     if (not mpu.is_pipeline_first_stage()) and (not mpu.is_pipeline_last_stage()):
         return None, None, None, None, None, None
 
     # get batches based on the TP rank you are on
+    print(f"[RANK {_rank}] get_batch: loading data...", flush=True)
     batch = get_batch_on_this_tp_rank_idxmap_sft_conv(data_iterator)
+    print(f"[RANK {_rank}] get_batch: data loaded", flush=True)
 
     # Sync CP ranks: online tokenization has variable latency, fast ranks
     # must wait for slow ranks before entering ring-attention.
     if mpu.get_context_parallel_world_size() > 1:
+        print(f"[RANK {_rank}] get_batch: entering CP barrier...", flush=True)
         torch.distributed.barrier(
             group=mpu.get_context_parallel_group(),
             device_ids=[torch.cuda.current_device()],
         )
+        print(f"[RANK {_rank}] get_batch: CP barrier done", flush=True)
 
     # slice batch along sequence dimension for context parallelism
     batch = get_batch_on_this_cp_rank(batch)
+    print(f"[RANK {_rank}] get_batch: CP slice done", flush=True)
 
     packed_seq_params = None
 

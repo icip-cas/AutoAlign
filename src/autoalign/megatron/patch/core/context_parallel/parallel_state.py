@@ -24,6 +24,7 @@ ranks are still in the initialization phase and guaranteed to be synchronized,
 so no rank can race ahead into training communication.
 """
 
+import torch
 import torch.distributed as dist
 from megatron.core import parallel_state as _ps
 
