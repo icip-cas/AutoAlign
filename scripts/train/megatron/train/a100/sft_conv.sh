@@ -74,7 +74,7 @@ torchrun \
   --eod-mask-loss \
   --train-mode sft \
   --log-interval 1 \
-  --save-interval 10 \
+  --save-interval 235 \
   --eval-interval 10000 \
   --eval-iters 10
 
