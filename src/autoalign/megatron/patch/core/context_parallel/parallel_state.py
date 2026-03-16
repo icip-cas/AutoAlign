@@ -62,6 +62,6 @@ def _warmup_nccl_groups() -> None:
         try:
             g = _group_fn()
             if g is not None:
-                dist.barrier(group=g)
+                dist.barrier(group=g, device_ids=[torch.cuda.current_device()])
         except Exception:
             pass
