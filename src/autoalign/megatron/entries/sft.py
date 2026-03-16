@@ -32,6 +32,7 @@ from autoalign.megatron.patch.data.utils import get_batch_on_this_tp_rank_idxmap
 from megatron.training.training import pretrain as sft
 from autoalign.megatron.patch.arguments import get_patch_args
 from autoalign.megatron.registry import make_model_provider
+import autoalign.megatron.patch.core.context_parallel  # noqa: F401  # CP NCCL warmup
 
 # Patch 1: strict=False — tolerate missing/unexpected keys across impl switches
 import megatron.training.checkpointing as _ckpt
