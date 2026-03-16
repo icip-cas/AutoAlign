@@ -17,6 +17,8 @@ if [ -z "$MEGATRON_LM_PATH" ]; then
 fi
 export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 export CUDA_DEVICE_MAX_CONNECTIONS=1
+export NCCL_ASYNC_ERROR_HANDLING=0
+export NCCL_DEBUG=WARN
 
 # Training Configuration
 MASTER_PORT=${MASTER_PORT:-$(shuf -n 1 -i 20000-29999)}
