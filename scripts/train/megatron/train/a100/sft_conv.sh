@@ -5,7 +5,7 @@
 set -e
 
 echo "=== A100 SFT Training Script ==="
-echo "Starting SFT training on GPU 0-7 with TP=2 PP=2 CP=2"
+echo "Starting SFT training on GPU 0-3 with TP=2 PP=2"
 
 # Environment Setup
 # When running inside Docker (autoalign-megatron-nvidia:dev), PATH/PYTHONPATH are
@@ -15,17 +15,15 @@ if [ -z "$MEGATRON_LM_PATH" ]; then
   export MEGATRON_LM_PATH=/ceph_home/zhangkaiqi2024/luxinyu_data/github/Megatron-LM
   export PYTHONPATH=$MEGATRON_LM_PATH:$PYTHONPATH
 fi
-export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+export CUDA_VISIBLE_DEVICES=0,1,2,3
 export CUDA_DEVICE_MAX_CONNECTIONS=1
-export NCCL_ASYNC_ERROR_HANDLING=0
-export NCCL_DEBUG=WARN
 
 # Training Configuration
 MASTER_PORT=${MASTER_PORT:-$(shuf -n 1 -i 20000-29999)}
 HF_MODEL_PATH="/ceph_home/arknet/hf_models/Qwen/Qwen2.5-7B-Instruct"
 CHECKPOINT_PATH="./mg_models/Qwen2.5-7B-Instruct-mcore-te-tp2-pp2"
 DATA_PATH="./data/litecoder_sft.json"
-SAVE_PATH="./checkpoints/sft/qwen2.5-7b-sft-tp2-pp2-cp2-seq32k"
+SAVE_PATH="./checkpoints/sft/qwen2.5-7b-sft-tp2-pp2"
 
 echo "Environment configured:"
 echo "  CUDA_VISIBLE_DEVICES: $CUDA_VISIBLE_DEVICES"
@@ -40,7 +38,7 @@ mkdir -p "$SAVE_PATH"
 # Run SFT Training
 echo "Starting torchrun..."
 torchrun \
-  --nproc_per_node 8 \
+  --nproc_per_node 4 \
   --nnodes 1 \
   --node_rank 0 \
   --master_addr localhost \
@@ -61,11 +59,11 @@ torchrun \
   --epochs 3 \
   --micro-batch-size 1 \
   --global-batch-size 4 \
-  --seq-length 32768 \
-  --max-padding-length 32768 \
+  --seq-length 4096 \
+  --max-padding-length 4096 \
   --tensor-model-parallel-size 2 \
   --pipeline-model-parallel-size 2 \
-  --context-parallel-size ${CP_SIZE:-2} \
+  --context-parallel-size 1 \
   --sequence-parallel \
   --use-distributed-optimizer \
   --overlap-grad-reduce \
@@ -76,7 +74,7 @@ torchrun \
   --eod-mask-loss \
   --train-mode sft \
   --log-interval 1 \
-  --save-interval 235 \
+  --save-interval 10 \
   --eval-interval 10000 \
   --eval-iters 10
 
