@@ -65,7 +65,7 @@ torchrun \
   --max-padding-length 32768 \
   --tensor-model-parallel-size 2 \
   --pipeline-model-parallel-size 2 \
-  --context-parallel-size 2 \
+  --context-parallel-size ${CP_SIZE:-2} \
   --sequence-parallel \
   --use-distributed-optimizer \
   --overlap-grad-reduce \
