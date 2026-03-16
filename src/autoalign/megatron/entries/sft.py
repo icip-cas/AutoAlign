@@ -79,6 +79,14 @@ def get_batch(data_iterator):
     # get batches based on the TP rank you are on
     batch = get_batch_on_this_tp_rank_idxmap_sft_conv(data_iterator)
 
+    # Sync CP ranks: online tokenization has variable latency, fast ranks
+    # must wait for slow ranks before entering ring-attention.
+    if mpu.get_context_parallel_world_size() > 1:
+        torch.distributed.barrier(
+            group=mpu.get_context_parallel_group(),
+            device_ids=[torch.cuda.current_device()],
+        )
+
     # slice batch along sequence dimension for context parallelism
     batch = get_batch_on_this_cp_rank(batch)
 
