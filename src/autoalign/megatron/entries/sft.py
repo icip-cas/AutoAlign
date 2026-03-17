@@ -66,9 +66,9 @@ def _maybe_init_swanlab():
             return None
         import swanlab
         _swanlab_run = swanlab.init(config=vars(args))
-        print_rank_0(f'SwanLab initialized: {_swanlab_run}')
+        print(f'SwanLab initialized: {_swanlab_run}', flush=True)
     except Exception as e:
-        print_rank_0(f'WARNING: SwanLab init failed ({e}), disabling SwanLab logging')
+        print(f'WARNING: SwanLab init failed ({e}), disabling SwanLab logging', flush=True)
     return _swanlab_run
 
 _orig_training_log = _training.training_log
