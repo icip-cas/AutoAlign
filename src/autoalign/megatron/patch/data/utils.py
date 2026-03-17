@@ -211,7 +211,11 @@ def get_batch_on_this_tp_rank_idxmap_dpo(data_iterator):
         
     return batch
 
+_SFT_BATCH_PRINTED = False
+
+
 def get_batch_on_this_tp_rank_idxmap_sft_conv(data_iterator):
+    global _SFT_BATCH_PRINTED
     args = get_args()
     tokenizer = get_tokenizer()
     mask_id = tokenizer.vocab_size + 1
@@ -252,7 +256,7 @@ def get_batch_on_this_tp_rank_idxmap_sft_conv(data_iterator):
   
         # Set the last token of each sequence to pad_token_id
         conv_labels[:, -1] = mask_id
-        
+
         tokens = conv_tokens
         labels = conv_labels
 
@@ -284,7 +288,25 @@ def get_batch_on_this_tp_rank_idxmap_sft_conv(data_iterator):
             'attention_mask': attention_mask.cuda(non_blocking=True) if attention_mask is not None else None,
             'position_ids': position_ids.cuda(non_blocking=True)
         }
-        
+
+        if not _SFT_BATCH_PRINTED:
+            _SFT_BATCH_PRINTED = True
+            from itertools import groupby
+            sample_labels = labels[0].tolist()
+            sample_tokens = tokens[0].tolist()
+            full_text = tokenizer.detokenize(sample_tokens)
+            trained_segments = [
+                list(seg) for is_trained, seg in groupby(
+                    zip(sample_labels, sample_tokens), key=lambda x: x[0] != mask_id
+                ) if is_trained
+            ]
+            trained_texts = [tokenizer.detokenize([tok for _, tok in seg]) for seg in trained_segments]
+            print(f"\n{'='*60}", flush=True)
+            print("[SFT batch debug] Full text (first sample):", flush=True)
+            print(full_text, flush=True)
+            print(f"\n[SFT batch debug] Trained-on parts (loss_mask=1):", flush=True)
+            print("\n>>>>>>>>>>>>>>>>>\n".join(trained_texts), flush=True)
+            print('='*60, flush=True)
 
         if args.pipeline_model_parallel_size == 1:
             _broadcast(batch['tokens'])
