@@ -14,6 +14,7 @@ data/*
 !data/ultra_binary.jsonl
 !data/dummy_*
 !data/eval
+!data/identity.json
 
 .lock
 # mac
