@@ -39,7 +39,7 @@ from megatron.training.global_vars import get_tokenizer
 def get_batch_on_this_tp_rank_idxmap_dpo(data_iterator):
     args = get_args()
     tokenizer = get_tokenizer()
-    mask_id = tokenizer.vocab_size + 1
+    mask_id = -100  # Ignore-index sentinel (matches HuggingFace convention)
     pad_id = tokenizer.pad_token_id if hasattr(tokenizer, 'pad_token_id') else 0
     def _broadcast(item):
         if item is None:
@@ -218,7 +218,7 @@ def get_batch_on_this_tp_rank_idxmap_sft_conv(data_iterator):
     global _SFT_BATCH_PRINTED
     args = get_args()
     tokenizer = get_tokenizer()
-    mask_id = tokenizer.vocab_size + 1
+    mask_id = -100  # Ignore-index sentinel (matches HuggingFace convention)
     pad_id = tokenizer.pad_token_id if hasattr(tokenizer, 'pad_token_id') else 0
     def _broadcast(item):
         if item is None:

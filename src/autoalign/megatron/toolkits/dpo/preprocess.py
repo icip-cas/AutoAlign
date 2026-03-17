@@ -128,7 +128,7 @@ class Encoder(object):
     def __init__(self, args):
         self.args = args
         Encoder.tokenizer = build_tokenizer(self.args) # acconding to args.tokenizer_type, return different tokenizer
-        Encoder.mask_id = Encoder.tokenizer.vocab_size + 1   
+        Encoder.mask_id = -100  # Ignore-index sentinel (matches HuggingFace convention)
     def initializer(self): 
         pass
     

@@ -118,7 +118,7 @@ class OnlineSFTDataset(torch.utils.data.Dataset):
         self.tokenizer = tokenizer
         self.template = TEMPLATES[template_name]
         self.seq_length = seq_length
-        self.mask_id = tokenizer.vocab_size + 1
+        self.mask_id = -100  # Ignore-index sentinel (matches HuggingFace convention)
         self.pad_id = getattr(tokenizer, "pad_token_id", 0) or 0
         self.indices = _build_epoch_indices(len(data), epochs, seed, shuffle_all_epochs)
 
@@ -165,7 +165,7 @@ class OnlineDPODataset(torch.utils.data.Dataset):
         self.tokenizer = tokenizer
         self.template = TEMPLATES[template_name]
         self.seq_length = seq_length
-        self.mask_id = tokenizer.vocab_size + 1
+        self.mask_id = -100  # Ignore-index sentinel (matches HuggingFace convention)
         self.pad_id = getattr(tokenizer, "pad_token_id", 0) or 0
         self.indices = _build_epoch_indices(len(data), epochs, seed, shuffle_all_epochs)
 
