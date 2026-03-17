@@ -32,6 +32,8 @@ PRETRAIN_CHECKPOINT_PATH=${PRETRAIN_CHECKPOINT_PATH:-"./mg_models/Qwen2.5-3B-hf-
 OUTPUT_BASEPATH=${OUTPUT_BASEPATH:-"./checkpoints/sft"}
 HF_MODEL_PATH=${HF_MODEL_PATH:-"Qwen/Qwen2.5-3B-Instruct"}
 TEMPLATE=${TEMPLATE:-"chatml-idsys"}
+# SwanLab: set SWANLAB_PROJECT / SWANLAB_EXP_NAME / SWANLAB_MODE etc. in env
+REPORT_TO=${REPORT_TO:-""}
 
 # ==============================
 # Compute Resources Configuration
@@ -207,6 +209,7 @@ megatron_options="  \
     --context-parallel-size ${CP} \
     --num-workers 8 \
     --rotary-seq-len-interpolation-factor 1 \
+    ${REPORT_TO:+--report-to $REPORT_TO} \
     "
 
 # ==============================
