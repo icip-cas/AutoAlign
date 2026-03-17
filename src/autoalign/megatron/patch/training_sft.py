@@ -269,8 +269,11 @@ def sft(
             try:
                 import swanlab
                 _swanlab_run = swanlab.init(config=vars(args))
+                print_rank_0(f'SwanLab initialized: {_swanlab_run}')
             except ImportError:
                 print_rank_0('WARNING: swanlab not installed, skipping SwanLab logging')
+            except Exception as e:
+                print_rank_0(f'WARNING: SwanLab init failed ({e}), skipping SwanLab logging')
 
     if args.log_progress:
         append_to_progress_log("Starting job")
