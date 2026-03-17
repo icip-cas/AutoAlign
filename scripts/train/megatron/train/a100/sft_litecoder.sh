@@ -16,7 +16,7 @@ export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 export CUDA_DEVICE_MAX_CONNECTIONS=1
 export NCCL_P2P_DISABLE=1
 
-REPORT_TO=${REPORT_TO:-""}
+REPORT_TO=${REPORT_TO:-"swanlab"}
 
 MASTER_PORT=${MASTER_PORT:-$(shuf -n 1 -i 20000-29999)}
 HF_MODEL_PATH="/ceph_home/arknet/hf_models/Qwen/Qwen2.5-7B-Instruct"
