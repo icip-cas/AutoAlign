@@ -19,11 +19,15 @@ export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 export CUDA_DEVICE_MAX_CONNECTIONS=1
 export NCCL_P2P_DISABLE=1
 
+# SwanLab (optional): set SWANLAB_PROJECT / SWANLAB_EXP_NAME / SWANLAB_MODE etc. in env
+# to enable logging, pass --report-to swanlab below (or via REPORT_TO env var)
+REPORT_TO=${REPORT_TO:-""}
+
 # Training Configuration
 MASTER_PORT=${MASTER_PORT:-$(shuf -n 1 -i 20000-29999)}
 HF_MODEL_PATH="/ceph_home/arknet/hf_models/Qwen/Qwen2.5-7B-Instruct"
 CHECKPOINT_PATH="./mg_models/Qwen2.5-7B-Instruct-mcore-te-tp2-pp2"
-DATA_PATH="./data/litecoder_sft.json"
+DATA_PATH="./data/identity.json"
 SAVE_PATH="./checkpoints/sft/qwen2.5-7b-sft-tp2-pp2-cp2-seq32k"
 
 echo "Environment configured:"
@@ -77,7 +81,8 @@ torchrun \
   --log-interval 1 \
   --save-interval 235 \
   --eval-interval 10000 \
-  --eval-iters 10
+  --eval-iters 10 \
+  ${REPORT_TO:+--report-to $REPORT_TO}
 
 echo "=== Training completed ==="
 echo "Checkpoints saved to: $SAVE_PATH"

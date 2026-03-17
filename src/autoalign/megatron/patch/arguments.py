@@ -589,6 +589,17 @@ def get_patch_args(parser):
         help="The num of layers to be moved to CPU",
     )
 
+    group.add_argument(
+        "--report-to",
+        nargs="*",
+        default=[],
+        choices=["swanlab", "wandb", "tensorboard"],
+        help="Experiment tracking backends. E.g. --report-to swanlab wandb. "
+             "SwanLab config (project, experiment name, mode, log dir) is read "
+             "from environment variables: SWANLAB_PROJECT, SWANLAB_EXP_NAME, "
+             "SWANLAB_MODE, SWANLAB_LOG_DIR.",
+    )
+
     # Auto-derive model architecture args from --model-path (if provided)
     inject_hf_model_args(parser)
 
