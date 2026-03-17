@@ -65,6 +65,9 @@ def _maybe_init_swanlab():
         if torch.distributed.get_rank() != args.world_size - 1:
             return None
         import swanlab
+        api_key = os.environ.get('SWANLAB_API_KEY')
+        if api_key:
+            swanlab.login(api_key=api_key, relogin=True)
         _swanlab_run = swanlab.init(config=vars(args))
         print(f'SwanLab initialized: {_swanlab_run}', flush=True)
     except Exception as e:

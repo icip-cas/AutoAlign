@@ -292,15 +292,17 @@ def get_batch_on_this_tp_rank_idxmap_sft_conv(data_iterator):
         if not _SFT_BATCH_PRINTED:
             _SFT_BATCH_PRINTED = True
             from itertools import groupby
+            from transformers import AutoTokenizer as _AutoTokenizer
+            _hf_tok = _AutoTokenizer.from_pretrained(args.model_path, trust_remote_code=True)
             sample_labels = labels[0].tolist()
             sample_tokens = tokens[0].tolist()
-            full_text = tokenizer.detokenize(sample_tokens)
+            full_text = _hf_tok.decode(sample_tokens)
             trained_segments = [
                 list(seg) for is_trained, seg in groupby(
                     zip(sample_labels, sample_tokens), key=lambda x: x[0] != mask_id
                 ) if is_trained
             ]
-            trained_texts = [tokenizer.detokenize([tok for _, tok in seg]) for seg in trained_segments]
+            trained_texts = [_hf_tok.decode([tok for _, tok in seg]) for seg in trained_segments]
             print(f"\n{'='*60}", flush=True)
             print("[SFT batch debug] Full text (first sample):", flush=True)
             print(full_text, flush=True)
