@@ -20,9 +20,9 @@ REPORT_TO=${REPORT_TO:-""}
 
 MASTER_PORT=${MASTER_PORT:-$(shuf -n 1 -i 20000-29999)}
 HF_MODEL_PATH="/ceph_home/arknet/hf_models/Qwen/Qwen2.5-7B-Instruct"
-CHECKPOINT_PATH="./mg_models/Qwen2.5-7B-Instruct-mcore-te-tp2-pp1"
+CHECKPOINT_PATH="./mg_models/Qwen2.5-7B-Instruct-mcore-te-tp2-pp2"
 DATA_PATH="./data/identity.json"
-SAVE_PATH="./checkpoints/sft/qwen2.5-7b-identity-tp2-pp1-seq8k"
+SAVE_PATH="./checkpoints/sft/qwen2.5-7b-identity-tp2-pp2-seq8k"
 
 mkdir -p "$SAVE_PATH"
 
@@ -51,7 +51,7 @@ torchrun \
   --seq-length 8192 \
   --max-padding-length 8192 \
   --tensor-model-parallel-size 2 \
-  --pipeline-model-parallel-size 1 \
+  --pipeline-model-parallel-size 2 \
   --sequence-parallel \
   --use-distributed-optimizer \
   --overlap-grad-reduce \
