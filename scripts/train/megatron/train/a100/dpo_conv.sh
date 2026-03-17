@@ -59,7 +59,6 @@ torchrun \
   --micro-batch-size 1 \
   --global-batch-size 8 \
   --seq-length 4096 \
-  --max-padding-length 4096 \
   --tensor-model-parallel-size 2 \
   --pipeline-model-parallel-size 2 \
   --context-parallel-size 1 \
@@ -70,8 +69,6 @@ torchrun \
   --use-flash-attn \
   --attention-backend flash \
   --transformer-impl transformer_engine \
-  --eod-mask-loss \
-  --train-mode dpo \
   --beta 0.1 \
   --loss-type sigmoid \
   --label-smoothing 0.0 \

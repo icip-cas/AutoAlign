@@ -98,9 +98,7 @@ SAVE_INTERVAL=${SAVE_INTERVAL:-10}
 TRAIN_ITERS=${TRAIN_ITERS:-10000}
 LR_WARMUP_FRACTION=$(echo "${GLOBAL_BATCH_SIZE} * 0.00001" | bc -l)
 PREFIX="sft-mcore-qwen2_5-lr-${LR}-minlr-${MIN_LR}-bs-${BATCH_SIZE}-gbs-${GLOBAL_BATCH_SIZE}-seqlen-${SEQ_LEN}"
-sft_option=" \
-    --eod-mask-loss \
-    --train-mode sft"
+sft_option=""
 
 # ==============================
 # Attention Backend
@@ -260,7 +258,6 @@ megatron_options="  \
         --micro-batch-size ${BATCH_SIZE} \
         --global-batch-size ${GLOBAL_BATCH_SIZE} \
         --seq-length ${SEQ_LEN} \
-        --max-padding-length ${PAD_LEN} \
         --log-interval 1 \
         --log-throughput \
         --eval-interval 10000 \

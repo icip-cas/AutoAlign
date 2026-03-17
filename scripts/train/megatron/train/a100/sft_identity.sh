@@ -49,7 +49,6 @@ torchrun \
   --micro-batch-size 2 \
   --global-batch-size 16 \
   --seq-length 8192 \
-  --max-padding-length 8192 \
   --tensor-model-parallel-size 2 \
   --pipeline-model-parallel-size 2 \
   --sequence-parallel \
@@ -59,8 +58,6 @@ torchrun \
   --use-flash-attn \
   --attention-backend flash \
   --transformer-impl transformer_engine \
-  --eod-mask-loss \
-  --train-mode sft \
   --log-interval 1 \
   --save-interval 500 \
   --eval-interval 10000 \
