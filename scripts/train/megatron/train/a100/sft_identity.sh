@@ -1,15 +1,12 @@
 #!/bin/bash
-# A100 SFT Training Script for AutoAlign Megatron
-# Usage: bash run_a100_sft.sh
+# A100 SFT Training Script - Identity dataset, seq=8K, CP=1
+# Usage: bash scripts/train/megatron/train/a100/sft_identity.sh
 
 set -e
 
-echo "=== A100 SFT Training Script ==="
-echo "Starting SFT training on GPU 0-7 with TP=2 PP=2 CP=2 seq=32K"
+echo "=== A100 SFT Training (Identity, seq=8K) ==="
 
 # Environment Setup
-# When running inside Docker (autoalign-megatron-nvidia:dev), PATH/PYTHONPATH are
-# already configured by the image. When running on the host with conda, set these:
 if [ -z "$MEGATRON_LM_PATH" ]; then
   export PATH=/ceph_home/zhangkaiqi2024/luxinyu_data/envs/ata_megatron/bin:$PATH
   export MEGATRON_LM_PATH=/ceph_home/zhangkaiqi2024/luxinyu_data/github/Megatron-LM
@@ -19,29 +16,16 @@ export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 export CUDA_DEVICE_MAX_CONNECTIONS=1
 export NCCL_P2P_DISABLE=1
 
-# SwanLab (optional): set SWANLAB_PROJECT / SWANLAB_EXP_NAME / SWANLAB_MODE etc. in env
-# to enable logging, pass --report-to swanlab below (or via REPORT_TO env var)
 REPORT_TO=${REPORT_TO:-""}
 
-# Training Configuration
 MASTER_PORT=${MASTER_PORT:-$(shuf -n 1 -i 20000-29999)}
 HF_MODEL_PATH="/ceph_home/arknet/hf_models/Qwen/Qwen2.5-7B-Instruct"
-CHECKPOINT_PATH="./mg_models/Qwen2.5-7B-Instruct-mcore-te-tp2-pp2"
+CHECKPOINT_PATH="./mg_models/Qwen2.5-7B-Instruct-mcore-te-tp2-pp1"
 DATA_PATH="./data/identity.json"
-SAVE_PATH="./checkpoints/sft/qwen2.5-7b-sft-tp2-pp2-cp2-seq32k"
+SAVE_PATH="./checkpoints/sft/qwen2.5-7b-identity-tp2-pp1-seq8k"
 
-echo "Environment configured:"
-echo "  CUDA_VISIBLE_DEVICES: $CUDA_VISIBLE_DEVICES"
-echo "  MASTER_PORT: $MASTER_PORT"
-echo "  HF_MODEL_PATH: $HF_MODEL_PATH"
-echo "  CHECKPOINT_PATH: $CHECKPOINT_PATH"
-echo "  SAVE_PATH: $SAVE_PATH"
-
-# Create output directory
 mkdir -p "$SAVE_PATH"
 
-# Run SFT Training
-echo "Starting torchrun..."
 torchrun \
   --nproc_per_node 8 \
   --nnodes 1 \
@@ -62,13 +46,12 @@ torchrun \
   --clip-grad 1.0 \
   --lr-warmup-fraction 0.00004 \
   --epochs 3 \
-  --micro-batch-size 1 \
-  --global-batch-size 4 \
-  --seq-length 32768 \
-  --max-padding-length 32768 \
+  --micro-batch-size 2 \
+  --global-batch-size 16 \
+  --seq-length 8192 \
+  --max-padding-length 8192 \
   --tensor-model-parallel-size 2 \
-  --pipeline-model-parallel-size 2 \
-  --context-parallel-size 2 \
+  --pipeline-model-parallel-size 1 \
   --sequence-parallel \
   --use-distributed-optimizer \
   --overlap-grad-reduce \
@@ -79,7 +62,7 @@ torchrun \
   --eod-mask-loss \
   --train-mode sft \
   --log-interval 1 \
-  --save-interval 235 \
+  --save-interval 500 \
   --eval-interval 10000 \
   --eval-iters 10 \
   ${REPORT_TO:+--report-to $REPORT_TO}

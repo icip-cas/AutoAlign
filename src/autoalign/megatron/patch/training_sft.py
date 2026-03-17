@@ -927,74 +927,82 @@ def training_log(
     # Timer requires all the ranks to call.
     if args.log_timers_to_tensorboard and (iteration % args.tensorboard_log_interval == 0):
         timers.write(timers_to_log, writer, iteration, normalizer=total_iterations)
-    if writer and (iteration % args.tensorboard_log_interval == 0):
+    if (writer or wandb_writer or swanlab_writer) and (iteration % args.tensorboard_log_interval == 0):
         if wandb_writer:
             wandb_writer.log({'samples vs steps': args.consumed_train_samples}, iteration)
         if swanlab_writer:
             swanlab_writer.log({'samples vs steps': args.consumed_train_samples}, step=iteration)
         if args.log_learning_rate_to_tensorboard:
-            writer.add_scalar('learning-rate', learning_rate, iteration)
-            if args.decoupled_lr is not None:
-                writer.add_scalar('decoupled-learning-rate', decoupled_learning_rate, iteration)
-            writer.add_scalar(
-                'learning-rate vs samples', learning_rate, args.consumed_train_samples
-            )
+            if writer:
+                writer.add_scalar('learning-rate', learning_rate, iteration)
+                if args.decoupled_lr is not None:
+                    writer.add_scalar('decoupled-learning-rate', decoupled_learning_rate, iteration)
+                writer.add_scalar(
+                    'learning-rate vs samples', learning_rate, args.consumed_train_samples
+                )
             if wandb_writer:
                 wandb_writer.log({'learning-rate': learning_rate}, iteration)
             if swanlab_writer:
                 swanlab_writer.log({'learning-rate': learning_rate}, step=iteration)
         if args.log_batch_size_to_tensorboard:
-            writer.add_scalar('batch-size', batch_size, iteration)
-            writer.add_scalar('batch-size vs samples', batch_size, args.consumed_train_samples)
+            if writer:
+                writer.add_scalar('batch-size', batch_size, iteration)
+                writer.add_scalar('batch-size vs samples', batch_size, args.consumed_train_samples)
             if wandb_writer:
                 wandb_writer.log({'batch-size': batch_size}, iteration)
             if swanlab_writer:
                 swanlab_writer.log({'batch-size': batch_size}, step=iteration)
         for key in loss_dict:
-            writer.add_scalar(key, loss_dict[key], iteration)
-            writer.add_scalar(key + ' vs samples', loss_dict[key], args.consumed_train_samples)
+            if writer:
+                writer.add_scalar(key, loss_dict[key], iteration)
+                writer.add_scalar(key + ' vs samples', loss_dict[key], args.consumed_train_samples)
             if wandb_writer:
                 wandb_writer.log({key: loss_dict[key]}, iteration)
             if swanlab_writer:
                 swanlab_writer.log({key: loss_dict[key]}, step=iteration)
         if args.log_loss_scale_to_tensorboard:
-            writer.add_scalar('loss-scale', loss_scale, iteration)
-            writer.add_scalar('loss-scale vs samples', loss_scale, args.consumed_train_samples)
+            if writer:
+                writer.add_scalar('loss-scale', loss_scale, iteration)
+                writer.add_scalar('loss-scale vs samples', loss_scale, args.consumed_train_samples)
             if wandb_writer:
                 wandb_writer.log({'loss-scale': loss_scale}, iteration)
             if swanlab_writer:
                 swanlab_writer.log({'loss-scale': loss_scale}, step=iteration)
         if args.log_world_size_to_tensorboard:
-            writer.add_scalar('world-size', args.world_size, iteration)
-            writer.add_scalar('world-size vs samples', args.world_size, args.consumed_train_samples)
+            if writer:
+                writer.add_scalar('world-size', args.world_size, iteration)
+                writer.add_scalar('world-size vs samples', args.world_size, args.consumed_train_samples)
             if wandb_writer:
                 wandb_writer.log({'world-size': args.world_size}, iteration)
             if swanlab_writer:
                 swanlab_writer.log({'world-size': args.world_size}, step=iteration)
         if grad_norm is not None:
-            writer.add_scalar('grad-norm', grad_norm, iteration)
-            writer.add_scalar('grad-norm vs samples', grad_norm, args.consumed_train_samples)
+            if writer:
+                writer.add_scalar('grad-norm', grad_norm, iteration)
+                writer.add_scalar('grad-norm vs samples', grad_norm, args.consumed_train_samples)
             if wandb_writer:
                 wandb_writer.log({'grad-norm': grad_norm}, iteration)
             if swanlab_writer:
                 swanlab_writer.log({'grad-norm': grad_norm}, step=iteration)
         if num_zeros_in_grad is not None:
-            writer.add_scalar('num-zeros', num_zeros_in_grad, iteration)
-            writer.add_scalar(
-                'num-zeros vs samples', num_zeros_in_grad, args.consumed_train_samples
-            )
+            if writer:
+                writer.add_scalar('num-zeros', num_zeros_in_grad, iteration)
+                writer.add_scalar(
+                    'num-zeros vs samples', num_zeros_in_grad, args.consumed_train_samples
+                )
             if wandb_writer:
                 wandb_writer.log({'num-zeros': num_zeros_in_grad}, iteration)
             if swanlab_writer:
                 swanlab_writer.log({'num-zeros': num_zeros_in_grad}, step=iteration)
         if params_norm is not None:
-            writer.add_scalar('params-norm', params_norm, iteration)
-            writer.add_scalar('params-norm vs samples', params_norm, args.consumed_train_samples)
+            if writer:
+                writer.add_scalar('params-norm', params_norm, iteration)
+                writer.add_scalar('params-norm vs samples', params_norm, args.consumed_train_samples)
             if wandb_writer:
                 wandb_writer.log({'params-norm': params_norm}, iteration)
             if swanlab_writer:
                 swanlab_writer.log({'params-norm': params_norm}, step=iteration)
-        if args.log_memory_to_tensorboard:
+        if args.log_memory_to_tensorboard and writer:
             mem_stats = torch.cuda.memory_stats()
             writer.add_scalar(
                 "mem-reserved-bytes",
@@ -1039,7 +1047,6 @@ def training_log(
                 wandb_writer.log({'iteration-time': elapsed_time_per_iteration}, iteration)
             if swanlab_writer:
                 swanlab_writer.log({'iteration-time': elapsed_time_per_iteration}, step=iteration)
-
         def format_time(seconds):
             hours = seconds // 3600
             minutes = (seconds % 3600) // 60
