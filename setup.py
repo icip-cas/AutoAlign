@@ -35,13 +35,5 @@ class CustomInstall(install):
                 'git+https://github.com/vllm-project/vllm-ascend.git@v0.7.3.post1', 
                 '--extra-index-url', 'https://download.pytorch.org/whl/cpu/'
             ])
-        else:
-            print("Skipping vLLM and vLLM Ascend installation...")
-            print("Installing vLLM version 0.8.3 instead...")
-            # Install the specific version of vLLM (vllm==0.8.3)
-            subprocess.check_call([
-                sys.executable, '-m', 'pip', 'install',
-                'vllm==0.8.3'
-            ])
 
 setup(cmdclass={'install': CustomInstall})
