@@ -18,7 +18,7 @@ Usage::
 import os
 import re
 from collections import defaultdict
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -269,6 +269,53 @@ class GPTBridge:
     #  Megatron Checkpoint Save / Load (TP + PP + EP)
     # ================================================================== #
 
+    @staticmethod
+    def _resolve_megatron_legacy_shard_path(checkpoint_name: str) -> str:
+        """Map get_checkpoint_name() output to an on-disk shard file.
+
+        MindSpeed / some Megatron builds save under ``mp_rank_XX_YYY/`` (PP/DP suffix) while
+        ``get_checkpoint_name`` may only return ``mp_rank_XX/model_optim_rng.pt``.  If the
+        canonical path is missing, glob under the same ``iter_*`` directory.
+        """
+        if os.path.isfile(checkpoint_name):
+            return checkpoint_name
+        fname = os.path.basename(checkpoint_name)
+        shard_dir = os.path.dirname(checkpoint_name)
+        iter_dir = os.path.dirname(shard_dir)
+        prefix = os.path.basename(shard_dir)
+        if not os.path.isdir(iter_dir):
+            return checkpoint_name
+        m = re.match(r"mp_rank_(\d+)", prefix)
+        if not m:
+            return checkpoint_name
+        tp_id = int(m.group(1))
+        rank_dir_re = re.compile(rf"^mp_rank_{tp_id:02d}($|_)")
+
+        def _first_existing(names: Tuple[str, ...]) -> Optional[str]:
+            candidates: List[Tuple[int, str]] = []
+            for entry in sorted(os.listdir(iter_dir)):
+                if not rank_dir_re.match(entry):
+                    continue
+                ed = os.path.join(iter_dir, entry)
+                if not os.path.isdir(ed):
+                    continue
+                for n in names:
+                    fpath = os.path.join(ed, n)
+                    if os.path.isfile(fpath):
+                        candidates.append((len(entry), fpath))
+                        break
+            if not candidates:
+                return None
+            candidates.sort(key=lambda x: x[0])
+            chosen = candidates[0][1]
+            print(f"[bridge] resolved missing {checkpoint_name} -> {chosen}")
+            return chosen
+
+        resolved = _first_existing((fname, "model_rng.pt", "model.pt"))
+        if resolved:
+            return resolved
+        return checkpoint_name
+
     def load_mg_state_dict(self, args) -> Dict[str, torch.Tensor]:
         """Load Megatron checkpoint shards and gather into a full state dict.
 
@@ -291,6 +338,26 @@ class GPTBridge:
 
         mid_state = defaultdict(list)
 
+        # torch>=2.4 + torch_npu: Megatron legacy .pt shards pickle non-tensor globals
+        # (e.g. megatron.core.enums.ModelType). Allowlist + weights_only=False for local ckpts.
+        if hasattr(torch.serialization, "add_safe_globals"):
+            import argparse
+            from megatron.core.transformer.enums import AttnBackend
+
+            _safe = [argparse.Namespace, AttnBackend]
+            try:
+                from megatron.core.enums import ModelType
+                _safe.append(ModelType)
+            except ImportError:
+                pass
+            torch.serialization.add_safe_globals(_safe)
+
+        def _load_megatron_shard(path: str):
+            try:
+                return torch.load(path, map_location="cpu", weights_only=False)
+            except TypeError:
+                return torch.load(path, map_location="cpu")
+
         for tp_rank in range(tp_size):
             for ep_rank in range(ep_size if has_experts else 1):
                 for pp_rank in range(pp_size):
@@ -299,16 +366,9 @@ class GPTBridge:
                         tp_rank, tp_size, pp_rank, pp_size,
                         ep_rank, ep_size, has_experts,
                     )
+                    checkpoint_name = self._resolve_megatron_legacy_shard_path(checkpoint_name)
                     print(f'load {checkpoint_name}')
-                    # torch_npu replaces torch.load with restricted unpickler
-                    # that requires explicit allowlist for non-tensor types
-                    if hasattr(torch.serialization, 'add_safe_globals'):
-                        import argparse
-                        from megatron.core.transformer.enums import AttnBackend
-                        torch.serialization.add_safe_globals([argparse.Namespace, AttnBackend])
-                    split_state = torch.load(
-                        checkpoint_name, map_location="cpu",
-                    )['model']
+                    split_state = _load_megatron_shard(checkpoint_name)["model"]
 
                     for k, v in split_state.items():
                         # PP: remap local layer index -> global

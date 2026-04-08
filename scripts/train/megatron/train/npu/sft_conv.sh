@@ -3,7 +3,7 @@
 set -e
 
 # Activate conda environment (required for torch-npu)
-source /home/ma-user/miniconda3/bin/activate
+# conda already activated by wrapper
 
 export CUDA_DEVICE_MAX_CONNECTIONS=1
 export OMP_NUM_THREADS=1
@@ -172,6 +172,14 @@ find ${PRETRAIN_CHECKPOINT_PATH} -maxdepth 1 -type f -name "*.json" -print0 | xa
 find ${PRETRAIN_CHECKPOINT_PATH} -maxdepth 1 -type f -name "merge*" -print0 | xargs -0 cp -t ${SAVED_PRETRAIN_CHECKPOINT_PATH} 2>/dev/null || true
 
 # ==============================
+# Checkpoint format (Megatron-Core / MindSpeed)
+# 默认镜像里多为 ckpt_format=torch_dist → 保存 *.distcp，AutoAlign mcore→HF（bridge + qwen.common）只认 legacy .pt。
+# 显式 --ckpt-format torch → mp_rank_XX/model_optim_rng.pt，可与 5_convert_to_hf.sh / mcore_to_hf 脚本衔接。
+# 若需改回分布式检查点：export CKPT_FORMAT=torch_dist（或从 megatron_options 中去掉本段）。
+# ==============================
+CKPT_FORMAT=${CKPT_FORMAT:-torch}
+
+# ==============================
 # Full Configuration
 # ==============================
 load_options=" \
@@ -204,6 +212,7 @@ megatron_options="  \
     --tensor-model-parallel-size ${TP} \
     --pipeline-model-parallel-size ${PP} \
     --context-parallel-size ${CP} \
+    --ckpt-format ${CKPT_FORMAT} \
     --num-workers 8 \
     --rotary-seq-len-interpolation-factor 1 \
     ${REPORT_TO:+--report-to $REPORT_TO} \

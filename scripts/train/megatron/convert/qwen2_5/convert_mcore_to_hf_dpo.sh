@@ -12,9 +12,9 @@ PP=${PP:-"2"}
 MG_MODEL_PATH=${MG_MODEL_PATH:-"./checkpoints/dpo/checkpoint/dpo-mcore-qwen2_5-3B-lr-5e-6-minlr-0.0-bs-4-gbs-16-seqlen-4096-pr-bf16-tp-2-pp-2-cp-1-ac-none-do-true-sp-false-ti-10000-wf-.00016"}
 HF_CKPT_PATH=${HF_CKPT_PATH:-"Qwen/Qwen2.5-3B-Instruct"}
 PRECISION=${PRECISION:-"fp32"}
-USE_TE=${USE_TE:-"true"}
+USE_TE=${USE_TE:-"false"}
 MG2HF=${MG2HF:-"true"}
-TARGET_CKPT_PATH=${TARGET_CKPT_PATH:-"./hf_models_from_mg/Qwen2.5-hf-to-mcore-te-tp${TP}-pp${PP}"}
+TARGET_CKPT_PATH=${TARGET_CKPT_PATH:-"./hf_models_from_mg/Qwen2.5-hf-to-mcore-local-tp${TP}-pp${PP}"}
 
 # Model architecture args are auto-derived from --model-path (HF config.json).
 
