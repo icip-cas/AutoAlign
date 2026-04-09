@@ -13,10 +13,10 @@ MASTER_PORT=$(shuf -n 1 -i 10000-65535)
 TP=${TP:-"2"}
 PP=${PP:-"2"}
 PRECISION=${PRECISION:-"bf16"}
-USE_TE=${USE_TE:-"true"}
+USE_TE=${USE_TE:-"false"}
 MG2HF=${MG2HF:-"false"}
 HF_CKPT_PATH=${HF_CKPT_PATH:-"Qwen/Qwen2.5-3B-Instruct"}
-TARGET_CKPT_PATH=${TARGET_CKPT_PATH:-"./mg_models/Qwen2.5-hf-to-mcore-te-tp${TP}-pp${PP}"}
+TARGET_CKPT_PATH=${TARGET_CKPT_PATH:-"./mg_models/Qwen2.5-hf-to-mcore-local-tp${TP}-pp${PP}"}
 
 # Model architecture args are auto-derived from --model-path (HF config.json).
 # No need for MODEL_SIZE-based hardcoding.
