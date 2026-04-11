@@ -225,6 +225,7 @@ def _ensure_auto_registered():
         return
     _AUTO_REGISTERED = True
     _register_qwen2()
+    _register_qwen3()
 
 
 def _register_qwen2():
@@ -249,3 +250,29 @@ def _register_qwen2():
         get_layer_spec_te=get_gpt_layer_with_transformer_engine_spec,
         model_cls=GPTModel,
     ))
+
+
+def _register_qwen3():
+    """Register the Qwen3 / Qwen3-MoE model family.
+
+    Reuses stock mcore layer spec functions, which already accept
+    ``qk_layernorm=True`` and wire up Q/K LayerNorm submodules. Only the
+    bridge differs from Qwen2.
+    """
+    from megatron.core.models.gpt import GPTModel
+    from megatron.core.transformer import TransformerConfig
+    from megatron.core.models.gpt.gpt_layer_specs import (
+        get_gpt_layer_local_spec,
+        get_gpt_layer_with_transformer_engine_spec,
+    )
+    from autoalign.megatron.bridge import Qwen3Bridge
+
+    for mt in ("qwen3", "qwen3_moe"):
+        register_megatron_model(MegatronModelMeta(
+            model_type=mt,
+            bridge_cls=Qwen3Bridge,
+            transformer_config_cls=TransformerConfig,
+            get_layer_spec_local=get_gpt_layer_local_spec,
+            get_layer_spec_te=get_gpt_layer_with_transformer_engine_spec,
+            model_cls=GPTModel,
+        ))

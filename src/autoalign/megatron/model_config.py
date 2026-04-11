@@ -44,6 +44,10 @@ _FIELD_MAPPING: Dict[str, List[str]] = {
     "norm_epsilon": ["rms_norm_eps", "layer_norm_epsilon", "layer_norm_eps"],
     "rotary_base": ["rope_theta"],
     "attention_dropout": ["attention_dropout"],
+    "kv_channels": ["head_dim"],
+    "moe_ffn_hidden_size": ["moe_intermediate_size"],
+    "num_experts": ["num_experts"],
+    "moe_router_topk": ["num_experts_per_tok"],
 }
 
 # Fields that require value inversion (HF True → Megatron False, etc.)
@@ -60,6 +64,30 @@ _MODEL_TYPE_DEFAULTS: Dict[str, Dict[str, Any]] = {
         "use_rotary_position_embeddings": True,
         "disable_bias_linear": True,
         "add_qkv_bias": True,
+        "rotary_percent": 1.0,
+        "patch_tokenizer_type": "Qwen2Tokenizer",
+    },
+    # NOTE: order matters — `_match_model_type` uses startswith, so the more
+    # specific `qwen3_moe` must come before `qwen3`.
+    "qwen3_moe": {
+        "swiglu": True,
+        "normalization": "RMSNorm",
+        "position_embedding_type": "rope",
+        "use_rotary_position_embeddings": True,
+        "disable_bias_linear": True,
+        "add_qkv_bias": False,
+        "qk_layernorm": True,
+        "rotary_percent": 1.0,
+        "patch_tokenizer_type": "Qwen2Tokenizer",
+    },
+    "qwen3": {
+        "swiglu": True,
+        "normalization": "RMSNorm",
+        "position_embedding_type": "rope",
+        "use_rotary_position_embeddings": True,
+        "disable_bias_linear": True,
+        "add_qkv_bias": False,
+        "qk_layernorm": True,
         "rotary_percent": 1.0,
         "patch_tokenizer_type": "Qwen2Tokenizer",
     },
