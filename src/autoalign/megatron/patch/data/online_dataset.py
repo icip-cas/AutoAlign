@@ -142,11 +142,12 @@ class OnlineSFTDataset(torch.utils.data.Dataset):
         input_ids = tokenized.input_ids
 
         # Pad to seq_length (same as GPTDatasetSFTConv._pad_and_mask)
-        pad_len = self.seq_length - len(input_ids)
+        actual_len = len(input_ids)
+        pad_len = self.seq_length - actual_len
         text = np.array(input_ids + [self.pad_id] * pad_len, dtype=np.int64)
         label = np.array(labels + [self.mask_id] * pad_len, dtype=np.int64)
 
-        return {"conv_text": text, "conv_label": label}
+        return {"conv_text": text, "conv_label": label, "seq_len": actual_len}
 
 
 # ---------------------------------------------------------------------------
@@ -190,23 +191,25 @@ class OnlineDPODataset(torch.utils.data.Dataset):
         )
         input_ids = tokenized.input_ids
 
-        pad_len = self.seq_length - len(input_ids)
+        actual_len = len(input_ids)
+        pad_len = self.seq_length - actual_len
         text = np.array(input_ids + [self.pad_id] * pad_len, dtype=np.int64)
         label = np.array(labels + [self.mask_id] * pad_len, dtype=np.int64)
-        return text, label
+        return text, label, actual_len
 
     def __getitem__(self, idx):
         data_idx = self.indices[idx]
         json_line = self.data[data_idx]
 
-        chosen_text, chosen_label = self._tokenize_branch(json_line["chosen"])
-        rejected_text, rejected_label = self._tokenize_branch(json_line["rejected"])
+        chosen_text, chosen_label, chosen_len = self._tokenize_branch(json_line["chosen"])
+        rejected_text, rejected_label, rejected_len = self._tokenize_branch(json_line["rejected"])
 
         return {
             "chosen_text": chosen_text,
             "chosen_label": chosen_label,
             "rejected_text": rejected_text,
             "rejected_label": rejected_label,
+            "seq_len": max(chosen_len, rejected_len),
         }
 
 
