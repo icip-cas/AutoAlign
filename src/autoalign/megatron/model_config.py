@@ -56,6 +56,17 @@ _INVERTED_BOOL_FIELDS: Dict[str, List[str]] = {
 }
 
 # Per-model-type fixed architectural flags
+#
+# NOTE on dropout:
+#   Megatron's arguments.py defaults --hidden-dropout=0.1 and
+#   --attention-dropout=0.1 (pretraining-era values). Modern HF decoder
+#   models (Qwen2/3, LLaMA, …) run with dropout=0 — their config.json
+#   exposes attention_dropout=0.0 but no hidden_dropout field at all, so
+#   unless we force it here every Megatron SFT run silently trains with
+#   hidden/embedding dropout=0.1 while the HF reference does not. That
+#   silently diverges loss/grad dynamics from iteration 1. Hard-code
+#   hidden_dropout=0.0 in the model defaults so every HF→Megatron run
+#   matches the HF reference.
 _MODEL_TYPE_DEFAULTS: Dict[str, Dict[str, Any]] = {
     "qwen2": {
         "swiglu": True,
@@ -66,6 +77,8 @@ _MODEL_TYPE_DEFAULTS: Dict[str, Dict[str, Any]] = {
         "add_qkv_bias": True,
         "rotary_percent": 1.0,
         "patch_tokenizer_type": "Qwen2Tokenizer",
+        "hidden_dropout": 0.0,
+        "attention_dropout": 0.0,
     },
     # NOTE: order matters — `_match_model_type` uses startswith, so the more
     # specific `qwen3_moe` must come before `qwen3`.
@@ -79,6 +92,8 @@ _MODEL_TYPE_DEFAULTS: Dict[str, Dict[str, Any]] = {
         "qk_layernorm": True,
         "rotary_percent": 1.0,
         "patch_tokenizer_type": "Qwen2Tokenizer",
+        "hidden_dropout": 0.0,
+        "attention_dropout": 0.0,
     },
     "qwen3": {
         "swiglu": True,
@@ -90,6 +105,8 @@ _MODEL_TYPE_DEFAULTS: Dict[str, Dict[str, Any]] = {
         "qk_layernorm": True,
         "rotary_percent": 1.0,
         "patch_tokenizer_type": "Qwen2Tokenizer",
+        "hidden_dropout": 0.0,
+        "attention_dropout": 0.0,
     },
 }
 
