@@ -49,7 +49,7 @@ from megatron.training.initialize import initialize_megatron
 from megatron.training import get_args
 from megatron.training.utils import get_ltor_masks_and_position_ids
 
-from autoalign.megatron.bridge import Qwen2Bridge, clone_state_dict
+from autoalign.megatron.bridge import Qwen2Bridge, clone_state_dict, get_bridge
 from autoalign.megatron.registry import make_model_provider
 from autoalign.megatron.patch.arguments import get_patch_args as get_patch_args_autoalign
 
@@ -95,7 +95,7 @@ def load_megatron_model(args):
 
     Returns the model with a full (un-sharded) state dict loaded.
     """
-    bridge = Qwen2Bridge()
+    bridge = get_bridge(getattr(args, "model_type_name", None) or "qwen2")
 
     args.tensor_model_parallel_size = args.target_tensor_model_parallel_size
     args.pipeline_model_parallel_size = args.target_pipeline_model_parallel_size
@@ -113,7 +113,7 @@ def load_megatron_model(args):
                         "tokenizer*", "vocab.json", "merges.txt"]:
             os.system(f"cp -rf {args.hf_ckpt_path}/{pattern} {target_dir} 2>/dev/null")
 
-    model = make_model_provider("qwen2")()
+    model = make_model_provider(getattr(args, "model_type_name", None) or "qwen2")()
 
     # Load and gather checkpoint shards via bridge
     state_dict = bridge.load_mg_state_dict(args)
@@ -182,11 +182,14 @@ def check_hf_mg_forward(hfmodel, mgmodel, mgargs):
     def print_input_hook(module, args, kwargs, layer_idx, mode):
         frame, name = mode.split('-')
         if frame == 'hf':
-            hf_hiddens[layer_idx][name] = args[0].transpose(0, 1)
-        elif frame == 'mg' and 'layer' in mode:
-            mg_hiddens[layer_idx][name] = kwargs.get('hidden_states')
+            val = args[0]
+            if val.dim() == 3 and name != 'mlp_in':
+                val = val.transpose(0, 1)
+            hf_hiddens[layer_idx][name] = val.reshape(-1, hidden_size)
+        elif frame == 'mg' and name == 'layer_in':
+            mg_hiddens[layer_idx][name] = kwargs.get('hidden_states').reshape(-1, hidden_size)
         elif frame == 'mg':
-            mg_hiddens[layer_idx][name] = args[0]
+            mg_hiddens[layer_idx][name] = args[0].reshape(-1, hidden_size)
 
     def print_output_hook(module, args, kwargs, output, layer_idx, mode):
         frame, name = mode.split('-')
@@ -207,6 +210,10 @@ def check_hf_mg_forward(hfmodel, mgmodel, mgargs):
         elif mode in ['hf-attn_out']:
             hf_hiddens[layer_idx][name] = output[0].reshape(-1, hidden_size)
         elif mode in ['mg-attn_out']:
+            mg_hiddens[layer_idx][name] = output[0].reshape(-1, hidden_size)
+        elif mode in ['hf-mlp_out']:
+            hf_hiddens[layer_idx][name] = output.reshape(-1, hidden_size)
+        elif mode in ['mg-mlp_out']:
             mg_hiddens[layer_idx][name] = output[0].reshape(-1, hidden_size)
 
     if mgargs.untie_embeddings_and_output_weights:
@@ -232,6 +239,12 @@ def check_hf_mg_forward(hfmodel, mgmodel, mgargs):
         layer.self_attn.register_forward_hook(
             partial(print_output_hook, layer_idx=idx, mode='hf-attn_out'), with_kwargs=True,
         )
+        layer.mlp.register_forward_pre_hook(
+            partial(print_input_hook, layer_idx=idx, mode='hf-mlp_in'), with_kwargs=True,
+        )
+        layer.mlp.register_forward_hook(
+            partial(print_output_hook, layer_idx=idx, mode='hf-mlp_out'), with_kwargs=True,
+        )
 
     for idx, layer in enumerate(mgmodel.decoder.layers):
         layer.register_forward_pre_hook(
@@ -246,6 +259,12 @@ def check_hf_mg_forward(hfmodel, mgmodel, mgargs):
         layer.self_attention.register_forward_hook(
             partial(print_output_hook, layer_idx=idx, mode='mg-attn_out'), with_kwargs=True,
         )
+        layer.mlp.register_forward_pre_hook(
+            partial(print_input_hook, layer_idx=idx, mode='mg-mlp_in'), with_kwargs=True,
+        )
+        layer.mlp.register_forward_hook(
+            partial(print_output_hook, layer_idx=idx, mode='mg-mlp_out'), with_kwargs=True,
+        )
 
     input_ids = torch.tensor(
         [[151644, 8506, 22564, 27608, 75188, 4344, 121395, 61991, 79554, 36689]]
@@ -255,6 +274,12 @@ def check_hf_mg_forward(hfmodel, mgmodel, mgargs):
     )
     print(hfmodel)
     print(mgmodel)
+
+    # Disable dropout — without .eval() both models are in train mode and
+    # embedding_dropout / hidden_dropout fire randomly, producing huge spurious
+    # diffs that compound across layers.
+    hfmodel.eval()
+    mgmodel.eval()
 
     is_oom = False
     with torch.inference_mode():
@@ -294,6 +319,9 @@ def check_hf_mg_forward(hfmodel, mgmodel, mgargs):
             )
 
     if not is_oom:
+        # Megatron pads vocab; trim to HF vocab size for comparison
+        hf_vocab = hflogits.shape[-1]
+        mglogits = mglogits[..., :hf_vocab]
         same_num = (hflogits != mglogits).sum()
         diff_num = ((hflogits - mglogits) > epsilon).sum()
         diff_max = (hflogits - mglogits).abs().max()
@@ -301,6 +329,16 @@ def check_hf_mg_forward(hfmodel, mgmodel, mgargs):
             f'logits: {same_num}, diff>{epsilon}:'
             f'[{diff_num}/{hflogits.numel()}] diff_max:{diff_max}'
         )
+        # Token-level greedy argmax agreement (one-step prediction).
+        hf_top = hflogits.float().argmax(dim=-1).cpu()
+        mg_top = mglogits.float().argmax(dim=-1).cpu()
+        agree = (hf_top == mg_top).sum().item()
+        total = hf_top.numel()
+        print(
+            f'token_argmax_agreement: {agree}/{total} ({100.0*agree/total:.2f}%)'
+        )
+        print(f'  hf_top: {hf_top.flatten().tolist()}')
+        print(f'  mg_top: {mg_top.flatten().tolist()}')
 
 
 # ---------------------------------------------------------------------------
@@ -311,15 +349,20 @@ def main():
     initialize_megatron(extra_args_provider=add_extra_args)
     args = get_args()
 
-    # NullTokenizer sets padded_vocab_size=0; fix it from HF config.json.
-    if args.padded_vocab_size == 0:
-        import math
-        hf_cfg = AutoConfig.from_pretrained(args.model_path)
-        vocab_size = hf_cfg.vocab_size
-        multiple = args.make_vocab_size_divisible_by * args.tensor_model_parallel_size
-        args.padded_vocab_size = int(math.ceil(vocab_size / multiple) * multiple)
+    # Recompute padded_vocab_size with the *target* TP, not the current
+    # args.tensor_model_parallel_size (which is still 1 in the convert path —
+    # the convert script only sets --target-tensor-model-parallel-size).
+    # initialize_megatron has already padded based on TP=1, but the
+    # training-time model loads with TP=N, so the multiples differ and we get
+    # a vocab-size mismatch on load. Always overwrite here.
+    hf_cfg = AutoConfig.from_pretrained(args.model_path)
+    vocab_size = hf_cfg.vocab_size
+    target_tp = getattr(args, "target_tensor_model_parallel_size",
+                        args.tensor_model_parallel_size)
+    multiple = args.make_vocab_size_divisible_by * target_tp
+    args.padded_vocab_size = ((vocab_size + multiple - 1) // multiple) * multiple
 
-    bridge = Qwen2Bridge()
+    bridge = get_bridge(getattr(args, "model_type_name", None) or "qwen2")
 
     if args.convert_checkpoint_from_megatron_to_transformers:
         # Megatron -> HF
@@ -333,10 +376,20 @@ def main():
     else:
         # HF -> Megatron
         config = AutoConfig.from_pretrained(args.load)
+        # Match HF dtype to Megatron dtype so the precision test isn't biased
+        # by silent up/down-casts. If neither --bf16 nor --fp16, use fp32.
+        if args.bf16:
+            hf_dtype = torch.bfloat16
+        elif args.fp16:
+            hf_dtype = torch.float16
+        else:
+            # Preserve the original behavior when no precision flag is passed
+            # (used by all existing convert scripts indirectly via PRECISION).
+            hf_dtype = config.torch_dtype
         hf_model = AutoModelForCausalLM.from_pretrained(
-            args.load, torch_dtype=config.torch_dtype,
+            args.load, torch_dtype=hf_dtype,
         )
-        mg_model = make_model_provider("qwen2")()
+        mg_model = make_model_provider(getattr(args, "model_type_name", None) or "qwen2")()
         bridge.hf_to_mg(hf_model, mg_model, args)
         if getattr(args, 'test_convert_precision', False) and not args.num_experts:
             check_hf_mg_forward(hf_model, mg_model, args)

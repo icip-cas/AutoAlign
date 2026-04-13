@@ -25,7 +25,7 @@ import torch
 
 from collections.abc import Mapping, Sequence
 
-__all__ = ["GPTBridge", "Qwen2Bridge", "get_bridge"]
+__all__ = ["GPTBridge", "Qwen2Bridge", "Qwen3Bridge", "get_bridge"]
 
 
 # ---------------------------------------------------------------------------
@@ -98,10 +98,12 @@ class GPTBridge:
             hf_model = hf_model.bfloat16()
 
         with torch.no_grad():
-            # Embedding
-            mg_model.embedding.word_embeddings.weight.copy_(
-                _deep_getattr(hf_model, self.hf_embed_key)
-            )
+            # Embedding — MG may be padded to a multiple of (vocab_divisor *
+            # tp_size) so we copy into the first hf_vocab rows and leave any
+            # padding rows at their initialized (zero) values.
+            hf_embed = _deep_getattr(hf_model, self.hf_embed_key)
+            mg_embed = mg_model.embedding.word_embeddings.weight
+            mg_embed[:hf_embed.shape[0]].copy_(hf_embed)
             # Transformer layers
             hf_layers = _deep_getattr(hf_model, self.hf_layers_prefix)
             for mglayer, hflayer in zip(mg_model.decoder.layers, hf_layers):
@@ -110,11 +112,11 @@ class GPTBridge:
             mg_model.decoder.final_layernorm.weight.copy_(
                 _deep_getattr(hf_model, self.hf_final_norm_key)
             )
-            # LM head (only when untied)
+            # LM head (only when untied) — same vocab-padding consideration
             if args.untie_embeddings_and_output_weights:
-                mg_model.output_layer.weight.copy_(
-                    _deep_getattr(hf_model, self.hf_lm_head_key)
-                )
+                hf_head = _deep_getattr(hf_model, self.hf_lm_head_key)
+                mg_head = mg_model.output_layer.weight
+                mg_head[:hf_head.shape[0]].copy_(hf_head)
 
     def mg_to_hf(self, mg_model, hf_model, args):
         """Copy weights from a Megatron model into an HF model (in-place)."""
@@ -126,10 +128,11 @@ class GPTBridge:
             hf_model = hf_model.bfloat16()
 
         with torch.no_grad():
-            # Embedding
-            _deep_getattr(hf_model, self.hf_embed_key).copy_(
-                mg_model.embedding.word_embeddings.weight
-            )
+            # Embedding — MG may be vocab-padded; only copy back the first
+            # hf_vocab rows.
+            hf_embed = _deep_getattr(hf_model, self.hf_embed_key)
+            mg_embed = mg_model.embedding.word_embeddings.weight
+            hf_embed.copy_(mg_embed[:hf_embed.shape[0]])
             # Transformer layers
             hf_layers = _deep_getattr(hf_model, self.hf_layers_prefix)
             for mglayer, hflayer in zip(mg_model.decoder.layers, hf_layers):
@@ -138,11 +141,11 @@ class GPTBridge:
             _deep_getattr(hf_model, self.hf_final_norm_key).copy_(
                 mg_model.decoder.final_layernorm.weight
             )
-            # LM head
+            # LM head — same vocab-padding consideration
             if args.untie_embeddings_and_output_weights:
-                _deep_getattr(hf_model, self.hf_lm_head_key).copy_(
-                    mg_model.output_layer.weight
-                )
+                hf_head = _deep_getattr(hf_model, self.hf_lm_head_key)
+                mg_head = mg_model.output_layer.weight
+                hf_head.copy_(mg_head[:hf_head.shape[0]])
 
     def _convert_layer_hf_to_mg(self, hflayer, mglayer, args):
         """Convert a single transformer layer HF -> Megatron.
@@ -174,7 +177,9 @@ class GPTBridge:
         if '_extra_state' in key:
             return tensor
 
-        head_dim = args.hidden_size // args.num_attention_heads
+        head_dim = getattr(args, "kv_channels", None) or (
+            args.hidden_size // args.num_attention_heads
+        )
         group_per_split = args.num_query_groups // tp_size
 
         # --- QKV ---
@@ -241,7 +246,9 @@ class GPTBridge:
         if 'norm' in key or 'router' in key or ('gate' in key and 'linear' not in key):
             return shards[0]
 
-        head_dim = args.hidden_size // args.num_attention_heads
+        head_dim = getattr(args, "kv_channels", None) or (
+            args.hidden_size // args.num_attention_heads
+        )
         tp_size = len(shards)
         group_per_split = args.num_query_groups // tp_size
 
@@ -500,6 +507,23 @@ class GPTBridge:
 
                         model_split[new_k] = target_v
 
+                    # Weight-tying + PP: state_dict_for_save_checkpoint() omits
+                    # output_layer.weight when it is tied to embedding, but with
+                    # PP>1 the last PP rank needs it because each rank loads its
+                    # own shard independently.
+                    if (pp_size > 1
+                            and pp_rank == pp_size - 1
+                            and not args.untie_embeddings_and_output_weights
+                            and 'output_layer.weight' not in model_split):
+                        embed_key = 'embedding.word_embeddings.weight'
+                        if embed_key in full_model:
+                            embed_w = full_model[embed_key]
+                            if tp_size > 1:
+                                embed_w = self.split_tensor_for_tp(
+                                    'output_layer.weight', embed_w,
+                                    tp_rank, tp_size, args)
+                            model_split['output_layer.weight'] = embed_w
+
                     checkpoint_name = self._checkpoint_name(
                         get_checkpoint_name, args.save, 0, True,
                         tp_rank, tp_size, pp_rank, pp_size,
@@ -549,7 +573,9 @@ class Qwen2Bridge(GPTBridge):
         use_te = args.transformer_impl == "transformer_engine"
         num_query_groups = args.num_query_groups
         hidden_size = args.hidden_size
-        head_dim = hidden_size // args.num_attention_heads
+        head_dim = getattr(args, "kv_channels", None) or (
+            hidden_size // args.num_attention_heads
+        )
 
         # --- Input LayerNorm ---
         if use_te:
@@ -621,9 +647,11 @@ class Qwen2Bridge(GPTBridge):
         use_te = args.transformer_impl == "transformer_engine"
         num_query_groups = args.num_query_groups
         hidden_size = args.hidden_size
-        head_dim = hidden_size // args.num_attention_heads
+        head_dim = getattr(args, "kv_channels", None) or (
+            hidden_size // args.num_attention_heads
+        )
         value_num_per_group = args.num_attention_heads // num_query_groups
-        q_dim_per_group = hidden_size // num_query_groups
+        q_dim_per_group = value_num_per_group * head_dim
         kv_dim_per_group = head_dim
 
         # --- Input LayerNorm ---
@@ -705,12 +733,204 @@ class Qwen2Bridge(GPTBridge):
 
 
 # ---------------------------------------------------------------------------
+# Qwen3 / Qwen3-MoE Bridge
+# ---------------------------------------------------------------------------
+
+class Qwen3Bridge(Qwen2Bridge):
+    """Bridge for the Qwen3 / Qwen3-MoE model family.
+
+    Differences from Qwen2:
+    - No QKV bias.
+    - Q/K norm on Q and K projections before attention. HF Qwen3 uses
+      RMSNorm here (``self_attn.q_norm`` / ``k_norm``); mcore exposes this
+      via the ``qk_layernorm=True`` flag and the submodules are named
+      ``self_attention.q_layernorm`` / ``k_layernorm`` for historical
+      reasons, but they are instantiated as RMSNorm when
+      ``config.normalization == "RMSNorm"``. Weight copy is shape-identical
+      either way. Verified on NPU + MindSpeed + mcore core_v0.12.1: both
+      TE and local layer specs route through ``mindspeed...PTNorm``, which
+      dispatches to RMSNorm when ``config.normalization == "RMSNorm"``.
+    - Qwen3-MoE has no shared-expert gate (Qwen2.5-MoE had one).
+    """
+
+    def _convert_layer_hf_to_mg(self, hflayer, mglayer, args):
+        use_te = args.transformer_impl == "transformer_engine"
+        num_query_groups = args.num_query_groups
+        hidden_size = args.hidden_size
+        head_dim = getattr(args, "kv_channels", None) or (
+            hidden_size // args.num_attention_heads
+        )
+
+        # --- Input LayerNorm ---
+        if use_te:
+            mglayer.self_attention.linear_qkv.layer_norm_weight.copy_(
+                hflayer.input_layernorm.weight
+            )
+        else:
+            mglayer.input_layernorm.weight.copy_(hflayer.input_layernorm.weight)
+
+        # --- QKV merge (interleaved by query groups) ---
+        q_w = hflayer.self_attn.q_proj.weight.view(num_query_groups, -1, head_dim, hidden_size)
+        k_w = hflayer.self_attn.k_proj.weight.view(num_query_groups, -1, head_dim, hidden_size)
+        v_w = hflayer.self_attn.v_proj.weight.view(num_query_groups, -1, head_dim, hidden_size)
+        qkv_w = torch.cat([q_w, k_w, v_w], dim=1).view(-1, hidden_size).contiguous()
+        mglayer.self_attention.linear_qkv.weight.copy_(qkv_w)
+        # Qwen3 has no QKV bias — skip.
+
+        # --- Q/K LayerNorm (Qwen3-specific) ---
+        if getattr(args, "qk_layernorm", False):
+            mglayer.self_attention.q_layernorm.weight.copy_(
+                hflayer.self_attn.q_norm.weight
+            )
+            mglayer.self_attention.k_layernorm.weight.copy_(
+                hflayer.self_attn.k_norm.weight
+            )
+
+        # --- O projection ---
+        mglayer.self_attention.linear_proj.weight.copy_(
+            hflayer.self_attn.o_proj.weight
+        )
+
+        # --- MLP / MoE ---
+        if args.num_experts is None:
+            fc1 = torch.cat([hflayer.mlp.gate_proj.weight,
+                             hflayer.mlp.up_proj.weight])
+            mglayer.mlp.linear_fc1.weight.copy_(fc1)
+            mglayer.mlp.linear_fc2.weight.copy_(hflayer.mlp.down_proj.weight)
+        else:
+            mglayer.mlp.router.weight.copy_(hflayer.mlp.gate.weight)
+            for hf_expert, mg_expert in zip(
+                hflayer.mlp.experts, mglayer.mlp.experts.local_experts
+            ):
+                fc1 = torch.cat([hf_expert.gate_proj.weight,
+                                 hf_expert.up_proj.weight])
+                mg_expert.linear_fc1.weight.copy_(fc1)
+                mg_expert.linear_fc2.weight.copy_(hf_expert.down_proj.weight)
+            # Qwen3-MoE removed the shared-expert gate. Guard for forward
+            # compatibility: only run if BOTH HF and mcore sides have it.
+            if hasattr(hflayer.mlp, "shared_expert_gate") and hasattr(
+                mglayer.mlp, "shared_expert_gate"
+            ):
+                mglayer.mlp.shared_expert_gate.weight.copy_(
+                    hflayer.mlp.shared_expert_gate.weight
+                )
+                shared_fc1 = torch.cat([
+                    hflayer.mlp.shared_expert.gate_proj.weight,
+                    hflayer.mlp.shared_expert.up_proj.weight,
+                ])
+                mglayer.mlp.shared_expert.linear_fc1.weight.copy_(shared_fc1)
+                mglayer.mlp.shared_expert.linear_fc2.weight.copy_(
+                    hflayer.mlp.shared_expert.down_proj.weight
+                )
+
+        # --- Post-attention LayerNorm ---
+        if use_te and args.num_experts is None:
+            mglayer.mlp.linear_fc1.layer_norm_weight.copy_(
+                hflayer.post_attention_layernorm.weight
+            )
+        else:
+            mglayer.pre_mlp_layernorm.weight.copy_(
+                hflayer.post_attention_layernorm.weight
+            )
+
+    def _convert_layer_mg_to_hf(self, mglayer, hflayer, args):
+        use_te = args.transformer_impl == "transformer_engine"
+        num_query_groups = args.num_query_groups
+        hidden_size = args.hidden_size
+        head_dim = getattr(args, "kv_channels", None) or (
+            hidden_size // args.num_attention_heads
+        )
+        value_num_per_group = args.num_attention_heads // num_query_groups
+
+        # --- Input LayerNorm ---
+        if use_te:
+            hflayer.input_layernorm.weight.copy_(
+                mglayer.self_attention.linear_qkv.layer_norm_weight
+            )
+        else:
+            hflayer.input_layernorm.weight.copy_(mglayer.input_layernorm.weight)
+
+        # --- QKV split ---
+        qkv_w = mglayer.self_attention.linear_qkv.weight.view(
+            num_query_groups, -1, head_dim, hidden_size
+        )
+        q_w, k_w, v_w = torch.split(
+            qkv_w, [value_num_per_group, 1, 1], dim=1
+        )
+        hflayer.self_attn.q_proj.weight.copy_(q_w.reshape(-1, hidden_size))
+        hflayer.self_attn.k_proj.weight.copy_(k_w.reshape(-1, hidden_size))
+        hflayer.self_attn.v_proj.weight.copy_(v_w.reshape(-1, hidden_size))
+        # No QKV bias for Qwen3.
+
+        # --- Q/K LayerNorm ---
+        if getattr(args, "qk_layernorm", False):
+            hflayer.self_attn.q_norm.weight.copy_(
+                mglayer.self_attention.q_layernorm.weight
+            )
+            hflayer.self_attn.k_norm.weight.copy_(
+                mglayer.self_attention.k_layernorm.weight
+            )
+
+        # --- O projection ---
+        hflayer.self_attn.o_proj.weight.copy_(
+            mglayer.self_attention.linear_proj.weight
+        )
+
+        # --- MLP / MoE ---
+        if args.num_experts is None:
+            gate_w, up_w = torch.split(
+                mglayer.mlp.linear_fc1.weight, args.ffn_hidden_size
+            )
+            hflayer.mlp.gate_proj.weight.copy_(gate_w)
+            hflayer.mlp.up_proj.weight.copy_(up_w)
+            hflayer.mlp.down_proj.weight.copy_(mglayer.mlp.linear_fc2.weight)
+        else:
+            hflayer.mlp.gate.weight.copy_(mglayer.mlp.router.weight)
+            for mg_expert, hf_expert in zip(
+                mglayer.mlp.experts.local_experts, hflayer.mlp.experts
+            ):
+                gate_w, up_w = torch.split(
+                    mg_expert.linear_fc1.weight, args.moe_ffn_hidden_size
+                )
+                hf_expert.gate_proj.weight.copy_(gate_w)
+                hf_expert.up_proj.weight.copy_(up_w)
+                hf_expert.down_proj.weight.copy_(mg_expert.linear_fc2.weight)
+            if hasattr(hflayer.mlp, "shared_expert_gate") and hasattr(
+                mglayer.mlp, "shared_expert_gate"
+            ):
+                hflayer.mlp.shared_expert_gate.weight.copy_(
+                    mglayer.mlp.shared_expert_gate.weight
+                )
+                shared_gate, shared_up = torch.split(
+                    mglayer.mlp.shared_expert.linear_fc1.weight,
+                    args.shared_moe_ffn_hidden_size,
+                )
+                hflayer.mlp.shared_expert.gate_proj.weight.copy_(shared_gate)
+                hflayer.mlp.shared_expert.up_proj.weight.copy_(shared_up)
+                hflayer.mlp.shared_expert.down_proj.weight.copy_(
+                    mglayer.mlp.shared_expert.linear_fc2.weight
+                )
+
+        # --- Post-attention LayerNorm ---
+        if use_te and args.num_experts is None:
+            hflayer.post_attention_layernorm.weight.copy_(
+                mglayer.mlp.linear_fc1.layer_norm_weight
+            )
+        else:
+            hflayer.post_attention_layernorm.weight.copy_(
+                mglayer.pre_mlp_layernorm.weight
+            )
+
+
+# ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
 
 _BRIDGE_REGISTRY = {
     "qwen2": Qwen2Bridge,
     "qwen2_5": Qwen2Bridge,
+    "qwen3": Qwen3Bridge,
+    "qwen3_moe": Qwen3Bridge,
 }
 
 
