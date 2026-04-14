@@ -47,18 +47,32 @@ def run_distributed_task(file, args):
 
 def run_megatron_task(module, args):
     """Run a Megatron training task via ``torchrun -m <module>``."""
+    from .megatron.cli import TranslationError, translate
+
     master_addr = os.environ.get("MASTER_ADDR", "127.0.0.1")
     master_port = os.environ.get("MASTER_PORT", str(random.randint(20001, 29999)))
+    nnodes = int(os.environ.get("NNODES", "1"))
+    nproc_per_node = int(os.environ.get("NPROC_PER_NODE", str(get_device_count())))
+    world_size = nnodes * nproc_per_node
+
+    try:
+        args, dry_run = translate(args, world_size=world_size)
+    except TranslationError as exc:
+        logger.error(str(exc))
+        sys.exit(2)
+
     logger.info(f"Initializing Megatron distributed task at: {master_addr}:{master_port}")
 
     command = (
-        f"torchrun --nnodes {os.environ.get('NNODES', '1')} "
+        f"torchrun --nnodes {nnodes} "
         f"--node_rank {os.environ.get('RANK', '0')} "
-        f"--nproc_per_node {os.environ.get('NPROC_PER_NODE', str(get_device_count()))} "
+        f"--nproc_per_node {nproc_per_node} "
         f"--master_addr {master_addr} --master_port {master_port} "
         f"-m {module} {' '.join(args)}"
     )
     logger.info(f"Running: {command}")
+    if dry_run:
+        return
     process = subprocess.run(command, shell=True)
     sys.exit(process.returncode)
 
