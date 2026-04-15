@@ -9,6 +9,12 @@ Users invoke ``autoalign-cli megatron-sft`` with HF-style flags
 from typing import Sequence
 
 
+# Flags consumed by the adaptor itself (not forwarded to Megatron).
+LOCAL_CONSUMED_FLAGS = {
+    "--no-export-hf",  # skip post-training mcore→HF conversion
+}
+
+
 TRANSLATION_TABLE = {
     "--model_name_or_path": "--model-path",
     "--data_path": "--data-path",
@@ -163,16 +169,17 @@ def _compute_global_batch_size(
     return str(micro_batch_size * grad_accumulation * data_parallel_size)
 
 
-def translate(argv: Sequence[str], world_size: int) -> tuple[list[str], bool]:
+def translate(argv: Sequence[str], world_size: int) -> tuple[list[str], bool, dict]:
     """Translate HF-style argv to Megatron kebab-case argv.
 
-    Returns ``(translated_argv, dry_run)``. When ``dry_run`` is True the caller
-    should print the final command without invoking torchrun.
+    Returns ``(translated_argv, dry_run, options)``. ``options`` captures
+    adaptor-consumed flags (e.g. ``--no-export-hf``) the orchestrator needs.
     """
     argv = list(argv)
     _ensure_no_alias_conflict(argv)
 
     dry_run = False
+    options: dict = {"no_export_hf": False}
     grad_accumulation = 1
     translated: list[str] = []
     i = 0
@@ -182,6 +189,11 @@ def translate(argv: Sequence[str], world_size: int) -> tuple[list[str], bool]:
 
         if arg == "--dry-run":
             dry_run = True
+            i += 1
+            continue
+
+        if arg == "--no-export-hf":
+            options["no_export_hf"] = True
             i += 1
             continue
 
@@ -249,4 +261,4 @@ def translate(argv: Sequence[str], world_size: int) -> tuple[list[str], bool]:
     if global_batch_size is not None:
         translated.extend(["--global-batch-size", global_batch_size])
 
-    return translated, dry_run
+    return translated, dry_run, options
