@@ -83,6 +83,7 @@ BOOLEAN_OUTPUT_FLAGS = {
     "--bf16",
     "--fp16",
     "--sequence-parallel",
+    "--variable-seq-lengths",
 }
 
 
@@ -130,6 +131,16 @@ def _get_arg_value(argv: Sequence[str], names: Sequence[str], default: int = 1) 
             if index + 1 >= len(argv) or _looks_like_flag(argv[index + 1]):
                 raise TranslationError(f"Missing value for {name}")
             return int(argv[index + 1])
+    return default
+
+
+def _get_str_arg_value(argv: Sequence[str], names: Sequence[str], default: str | None = None) -> str | None:
+    for name in names:
+        if name in argv:
+            index = argv.index(name)
+            if index + 1 >= len(argv) or _looks_like_flag(argv[index + 1]):
+                raise TranslationError(f"Missing value for {name}")
+            return argv[index + 1]
     return default
 
 
@@ -181,6 +192,9 @@ def translate(argv: Sequence[str], world_size: int) -> tuple[list[str], bool, di
     dry_run = False
     options: dict = {"no_export_hf": False}
     grad_accumulation = 1
+    variable_seq_lengths_specified = any(
+        _snake_to_kebab(token) == "--variable-seq-lengths" for token in argv
+    )
     translated: list[str] = []
     i = 0
 
@@ -212,8 +226,10 @@ def translate(argv: Sequence[str], world_size: int) -> tuple[list[str], bool, di
         if arg in PARALLEL_ALIAS_TABLE:
             target = PARALLEL_ALIAS_TABLE[arg]
             if target in BOOLEAN_OUTPUT_FLAGS:
-                translated.append(target)
-                i += 1
+                next_value = _peek_value(argv, i)
+                if _parse_bool(next_value):
+                    translated.append(target)
+                i += 2 if next_value is not None else 1
                 continue
             translated.extend([target, _take_value(argv, i, arg)])
             i += 2
@@ -260,5 +276,15 @@ def translate(argv: Sequence[str], world_size: int) -> tuple[list[str], bool, di
     )
     if global_batch_size is not None:
         translated.extend(["--global-batch-size", global_batch_size])
+
+    dataset = _get_str_arg_value(translated, ["--dataset"], default="json")
+    pp = _get_arg_value(translated, ["--pipeline-model-parallel-size"])
+    if (
+        dataset == "json"
+        and pp > 1
+        and not variable_seq_lengths_specified
+        and "--variable-seq-lengths" not in translated
+    ):
+        translated.append("--variable-seq-lengths")
 
     return translated, dry_run, options

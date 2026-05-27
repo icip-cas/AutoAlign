@@ -8,21 +8,27 @@ back without touching mcore explicitly.
 
 from __future__ import annotations
 
+import contextlib
+import fcntl
 import hashlib
 import json
 import logging
 import os
 import random
+import shlex
 import shutil
 import subprocess
+import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence
+from typing import Iterator, Sequence
 
 logger = logging.getLogger(__name__)
 
 CONVERT_MODULE = "autoalign.megatron.toolkits.checkpoint.qwen.common"
 CACHE_COMPLETE_MARKER = ".complete"
+PRE_CONVERT_COMPLETE_MARKER = ".pre_convert_complete"
+POST_CONVERT_COMPLETE_MARKER = ".post_convert_complete"
 SUPPORTED_MODEL_TYPES = {"qwen2", "qwen3", "qwen2_moe", "qwen3_moe"}
 
 
@@ -103,6 +109,84 @@ def _is_cache_valid(cache_dir: Path, hf_path: Path) -> bool:
     return True
 
 
+@contextlib.contextmanager
+def _file_lock(lock_path: Path) -> Iterator[None]:
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with lock_path.open("w") as lock_file:
+        fcntl.flock(lock_file, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(lock_file, fcntl.LOCK_UN)
+
+
+def _pre_convert_metadata(spec: ConvertSpec) -> dict:
+    return {
+        "hf_path": str(spec.hf_path),
+        "tp": spec.tp,
+        "pp": spec.pp,
+        "ep": spec.ep,
+        "dtype": spec.dtype,
+        "transformer_impl": spec.transformer_impl,
+    }
+
+
+def _is_pre_convert_ready(spec: ConvertSpec) -> bool:
+    marker = spec.mcore_input / PRE_CONVERT_COMPLETE_MARKER
+    if not marker.exists():
+        return False
+    try:
+        with marker.open() as f:
+            if json.load(f) != _pre_convert_metadata(spec):
+                return False
+    except Exception:
+        return False
+    config = spec.hf_path / "config.json"
+    if config.exists() and config.stat().st_mtime > marker.stat().st_mtime:
+        return False
+    return True
+
+
+def _write_pre_convert_marker(spec: ConvertSpec) -> None:
+    marker = spec.mcore_input / PRE_CONVERT_COMPLETE_MARKER
+    with marker.open("w") as f:
+        json.dump(_pre_convert_metadata(spec), f, sort_keys=True)
+
+
+def _is_post_convert_ready(spec: ConvertSpec) -> bool:
+    marker = spec.output_dir / POST_CONVERT_COMPLETE_MARKER
+    if not marker.exists():
+        return False
+    mcore_marker = spec.output_dir / "mcore" / "latest_checkpointed_iteration.txt"
+    if mcore_marker.exists() and mcore_marker.stat().st_mtime > marker.stat().st_mtime:
+        return False
+    return True
+
+
+def _get_node_rank() -> int:
+    for name in ("NODE_RANK", "RANK"):
+        value = os.environ.get(name)
+        if value is not None:
+            return int(value)
+    return 0
+
+
+def _wait_for_pre_convert(spec: ConvertSpec) -> None:
+    lock_path = spec.mcore_input.parent / f".{spec.mcore_input.name}.lock"
+    timeout = int(os.environ.get("AUTOALIGN_CONVERT_WAIT_TIMEOUT", "86400"))
+    deadline = time.monotonic() + timeout
+    logger.info(f"[auto-convert] waiting for rank-0 pre-convert: {spec.mcore_input}")
+
+    while True:
+        with _file_lock(lock_path):
+            if _is_pre_convert_ready(spec):
+                logger.info(f"[auto-convert] mcore input ready at: {spec.mcore_input}")
+                return
+        if time.monotonic() >= deadline:
+            raise TimeoutError(f"Timed out waiting for pre-convert output: {spec.mcore_input}")
+        time.sleep(5)
+
+
 def build_convert_spec(
     translated_argv: Sequence[str],
     options: dict,
@@ -178,12 +262,16 @@ def redirect_save_to_mcore(translated_argv: Sequence[str]) -> list[str]:
     return out
 
 
-def _torchrun_prefix() -> str:
+def _torchrun_prefix() -> list[str]:
     master_port = str(random.randint(20001, 29999))
-    return (
-        f"torchrun --nnodes 1 --node_rank 0 --nproc_per_node 1 "
-        f"--master_addr 127.0.0.1 --master_port {master_port}"
-    )
+    return [
+        "torchrun",
+        "--nnodes", "1",
+        "--node_rank", "0",
+        "--nproc_per_node", "1",
+        "--master_addr", "127.0.0.1",
+        "--master_port", master_port,
+    ]
 
 
 def _common_convert_args(spec: ConvertSpec) -> list[str]:
@@ -207,15 +295,15 @@ def _common_convert_args(spec: ConvertSpec) -> list[str]:
     return args
 
 
-def _hf_to_mcore_cmd(spec: ConvertSpec) -> str:
+def _hf_to_mcore_cmd(spec: ConvertSpec) -> list[str]:
     args = _common_convert_args(spec) + [
         "--load", str(spec.hf_path),
         "--save", str(spec.mcore_input),
     ]
-    return f"{_torchrun_prefix()} -m {CONVERT_MODULE} {' '.join(args)}"
+    return [*_torchrun_prefix(), "-m", CONVERT_MODULE, *args]
 
 
-def _mcore_to_hf_cmd(spec: ConvertSpec) -> str:
+def _mcore_to_hf_cmd(spec: ConvertSpec) -> list[str]:
     args = _common_convert_args(spec) + [
         "--convert-checkpoint-from-megatron-to-transformers",
         "--hf-ckpt-path", str(spec.hf_path),
@@ -223,7 +311,7 @@ def _mcore_to_hf_cmd(spec: ConvertSpec) -> str:
         "--save", str(spec.output_dir),
         "--save-safetensors",
     ]
-    return f"{_torchrun_prefix()} -m {CONVERT_MODULE} {' '.join(args)}"
+    return [*_torchrun_prefix(), "-m", CONVERT_MODULE, *args]
 
 
 def run_pre_convert(spec: ConvertSpec, dry_run: bool) -> None:
@@ -235,31 +323,57 @@ def run_pre_convert(spec: ConvertSpec, dry_run: bool) -> None:
             logger.info("[auto-convert] dry-run: pre-convert would be skipped")
         return
 
+    if not spec.reuse_cache and _get_node_rank() != 0:
+        if dry_run:
+            logger.info("[auto-convert] dry-run: non-zero node would wait for rank-0 pre-convert")
+            return
+        _wait_for_pre_convert(spec)
+        return
+
+    if spec.reuse_cache and _is_pre_convert_ready(spec):
+        logger.info(f"[auto-convert] mcore input already ready: {spec.mcore_input}")
+        return
+
     logger.info(f"[auto-convert] pre-convert HF→mcore → {spec.mcore_input}")
-    logger.info(f"[auto-convert] pre-convert command: {cmd}")
+    logger.info(f"[auto-convert] pre-convert command: {shlex.join(cmd)}")
     if dry_run:
         return
 
-    if spec.mcore_input.exists():
-        shutil.rmtree(spec.mcore_input)
-    spec.mcore_input.mkdir(parents=True)
+    lock_path = spec.mcore_input.parent / f".{spec.mcore_input.name}.lock"
+    logger.info(f"[auto-convert] waiting for pre-convert lock: {lock_path}")
+    with _file_lock(lock_path):
+        if spec.reuse_cache:
+            if _is_cache_valid(spec.mcore_input, spec.hf_path):
+                logger.info(f"[auto-convert] mcore cache hit after lock: {spec.mcore_input}")
+                return
+            if _is_pre_convert_ready(spec):
+                logger.info(f"[auto-convert] mcore input became ready: {spec.mcore_input}")
+                return
 
-    result = subprocess.run(cmd, shell=True)
-    if result.returncode != 0:
-        raise RuntimeError(
-            f"HF→mcore conversion failed (exit {result.returncode}); "
-            f"partial output at {spec.mcore_input}"
-        )
+        if spec.mcore_input.exists():
+            shutil.rmtree(spec.mcore_input)
+        spec.mcore_input.mkdir(parents=True)
 
-    if spec.reuse_cache:
-        (spec.mcore_input / CACHE_COMPLETE_MARKER).touch()
+        result = subprocess.run(cmd)
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"HF→mcore conversion failed (exit {result.returncode}); "
+                f"partial output at {spec.mcore_input}"
+            )
+
+        _write_pre_convert_marker(spec)
+        if spec.reuse_cache:
+            (spec.mcore_input / CACHE_COMPLETE_MARKER).touch()
     logger.info(f"[auto-convert] mcore input ready at: {spec.mcore_input}")
 
 
 def run_post_convert(spec: ConvertSpec, dry_run: bool) -> None:
     cmd = _mcore_to_hf_cmd(spec)
-    logger.info(f"[auto-convert] post-convert command: {cmd}")
+    logger.info(f"[auto-convert] post-convert command: {shlex.join(cmd)}")
     if dry_run:
+        return
+    if _get_node_rank() != 0:
+        logger.info("[auto-convert] skipping post-convert on non-zero node")
         return
 
     mcore_dir = spec.output_dir / "mcore"
@@ -269,8 +383,16 @@ def run_post_convert(spec: ConvertSpec, dry_run: bool) -> None:
             f"No mcore checkpoint found at {mcore_dir}; did training actually save?"
         )
 
-    result = subprocess.run(cmd, shell=True)
-    if result.returncode != 0:
-        raise RuntimeError(f"mcore→HF conversion failed (exit {result.returncode})")
+    lock_path = spec.output_dir / ".post_convert.lock"
+    logger.info(f"[auto-convert] waiting for post-convert lock: {lock_path}")
+    with _file_lock(lock_path):
+        if _is_post_convert_ready(spec):
+            logger.info(f"[auto-convert] HF export already ready: {spec.output_dir}")
+            return
 
+        result = subprocess.run(cmd)
+        if result.returncode != 0:
+            raise RuntimeError(f"mcore→HF conversion failed (exit {result.returncode})")
+
+        (spec.output_dir / POST_CONVERT_COMPLETE_MARKER).touch()
     logger.info(f"[auto-convert] HF export written to: {spec.output_dir}")

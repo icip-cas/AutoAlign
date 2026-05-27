@@ -1,5 +1,6 @@
 import os
 import random
+import shlex
 import subprocess
 import sys
 import time
@@ -57,6 +58,7 @@ def run_megatron_task(module, args):
 
     master_addr = os.environ.get("MASTER_ADDR", "127.0.0.1")
     master_port = os.environ.get("MASTER_PORT", str(random.randint(20001, 29999)))
+    node_rank = os.environ.get("NODE_RANK", os.environ.get("RANK", "0"))
     nnodes = int(os.environ.get("NNODES", "1"))
     nproc_per_node = int(os.environ.get("NPROC_PER_NODE", str(get_device_count())))
     world_size = nnodes * nproc_per_node
@@ -81,21 +83,24 @@ def run_megatron_task(module, args):
         translated = redirect_save_to_mcore(translated)
 
     logger.info(f"Initializing Megatron distributed task at: {master_addr}:{master_port}")
-    command = (
-        f"torchrun --nnodes {nnodes} "
-        f"--node_rank {os.environ.get('RANK', '0')} "
-        f"--nproc_per_node {nproc_per_node} "
-        f"--master_addr {master_addr} --master_port {master_port} "
-        f"-m {module} {' '.join(translated)}"
-    )
-    logger.info(f"Running: {command}")
+    command = [
+        "torchrun",
+        "--nnodes", str(nnodes),
+        "--node_rank", str(node_rank),
+        "--nproc_per_node", str(nproc_per_node),
+        "--master_addr", master_addr,
+        "--master_port", master_port,
+        "-m", module,
+        *translated,
+    ]
+    logger.info(f"Running: {shlex.join(command)}")
 
     if dry_run:
         if spec and not spec.skip_post:
             run_post_convert(spec, dry_run=True)
         return
 
-    process = subprocess.run(command, shell=True)
+    process = subprocess.run(command)
     returncode = process.returncode
 
     if spec and not spec.skip_post and returncode == 0:
