@@ -236,9 +236,10 @@ def get_batch_on_this_tp_rank_idxmap_sft_conv(data_iterator):
         conv_tokens = data['conv_text'].long()
         conv_label = data['conv_label'].long()
         
-        # Dynamic padding: trim to actual max content length in this
-        # micro-batch so the model doesn't waste compute on padding tokens.
-        if 'seq_len' in data:
+        # Dynamic padding requires variable-shape PP p2p when pipeline parallelism is enabled.
+        if 'seq_len' in data and (
+            args.pipeline_model_parallel_size == 1 or getattr(args, 'variable_seq_lengths', False)
+        ):
             cur_max_seq_length = min(int(data['seq_len'].max()), args.seq_length)
             # Round up to TP * CP so sequence-parallel reduce-scatter is valid
             divisor = args.tensor_model_parallel_size * getattr(args, 'context_parallel_size', 1)
