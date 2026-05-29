@@ -30,15 +30,28 @@ class Command(str, Enum):
     MEGATRON_DPO = "megatron-dpo"
 
 
+def _get_node_rank(nproc_per_node: int) -> int:
+    if "NODE_RANK" in os.environ:
+        return int(os.environ["NODE_RANK"])
+    if "GROUP_RANK" in os.environ:
+        return int(os.environ["GROUP_RANK"])
+    if "RANK" in os.environ:
+        return int(os.environ["RANK"]) // nproc_per_node
+    return 0
+
+
 def run_distributed_task(file, args):
     master_addr = os.environ.get("MASTER_ADDR", "127.0.0.1")
     master_port = os.environ.get("MASTER_PORT", str(random.randint(20001, 29999)))
+    nnodes = int(os.environ.get("NNODES", "1"))
+    nproc_per_node = int(os.environ.get("NPROC_PER_NODE", str(get_device_count())))
+    node_rank = _get_node_rank(nproc_per_node)
     logger.info(f"Initializing distributed tasks at: {master_addr}:{master_port}")
 
     command = (
-        f"torchrun --nnodes {os.environ.get('NNODES', '1')} "
-        f"--node_rank {os.environ.get('RANK', '0')} "
-        f"--nproc_per_node {os.environ.get('NPROC_PER_NODE', str(get_device_count()))} "
+        f"torchrun --nnodes {nnodes} "
+        f"--node_rank {node_rank} "
+        f"--nproc_per_node {nproc_per_node} "
         f"--master_addr {master_addr} --master_port {master_port} "
         f"{file} {' '.join(args)}"
     )
@@ -58,9 +71,9 @@ def run_megatron_task(module, args):
 
     master_addr = os.environ.get("MASTER_ADDR", "127.0.0.1")
     master_port = os.environ.get("MASTER_PORT", str(random.randint(20001, 29999)))
-    node_rank = os.environ.get("NODE_RANK", os.environ.get("RANK", "0"))
     nnodes = int(os.environ.get("NNODES", "1"))
     nproc_per_node = int(os.environ.get("NPROC_PER_NODE", str(get_device_count())))
+    node_rank = _get_node_rank(nproc_per_node)
     world_size = nnodes * nproc_per_node
 
     try:

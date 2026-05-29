@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import contextlib
 import fcntl
-import hashlib
 import json
 import logging
 import os
@@ -26,7 +25,6 @@ from typing import Iterator, Sequence
 logger = logging.getLogger(__name__)
 
 CONVERT_MODULE = "autoalign.megatron.toolkits.checkpoint.qwen.common"
-CACHE_COMPLETE_MARKER = ".complete"
 PRE_CONVERT_COMPLETE_MARKER = ".pre_convert_complete"
 POST_CONVERT_COMPLETE_MARKER = ".post_convert_complete"
 SUPPORTED_MODEL_TYPES = {"qwen2", "qwen3", "qwen2_moe", "qwen3_moe"}
@@ -44,7 +42,6 @@ class ConvertSpec:
     transformer_impl: str
     skip_pre: bool
     skip_post: bool
-    reuse_cache: bool  # True only when AUTOALIGN_MCORE_CACHE is set
 
 
 def _find_arg(argv: Sequence[str], name: str, default: str | None = None) -> str | None:
@@ -70,43 +67,13 @@ def _detect_model_type(hf_path: Path) -> str | None:
         return json.load(f).get("model_type")
 
 
-def _cache_key(
-    hf_path: Path, tp: int, pp: int, ep: int, dtype: str | None, transformer_impl: str
-) -> str:
-    key = f"{hf_path}|{tp}|{pp}|{ep}|{dtype or 'fp32'}|{transformer_impl}"
-    return hashlib.sha1(key.encode()).hexdigest()[:16]
+def _resolve_mcore_input_dir(output_dir: Path) -> Path:
+    """Pick the run-local mcore input directory.
 
-
-def _resolve_mcore_input_dir(
-    output_dir: Path,
-    hf_path: Path,
-    tp: int,
-    pp: int,
-    ep: int,
-    dtype: str | None,
-    transformer_impl: str,
-) -> tuple[Path, bool]:
-    """Pick where mcore input should live.
-
-    Default is ephemeral: ``<output_dir>/.mcore_input`` — overwritten each run.
-    If ``AUTOALIGN_MCORE_CACHE_DIR`` is set, opt into hash-keyed cross-run reuse
-    at ``$AUTOALIGN_MCORE_CACHE_DIR/<hf_name>-<hash>``.
+    The directory is overwritten before each HF→mcore conversion to avoid
+    reusing stale converted weights from a previous run.
     """
-    env = os.environ.get("AUTOALIGN_MCORE_CACHE_DIR")
-    if env:
-        cache_hash = _cache_key(hf_path, tp, pp, ep, dtype, transformer_impl)
-        return Path(env) / f"{hf_path.name}-{cache_hash}", True
-    return output_dir / ".mcore_input", False
-
-
-def _is_cache_valid(cache_dir: Path, hf_path: Path) -> bool:
-    marker = cache_dir / CACHE_COMPLETE_MARKER
-    if not marker.exists():
-        return False
-    config = hf_path / "config.json"
-    if config.exists() and config.stat().st_mtime > marker.stat().st_mtime:
-        return False
-    return True
+    return output_dir / ".mcore_input"
 
 
 @contextlib.contextmanager
@@ -227,9 +194,7 @@ def build_convert_spec(
         dtype = None
     transformer_impl = _find_arg(translated_argv, "--transformer-impl", "local") or "local"
 
-    mcore_input, reuse_cache = _resolve_mcore_input_dir(
-        output_dir, hf_path, tp, pp, ep, dtype, transformer_impl
-    )
+    mcore_input = _resolve_mcore_input_dir(output_dir)
 
     return ConvertSpec(
         hf_path=hf_path,
@@ -241,8 +206,7 @@ def build_convert_spec(
         dtype=dtype,
         transformer_impl=transformer_impl,
         skip_pre=user_passed_load,
-        skip_post=no_export_hf or user_passed_load,
-        reuse_cache=reuse_cache,
+        skip_post=no_export_hf,
     )
 
 
@@ -317,21 +281,11 @@ def _mcore_to_hf_cmd(spec: ConvertSpec) -> list[str]:
 def run_pre_convert(spec: ConvertSpec, dry_run: bool) -> None:
     cmd = _hf_to_mcore_cmd(spec)
 
-    if spec.reuse_cache and _is_cache_valid(spec.mcore_input, spec.hf_path):
-        logger.info(f"[auto-convert] mcore cache hit: {spec.mcore_input}")
-        if dry_run:
-            logger.info("[auto-convert] dry-run: pre-convert would be skipped")
-        return
-
-    if not spec.reuse_cache and _get_node_rank() != 0:
+    if _get_node_rank() != 0:
         if dry_run:
             logger.info("[auto-convert] dry-run: non-zero node would wait for rank-0 pre-convert")
             return
         _wait_for_pre_convert(spec)
-        return
-
-    if spec.reuse_cache and _is_pre_convert_ready(spec):
-        logger.info(f"[auto-convert] mcore input already ready: {spec.mcore_input}")
         return
 
     logger.info(f"[auto-convert] pre-convert HF→mcore → {spec.mcore_input}")
@@ -342,14 +296,6 @@ def run_pre_convert(spec: ConvertSpec, dry_run: bool) -> None:
     lock_path = spec.mcore_input.parent / f".{spec.mcore_input.name}.lock"
     logger.info(f"[auto-convert] waiting for pre-convert lock: {lock_path}")
     with _file_lock(lock_path):
-        if spec.reuse_cache:
-            if _is_cache_valid(spec.mcore_input, spec.hf_path):
-                logger.info(f"[auto-convert] mcore cache hit after lock: {spec.mcore_input}")
-                return
-            if _is_pre_convert_ready(spec):
-                logger.info(f"[auto-convert] mcore input became ready: {spec.mcore_input}")
-                return
-
         if spec.mcore_input.exists():
             shutil.rmtree(spec.mcore_input)
         spec.mcore_input.mkdir(parents=True)
@@ -362,8 +308,6 @@ def run_pre_convert(spec: ConvertSpec, dry_run: bool) -> None:
             )
 
         _write_pre_convert_marker(spec)
-        if spec.reuse_cache:
-            (spec.mcore_input / CACHE_COMPLETE_MARKER).touch()
     logger.info(f"[auto-convert] mcore input ready at: {spec.mcore_input}")
 
 
