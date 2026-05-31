@@ -225,28 +225,33 @@ class GPTModelDPO(GPTModel):
         # Save the original batch size and sequence length
 
         batch_size, seq_length, vocab_size = logits.size()
-        
-        mask_id = self.tokenizer.vocab_size + 1 
-        loss_mask = (labels != mask_id).float() 
-        
-        loss_mask = loss_mask.view(batch_size * seq_length) 
-        
+
+        mask_id = -100
+        loss_mask = labels != mask_id
+        safe_labels = labels.masked_fill(~loss_mask, 0)
+
+        loss_mask = loss_mask.float().view(batch_size * seq_length)
+
         # Flatten logits and labels
         logits = logits.reshape(batch_size * seq_length, vocab_size)
-        labels = labels.reshape(batch_size * seq_length)
-        
-        # Compute per-token log probabilities
-        per_token_logps = -1 * tensor_parallel.vocab_parallel_cross_entropy(logits, labels)
-        
+        safe_labels = safe_labels.reshape(batch_size * seq_length)
+
+        # Compute per-token log probabilities. Ignored labels must be replaced
+        # before cross entropy because vocab_parallel_cross_entropy expects valid
+        # vocabulary ids on every token position.
+        per_token_logps = -1 * tensor_parallel.vocab_parallel_cross_entropy(logits, safe_labels)
+
         per_token_logps = per_token_logps * loss_mask
-        
+
         # Reshape back to [batch_size, seq_length]
         per_token_logps = per_token_logps.view(batch_size, seq_length)
-        
+        loss_mask = loss_mask.view(batch_size, seq_length)
+
         # Compute sequence log probabilities
         seq_logps = per_token_logps.sum(dim=-1)  # Shape: [batch_size]
-        
-        
+        if average_log_prob:
+            seq_logps = seq_logps / loss_mask.sum(dim=-1).clamp(min=1.0)
+
         return seq_logps  # Shape: [batch_size]
 
     def dpo_loss(self, 
