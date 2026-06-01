@@ -236,9 +236,23 @@ def get_batch_on_this_tp_rank_idxmap_sft_conv(data_iterator):
         conv_tokens = data['conv_text'].long()
         conv_label = data['conv_label'].long()
         
-        # Use fixed seq_length to avoid PP send/recv size mismatch across
-        # DP ranks and PP stages (each may compute a different dynamic max).
-        cur_max_seq_length = args.seq_length
+        # Dynamic padding requires variable-shape PP p2p when pipeline parallelism is enabled.
+        divisor = args.tensor_model_parallel_size * getattr(args, 'context_parallel_size', 1)
+        if divisor > 1 and args.seq_length % divisor != 0:
+            raise ValueError(
+                f"args.seq_length ({args.seq_length}) must be divisible by "
+                f"tensor_model_parallel_size * context_parallel_size ({divisor}) "
+                "to keep sequence-parallel shapes consistent."
+            )
+        if 'seq_len' in data and (
+            args.pipeline_model_parallel_size == 1 or getattr(args, 'variable_seq_lengths', False)
+        ):
+            cur_max_seq_length = min(int(data['seq_len'].max()), args.seq_length)
+            # Round up to TP * CP so sequence-parallel reduce-scatter is valid
+            if divisor > 1:
+                cur_max_seq_length = ((cur_max_seq_length + divisor - 1) // divisor) * divisor
+        else:
+            cur_max_seq_length = args.seq_length
 
         cur_max_seq_length = torch.tensor(
             [cur_max_seq_length],
