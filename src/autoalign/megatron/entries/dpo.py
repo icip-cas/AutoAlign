@@ -26,14 +26,16 @@ from megatron.training.utils import (
     get_batch_on_this_cp_rank,
 )
 
-from autoalign.megatron.patch.training_dpo import dpo
+from autoalign.megatron.entries.bootstrap import apply_entry_patches
 from autoalign.megatron.patch.data.gpt_dataset_dpo import build_train_valid_test_datasets_dpo
 from autoalign.megatron.patch.data.online_dataset import build_train_valid_test_datasets_online_dpo
 from autoalign.megatron.patch.data.utils import get_batch_on_this_tp_rank_idxmap_dpo
 from autoalign.megatron.patch.model.qwen2.model_dpo import GPTModelDPO
 from autoalign.megatron.patch.arguments import get_patch_args
 from autoalign.megatron.registry import make_model_provider
+from megatron.training.training import pretrain as dpo
 
+apply_entry_patches()
 torch._dynamo.config.suppress_errors = True
 
 # model_type resolved from --model-path / --model-type at runtime

@@ -1,5 +1,6 @@
 import os
 import random
+import shlex
 import subprocess
 import sys
 import time
@@ -29,15 +30,28 @@ class Command(str, Enum):
     MEGATRON_DPO = "megatron-dpo"
 
 
+def _get_node_rank(nproc_per_node: int) -> int:
+    if "NODE_RANK" in os.environ:
+        return int(os.environ["NODE_RANK"])
+    if "GROUP_RANK" in os.environ:
+        return int(os.environ["GROUP_RANK"])
+    if "RANK" in os.environ:
+        return int(os.environ["RANK"]) // nproc_per_node
+    return 0
+
+
 def run_distributed_task(file, args):
     master_addr = os.environ.get("MASTER_ADDR", "127.0.0.1")
     master_port = os.environ.get("MASTER_PORT", str(random.randint(20001, 29999)))
+    nnodes = int(os.environ.get("NNODES", "1"))
+    nproc_per_node = int(os.environ.get("NPROC_PER_NODE", str(get_device_count())))
+    node_rank = _get_node_rank(nproc_per_node)
     logger.info(f"Initializing distributed tasks at: {master_addr}:{master_port}")
 
     command = (
-        f"torchrun --nnodes {os.environ.get('NNODES', '1')} "
-        f"--node_rank {os.environ.get('RANK', '0')} "
-        f"--nproc_per_node {os.environ.get('NPROC_PER_NODE', str(get_device_count()))} "
+        f"torchrun --nnodes {nnodes} "
+        f"--node_rank {node_rank} "
+        f"--nproc_per_node {nproc_per_node} "
         f"--master_addr {master_addr} --master_port {master_port} "
         f"{file} {' '.join(args)}"
     )
@@ -47,20 +61,69 @@ def run_distributed_task(file, args):
 
 def run_megatron_task(module, args):
     """Run a Megatron training task via ``torchrun -m <module>``."""
+    from .megatron.cli import TranslationError, translate
+    from .megatron.auto_convert import (
+        build_convert_spec,
+        redirect_save_to_mcore,
+        run_post_convert,
+        run_pre_convert,
+    )
+
     master_addr = os.environ.get("MASTER_ADDR", "127.0.0.1")
     master_port = os.environ.get("MASTER_PORT", str(random.randint(20001, 29999)))
-    logger.info(f"Initializing Megatron distributed task at: {master_addr}:{master_port}")
+    nnodes = int(os.environ.get("NNODES", "1"))
+    nproc_per_node = int(os.environ.get("NPROC_PER_NODE", str(get_device_count())))
+    node_rank = _get_node_rank(nproc_per_node)
+    world_size = nnodes * nproc_per_node
 
-    command = (
-        f"torchrun --nnodes {os.environ.get('NNODES', '1')} "
-        f"--node_rank {os.environ.get('RANK', '0')} "
-        f"--nproc_per_node {os.environ.get('NPROC_PER_NODE', str(get_device_count()))} "
-        f"--master_addr {master_addr} --master_port {master_port} "
-        f"-m {module} {' '.join(args)}"
-    )
-    logger.info(f"Running: {command}")
-    process = subprocess.run(command, shell=True)
-    sys.exit(process.returncode)
+    try:
+        translated, dry_run, options = translate(args, world_size=world_size)
+    except TranslationError as exc:
+        logger.error(str(exc))
+        sys.exit(2)
+
+    try:
+        spec = build_convert_spec(translated, options, world_size)
+    except ValueError as exc:
+        logger.error(str(exc))
+        sys.exit(2)
+
+    if spec and not spec.skip_pre:
+        run_pre_convert(spec, dry_run)
+        translated.extend(["--load", str(spec.mcore_input)])
+
+    if spec and not spec.skip_post:
+        translated = redirect_save_to_mcore(translated)
+
+    logger.info(f"Initializing Megatron distributed task at: {master_addr}:{master_port}")
+    command = [
+        "torchrun",
+        "--nnodes", str(nnodes),
+        "--node_rank", str(node_rank),
+        "--nproc_per_node", str(nproc_per_node),
+        "--master_addr", master_addr,
+        "--master_port", master_port,
+        "-m", module,
+        *translated,
+    ]
+    logger.info(f"Running: {shlex.join(command)}")
+
+    if dry_run:
+        if spec and not spec.skip_post:
+            run_post_convert(spec, dry_run=True)
+        return
+
+    process = subprocess.run(command)
+    returncode = process.returncode
+
+    if spec and not spec.skip_post and returncode == 0:
+        try:
+            run_post_convert(spec, dry_run=False)
+        except Exception as exc:
+            logger.error(f"Post-convert failed: {exc}")
+            sys.exit(1)
+
+    sys.exit(returncode)
 
 
 def run_inference(file, args, remaining_args):
