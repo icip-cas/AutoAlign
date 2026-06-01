@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 CONVERT_MODULE = "autoalign.megatron.toolkits.checkpoint.qwen.common"
 PRE_CONVERT_COMPLETE_MARKER = ".pre_convert_complete"
+PRE_CONVERT_FAILED_MARKER = ".pre_convert_failed"
 POST_CONVERT_COMPLETE_MARKER = ".post_convert_complete"
 SUPPORTED_MODEL_TYPES = {"qwen2", "qwen3", "qwen2_moe", "qwen3_moe"}
 
@@ -116,8 +117,27 @@ def _is_pre_convert_ready(spec: ConvertSpec) -> bool:
 
 def _write_pre_convert_marker(spec: ConvertSpec) -> None:
     marker = spec.mcore_input / PRE_CONVERT_COMPLETE_MARKER
+    failed_marker = spec.mcore_input / PRE_CONVERT_FAILED_MARKER
+    if failed_marker.exists():
+        failed_marker.unlink()
     with marker.open("w") as f:
         json.dump(_pre_convert_metadata(spec), f, sort_keys=True)
+
+
+def _write_pre_convert_failure(spec: ConvertSpec, message: str) -> None:
+    marker = spec.mcore_input / PRE_CONVERT_FAILED_MARKER
+    with marker.open("w") as f:
+        f.write(message)
+
+
+def _read_pre_convert_failure(spec: ConvertSpec) -> str | None:
+    marker = spec.mcore_input / PRE_CONVERT_FAILED_MARKER
+    if not marker.exists():
+        return None
+    try:
+        return marker.read_text().strip()
+    except Exception:
+        return "rank-0 pre-convert failed"
 
 
 def _is_post_convert_ready(spec: ConvertSpec) -> bool:
@@ -131,10 +151,13 @@ def _is_post_convert_ready(spec: ConvertSpec) -> bool:
 
 
 def _get_node_rank() -> int:
-    for name in ("NODE_RANK", "RANK"):
-        value = os.environ.get(name)
-        if value is not None:
-            return int(value)
+    if "NODE_RANK" in os.environ:
+        return int(os.environ["NODE_RANK"])
+    if "GROUP_RANK" in os.environ:
+        return int(os.environ["GROUP_RANK"])
+    if "RANK" in os.environ:
+        nproc_per_node = int(os.environ.get("NPROC_PER_NODE", "1"))
+        return int(os.environ["RANK"]) // nproc_per_node
     return 0
 
 
@@ -146,6 +169,9 @@ def _wait_for_pre_convert(spec: ConvertSpec) -> None:
 
     while True:
         with _file_lock(lock_path):
+            failure = _read_pre_convert_failure(spec)
+            if failure:
+                raise RuntimeError(f"Rank-0 pre-convert failed: {failure}")
             if _is_pre_convert_ready(spec):
                 logger.info(f"[auto-convert] mcore input ready at: {spec.mcore_input}")
                 return
@@ -177,11 +203,17 @@ def build_convert_spec(
     model_type = _detect_model_type(hf_path)
     if model_type is None:
         raise ValueError(f"Could not detect model_type from {hf_path}/config.json")
-    if not user_passed_load and model_type not in SUPPORTED_MODEL_TYPES:
-        raise ValueError(
-            f"Auto-convert not supported for model_type={model_type!r}. "
-            "Pass --load <mcore_path> explicitly (and optionally --no-export-hf)."
-        )
+    if model_type not in SUPPORTED_MODEL_TYPES:
+        if not user_passed_load:
+            raise ValueError(
+                f"Auto-convert not supported for model_type={model_type!r}. "
+                "Pass --load <mcore_path> explicitly (and optionally --no-export-hf)."
+            )
+        if not no_export_hf:
+            raise ValueError(
+                f"Auto HF export not supported for model_type={model_type!r}. "
+                "Pass --no-export-hf to keep the trained mcore checkpoint only."
+            )
 
     tp = int(_find_arg(translated_argv, "--tensor-model-parallel-size", "1"))
     pp = int(_find_arg(translated_argv, "--pipeline-model-parallel-size", "1"))
@@ -302,10 +334,12 @@ def run_pre_convert(spec: ConvertSpec, dry_run: bool) -> None:
 
         result = subprocess.run(cmd)
         if result.returncode != 0:
-            raise RuntimeError(
+            message = (
                 f"HF→mcore conversion failed (exit {result.returncode}); "
                 f"partial output at {spec.mcore_input}"
             )
+            _write_pre_convert_failure(spec, message)
+            raise RuntimeError(message)
 
         _write_pre_convert_marker(spec)
     logger.info(f"[auto-convert] mcore input ready at: {spec.mcore_input}")

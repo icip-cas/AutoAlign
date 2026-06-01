@@ -145,8 +145,9 @@ def _get_str_arg_value(argv: Sequence[str], names: Sequence[str], default: str |
 
 
 def _ensure_no_alias_conflict(argv: Sequence[str]) -> None:
+    normalized_flags = {_snake_to_kebab(arg) for arg in argv if arg.startswith("--")}
     for alias, target in PARALLEL_ALIAS_TABLE.items():
-        if alias in argv and target in argv:
+        if alias in normalized_flags and target in normalized_flags:
             raise TranslationError(
                 f"Conflicting flags: pass either {alias} or {target}, not both."
             )

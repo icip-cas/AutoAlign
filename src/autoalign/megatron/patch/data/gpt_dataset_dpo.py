@@ -31,8 +31,8 @@ class GPTDatasetDPO(torch.utils.data.Dataset):
             
         
         self.cur_tokenizer = get_tokenizer()
-        self.mask_id = self.cur_tokenizer.vocab_size + 1
-    
+        self.mask_id = -100
+
         if hasattr(self.cur_tokenizer, 'pad_token_id'):
             self.pad = self.cur_tokenizer.pad_token_id
         else:

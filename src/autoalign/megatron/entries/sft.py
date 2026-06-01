@@ -13,6 +13,7 @@ Model type is resolved from ``--model-type`` (explicit) or ``--model-path``
 
 import autoalign.megatron  # noqa: F401  # bootstrap MEGATRON_LM_PATH before megatron imports
 
+import os
 from functools import partial
 
 import torch
