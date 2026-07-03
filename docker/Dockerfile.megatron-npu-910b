@@ -10,7 +10,7 @@ ARG MINDSPEED_BRANCH=master
 ARG PAI_MEGATRON_PATCH_REPO=https://github.com/alibaba/Pai-Megatron-Patch.git
 ARG PAI_MEGATRON_PATCH_COMMIT=9b88cc46653e2c4f7f99529f86f8737ac1da9e9a
 ARG AUTOALIGN_REPO=https://github.com/icip-cas/AutoAlign.git
-ARG AUTOALIGN_BRANCH=megatron-refactor
+ARG AUTOALIGN_BRANCH=main
 
 # ==============================
 # Install OS dependencies
