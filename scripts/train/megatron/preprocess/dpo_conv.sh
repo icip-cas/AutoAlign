@@ -10,7 +10,7 @@ HF_MODEL_PATH=${HF_MODEL_PATH:-"Qwen/Qwen2.5-3B-Instruct"}
 EXTRA_VOCAB_SIZE=${EXTRA_VOCAB_SIZE:-293}
 TEMPLATE=${TEMPLATE:-"chatml-idsys"}
 
-python -m autoalign_megatron.toolkits.dpo.preprocess \
+python -m autoalign.megatron.toolkits.dpo.preprocess \
   --dpo \
   --mask \
   --input ${INPUT_JSON} \

@@ -74,7 +74,6 @@ dev = [
   "build",
   "twine"
 ]
-autoalign_megatron = []
 npu_train = []
 
 [tool.pip]

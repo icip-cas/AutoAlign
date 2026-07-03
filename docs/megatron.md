@@ -1,19 +1,75 @@
-# Megatron Training Pipeline 🚀
+# Megatron Training Pipeline
 
 This repository is based on [alibaba/Pai-Megatron-Patch](https://github.com/alibaba/Pai-Megatron-Patch.git) for secondary development, thanks to the original author's work. This project is used to support Alignment such as SFT and DPO etc. Currently, the operation flow of SFT and DPO is as follows.
 
-## Environment Setup 🛠️
+## Environment Setup
 
 ### Prerequisites
-- Miniconda/Anaconda
-- Git
-- NVIDIA GPU with CUDA support
+- Python >= 3.10
+- NVIDIA GPU with CUDA support (CUDA 12.x recommended)
+- conda environment
 
-### Environment Configuration 🔧
-```bash
-bash scripts/train/megatron/env_install.sh
+### Install Dependencies
+
+Install the Megatron training dependencies in order:
+
+```shell
+# 1. pybind11 (build dependency)
+pip install pybind11
+
+# 2. Transformer Engine
+# If an installation error occurs, try adding --no-build-isolation
+pip install --no-build-isolation transformer_engine[pytorch]
+
+# 3. NVIDIA Apex (optional, for gradient_accumulation_fusion)
+# Megatron can run without apex by setting --gradient-accumulation-fusion false
+git clone https://github.com/NVIDIA/apex
+cd apex
+git checkout ac8214ee6ba77c0037c693828e39d83654d25720
+pip install -v --disable-pip-version-check --no-cache-dir --no-build-isolation \
+    --config-settings "--build-option=--cpp_ext" \
+    --config-settings "--build-option=--cuda_ext" ./
+cd ..
+
+# 4. Megatron-LM
+git clone https://github.com/jerryli1981/PAI-Megatron-LM-240718.git Megatron-LM
+cd Megatron-LM && git checkout 7765c381d5af76f97834934a67b1e43afece02ad && cd ..
+export PYTHONPATH=$PYTHONPATH:$(pwd)/Megatron-LM
+export MEGATRON_LM_PATH=$(pwd)/Megatron-LM
+
+# 5. Pai-Megatron-Patch (no setup.py, use PYTHONPATH)
+git clone https://github.com/alibaba/Pai-Megatron-Patch.git
+cd Pai-Megatron-Patch && git checkout 9b88cc46653e2c4f7f99529f86f8737ac1da9e9a && cd ..
+export PYTHONPATH=$PYTHONPATH:$(pwd)/Pai-Megatron-Patch
+
+# 6. Flash Attention
+pip install flash-attn==2.4.2 --no-build-isolation
+
+# 7. AutoAlign itself
+pip install -e .
 ```
-> You can also refer to the docker images(`dsw-registry.cn-wulanchabu.cr.aliyuncs.com/pai/pai-megatron-patch:24.07`)  provided in the Pai-Megatron-Patch repository.
+
+> **NPU Support**: To use Ascend NPU, replace step 4 with the NPU-compatible
+> Megatron-LM (e.g. MindSpeed) and point `MEGATRON_LM_PATH` to it:
+> ```shell
+> git clone <npu-megatron-repo> Megatron-LM-NPU
+> export PYTHONPATH=$PYTHONPATH:$(pwd)/Megatron-LM-NPU
+> export MEGATRON_LM_PATH=$(pwd)/Megatron-LM-NPU
+> ```
+> AutoAlign will automatically pick up the Megatron implementation from
+> `MEGATRON_LM_PATH` at import time.
+
+Recommended versions:
+
+|                    | Range         | Recommended |
+|--------------------|---------------|-------------|
+| python             | >=3.10        | 3.10        |
+| cuda               |               | 12.1        |
+| torch              | >=2.5.1       | 2.5.1       |
+| transformer_engine |               | 7a7225c4    |
+| apex               |               | ac8214ee    |
+| megatron (PAI-LM)  |               | 7765c381    |
+| flash_attn         |               | 2.4.2       |
 ## SFT/DPO Training Pipeline 🔄
 
 ### 1. Model Weight Conversion (HF → Megatron) 🔄
